@@ -8,6 +8,7 @@
   <title>Midnight Arcade — Casino Social 3D Multijugador</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
   <script src="https://www.youtube.com/iframe_api"></script>
   <style>
     :root {
@@ -3316,7 +3317,106 @@
       let camPitch = Math.PI / 6;
       let targetCamYaw = Math.PI / 4;
       let targetCamPitch = Math.PI / 6;
-      let targetCamDist = 17;
+      /* ============================================================
+         REAL-TIME MULTIPLAYER ENGINE (SOCKET.IO)
+      ============================================================ */
+      const remoteAvatars = {};
+
+      function createRemoteAvatarMesh(pData) {
+        const group = new THREE.Group();
+
+        // Cylinder Body
+        const bodyMat = new THREE.MeshStandardMaterial({ color: pData.color || 0x38bdf8, roughness: 0.3 });
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 1.4, 16), bodyMat);
+        body.position.y = 0.7;
+        body.castShadow = true;
+        group.add(body);
+
+        // Sphere Head
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.5 });
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), headMat);
+        head.position.y = 1.65;
+        head.castShadow = true;
+        group.add(head);
+
+        // Name tag Canvas Sprite
+        const tagCanvas = document.createElement('canvas');
+        tagCanvas.width = 256; tagCanvas.height = 64;
+        const tagCtx = tagCanvas.getContext('2d');
+        tagCtx.fillStyle = 'rgba(14, 8, 28, 0.85)';
+        if (tagCtx.roundRect) { tagCtx.beginPath(); tagCtx.roundRect(10, 10, 236, 44, 12); tagCtx.fill(); }
+        else { tagCtx.fillRect(10, 10, 236, 44); }
+        tagCtx.strokeStyle = 'rgba(139, 92, 246, 0.8)'; tagCtx.lineWidth = 2; tagCtx.stroke();
+        tagCtx.font = '900 20px Segoe UI'; tagCtx.fillStyle = '#38bdf8'; tagCtx.textAlign = 'center';
+        tagCtx.fillText(pData.name || 'Jugador', 128, 38);
+        const tagTex = new THREE.CanvasTexture(tagCanvas);
+        const tagSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tagTex, depthTest: false }));
+        tagSpr.position.set(0, 2.3, 0);
+        tagSpr.scale.set(2.4, 0.6, 1);
+        group.add(tagSpr);
+
+        group.position.set(pData.x || 0, 0, pData.z || 12);
+        group.rotation.y = pData.rotY || Math.PI;
+        scene.add(group);
+        return group;
+      }
+
+      let socket = null;
+      if (typeof io !== 'undefined') {
+        socket = io();
+
+        socket.on('init', (data) => {
+          Object.values(data.players).forEach(p => {
+            if (p.id !== data.id && !remoteAvatars[p.id]) {
+              remoteAvatars[p.id] = createRemoteAvatarMesh(p);
+            }
+          });
+        });
+
+        socket.on('playerJoined', (p) => {
+          if (!remoteAvatars[p.id]) {
+            remoteAvatars[p.id] = createRemoteAvatarMesh(p);
+            showToast(`👋 ${p.name} se unió al casino`);
+          }
+        });
+
+        socket.on('playerMoved', (p) => {
+          if (!remoteAvatars[p.id]) {
+            remoteAvatars[p.id] = createRemoteAvatarMesh(p);
+          }
+          if (remoteAvatars[p.id]) {
+            remoteAvatars[p.id].position.set(p.x, 0, p.z);
+            remoteAvatars[p.id].rotation.y = p.rotY;
+          }
+        });
+
+        socket.on('playerLeft', (id) => {
+          if (remoteAvatars[id]) {
+            scene.remove(remoteAvatars[id]);
+            delete remoteAvatars[id];
+          }
+        });
+
+        socket.on('chatMessage', (data) => {
+          showToast(`💬 ${data.name}: ${data.message}`);
+        });
+      }
+
+      let lastEmitPos = { x: 0, z: 0, r: 0 };
+      function broadcastPlayerTransform() {
+        if (!socket) return;
+        const dx = Math.abs(state.player.x - lastEmitPos.x);
+        const dz = Math.abs(state.player.z - lastEmitPos.z);
+        const dr = Math.abs(state.player.rotY - lastEmitPos.r);
+        if (dx > 0.05 || dz > 0.05 || dr > 0.05) {
+          lastEmitPos = { x: state.player.x, z: state.player.z, r: state.player.rotY };
+          socket.emit('updateTransform', {
+            x: state.player.x,
+            z: state.player.z,
+            rotY: state.player.rotY
+          });
+        }
+      }
 
       window.addEventListener('mousedown', e => {
         if (e.button === 0 || e.button === 2) {
@@ -3427,6 +3527,7 @@
 
         playerAvatar.position.set(state.player.x, 0, state.player.z);
         playerAvatar.rotation.y = state.player.rotY;
+        broadcastPlayerTransform();
 
         /* camera follow & mouse orbit */
         camYaw += (targetCamYaw - camYaw) * Math.min(1, dt * 10);
@@ -4388,6 +4489,25 @@
         triggerConfetti();
         showToast('¡Depósito de prueba: +$1,000! 💰');
       });
+
+      function sendChatMessage() {
+        const input = document.getElementById('chatInput');
+        if (!input) return;
+        const txt = input.value.trim();
+        if (txt) {
+          if (typeof socket !== 'undefined' && socket) socket.emit('chatMessage', txt);
+          else showToast(`💬 Axel: ${txt}`);
+          input.value = '';
+        }
+      }
+      const sendBtnEl = document.getElementById('sendChatBtn');
+      if (sendBtnEl) sendBtnEl.addEventListener('click', sendChatMessage);
+      const chatInpEl = document.getElementById('chatInput');
+      if (chatInpEl) {
+        chatInpEl.addEventListener('keydown', e => {
+          if (e.key === 'Enter') sendChatMessage();
+        });
+      }
 
       /* ============================================================
          UNIFIED OFFICIAL YOUTUBE 3D TV & SPATIAL ENGINE
