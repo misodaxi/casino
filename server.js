@@ -42,6 +42,102 @@ const tvState = {
   updatedAt: Date.now()
 };
 
+// European Roulette Wheel Sequence Order
+const WHEEL_ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+
+// Server-side Authoritative Roulette State Manager
+const roulettes = {}; // rouletteId -> state object
+
+function getOrCreateRouletteState(rouletteId) {
+  if (!roulettes[rouletteId]) {
+    roulettes[rouletteId] = {
+      rouletteId: rouletteId,
+      players: {}, // socketId -> { id, name, seatIndex }
+      readyPlayers: {}, // socketId -> true
+      bets: {}, // betKey -> totalAmount
+      userBets: {}, // socketId -> { betKey -> amount }
+      status: 'WAITING', // 'WAITING' | 'READY' | 'SPINNING' | 'RESULT'
+      result: null,
+      spinId: 0
+    };
+  }
+  return roulettes[rouletteId];
+}
+
+function broadcastRouletteState(rouletteId) {
+  const r = getOrCreateRouletteState(rouletteId);
+  const totalPlayers = Object.keys(r.players).length;
+  const totalReady = Object.keys(r.readyPlayers).length;
+
+  const payload = {
+    rouletteId: r.rouletteId,
+    status: r.status,
+    players: r.players,
+    readyPlayers: r.readyPlayers,
+    bets: r.bets,
+    userBets: r.userBets,
+    result: r.result,
+    spinId: r.spinId,
+    totalPlayers,
+    totalReady
+  };
+
+  io.to(`roulette:${rouletteId}`).emit('rouletteState', payload);
+  return payload;
+}
+
+function checkAndTriggerSpin(rouletteId) {
+  const r = getOrCreateRouletteState(rouletteId);
+  const playerIds = Object.keys(r.players);
+  const totalPlayers = playerIds.length;
+  const totalReady = Object.keys(r.readyPlayers).length;
+
+  // Only trigger spin if there is at least 1 seated player, all seated players are ready, and state is WAITING or READY!
+  if (totalPlayers > 0 && totalReady === totalPlayers && (r.status === 'WAITING' || r.status === 'READY')) {
+    r.status = 'SPINNING';
+    r.spinId++;
+    const winNum = WHEEL_ORDER[Math.floor(Math.random() * WHEEL_ORDER.length)];
+    r.result = winNum;
+
+    io.to(`roulette:${rouletteId}`).emit('rouletteReadyToSpin', { rouletteId, totalPlayers });
+
+    io.to(`roulette:${rouletteId}`).emit('rouletteSpin', {
+      rouletteId,
+      result: winNum,
+      spinId: r.spinId
+    });
+
+    broadcastRouletteState(rouletteId);
+
+    // After animation (~3.5s) + result presentation (~3.5s), finish round
+    setTimeout(() => {
+      if (roulettes[rouletteId]) {
+        const roomState = roulettes[rouletteId];
+        roomState.status = 'RESULT';
+        io.to(`roulette:${rouletteId}`).emit('rouletteResult', {
+          rouletteId,
+          result: roomState.result,
+          spinId: roomState.spinId
+        });
+        broadcastRouletteState(rouletteId);
+
+        // Reset to WAITING for next round after 3.5 seconds
+        setTimeout(() => {
+          if (roulettes[rouletteId]) {
+            const nextRound = roulettes[rouletteId];
+            nextRound.status = 'WAITING';
+            nextRound.readyPlayers = {};
+            nextRound.bets = {};
+            nextRound.userBets = {};
+            nextRound.result = null;
+            broadcastRouletteState(rouletteId);
+          }
+        }, 3500);
+      }
+    }, 4000);
+  }
+}
+
 function getSyncedTvState() {
   const now = Date.now();
   let current = tvState.currentTime;
@@ -130,7 +226,88 @@ io.on('connection', (socket) => {
         players[socket.id].name = cleanName;
         ipNames[clientIp] = cleanName; // Save & associate name to client IP address permanently!
       }
+      if (data.seat !== undefined) {
+        players[socket.id].seat = data.seat;
+      }
       socket.broadcast.emit('playerMoved', players[socket.id]);
+    }
+  });
+
+  /* ============================================================
+     AUTHORITATIVE MULTIPLAYER ROULETTE ENGINE
+  ============================================================ */
+  socket.on('rouletteJoin', (data) => {
+    const rId = (data && data.rouletteId) ? data.rouletteId : 'roulette';
+    socket.join(`roulette:${rId}`);
+    socket.currentRouletteId = rId;
+
+    const r = getOrCreateRouletteState(rId);
+    r.players[socket.id] = {
+      id: socket.id,
+      name: players[socket.id]?.name || 'Jugador',
+      seatIndex: data.seatIndex || 0
+    };
+
+    broadcastRouletteState(rId);
+  });
+
+  socket.on('rouletteLeave', (data) => {
+    const rId = (data && data.rouletteId) ? data.rouletteId : socket.currentRouletteId;
+    if (rId && roulettes[rId]) {
+      socket.leave(`roulette:${rId}`);
+      const r = roulettes[rId];
+      delete r.players[socket.id];
+      delete r.readyPlayers[socket.id];
+      if (r.userBets) delete r.userBets[socket.id];
+      delete socket.currentRouletteId;
+
+      if (Object.keys(r.players).length === 0) {
+        r.status = 'WAITING';
+        r.readyPlayers = {};
+        r.bets = {};
+        r.userBets = {};
+        r.result = null;
+      } else {
+        checkAndTriggerSpin(rId);
+      }
+
+      broadcastRouletteState(rId);
+    }
+  });
+
+  socket.on('rouletteReady', (data) => {
+    const rId = (data && data.rouletteId) ? data.rouletteId : socket.currentRouletteId;
+    if (rId && roulettes[rId]) {
+      const r = roulettes[rId];
+      if (r.players[socket.id] && (r.status === 'WAITING' || r.status === 'READY')) {
+        r.readyPlayers[socket.id] = true;
+        broadcastRouletteState(rId);
+        checkAndTriggerSpin(rId);
+      }
+    }
+  });
+
+  socket.on('rouletteUnready', (data) => {
+    const rId = (data && data.rouletteId) ? data.rouletteId : socket.currentRouletteId;
+    if (rId && roulettes[rId]) {
+      const r = roulettes[rId];
+      if (r.status === 'WAITING' || r.status === 'READY') {
+        delete r.readyPlayers[socket.id];
+        broadcastRouletteState(rId);
+      }
+    }
+  });
+
+  socket.on('rouletteBet', (data) => {
+    const rId = (data && data.rouletteId) ? data.rouletteId : socket.currentRouletteId;
+    if (rId && roulettes[rId] && data.betKey && typeof data.amount === 'number') {
+      const r = roulettes[rId];
+      if (r.status === 'WAITING' && r.players[socket.id]) {
+        r.bets[data.betKey] = (r.bets[data.betKey] || 0) + data.amount;
+        if (!r.userBets[socket.id]) r.userBets[socket.id] = {};
+        r.userBets[socket.id][data.betKey] = (r.userBets[socket.id][data.betKey] || 0) + data.amount;
+        broadcastRouletteState(rId);
+      }
     }
   });
 
@@ -148,6 +325,26 @@ io.on('connection', (socket) => {
     console.log(`🔴 Jugador desconectado: ${socket.id}`);
     delete players[socket.id];
     io.emit('playerLeft', socket.id);
+
+    if (socket.currentRouletteId && roulettes[socket.currentRouletteId]) {
+      const rId = socket.currentRouletteId;
+      const r = roulettes[rId];
+      delete r.players[socket.id];
+      delete r.readyPlayers[socket.id];
+      if (r.userBets) delete r.userBets[socket.id];
+
+      if (Object.keys(r.players).length === 0) {
+        r.status = 'WAITING';
+        r.readyPlayers = {};
+        r.bets = {};
+        r.userBets = {};
+        r.result = null;
+      } else {
+        checkAndTriggerSpin(rId);
+      }
+
+      broadcastRouletteState(rId);
+    }
   });
 });
 

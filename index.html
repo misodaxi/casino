@@ -1809,12 +1809,11 @@
       <div class="rgame-controls"
         style="display:flex; align-items:center; gap:14px; background:var(--panel); border:1px solid var(--panel-border); border-radius:16px; padding:10px 20px; box-shadow:0 8px 32px rgba(0,0,0,0.6);">
         <div class="action-col" style="display:flex; gap:8px;">
-          <button class="mini-btn" id="repeatBtn">🔁 Repetir</button>
-          <button class="mini-btn" id="undoBtn">↩ Deshacer</button>
           <button class="mini-btn" id="clearBtn">🗑 Limpiar</button>
         </div>
         <div class="total-bet-pill">APUESTA TOTAL<span class="v" id="totalBetDisplay">$0</span></div>
-        <button class="action-btn" id="spinBtn">GIRAR 🎰</button>
+        <div id="rouletteStatusBadge" style="font-size:13px; font-weight:800; color:var(--amber); padding:6px 12px; background:rgba(0,0,0,0.4); border-radius:8px; border:1px solid rgba(255,255,255,0.1);">⏳ 0/0 Listos</div>
+        <button class="action-btn" id="rouletteReadyBtn" style="background:linear-gradient(135deg, #10b981, #059669); font-weight:900;">LISTO 👍</button>
       </div>
     </div>
   </div>
@@ -2367,7 +2366,13 @@
       const rState = { selectedChip: 50, bets: {}, totalBet: 0, spinning: false };
 
       const ZONES = [
-        { id: 'roulette', name: 'ROULETTE 3D', icon: '🎰', x: -14, z: -4, radius: 7.2, color: 0x8B5CF6, seats: [{ x: -14, z: -2.3, r: Math.PI }, { x: -15.6, z: -2.3, r: Math.PI }, { x: -12.4, z: -2.3, r: Math.PI }] },
+        { id: 'roulette', name: 'ROULETTE 3D', icon: '🎰', x: -14, z: -4, radius: 7.2, color: 0x8B5CF6, seats: [
+          { x: -18.4, z: -0.8, r: Math.PI - 0.5 },
+          { x: -16.2, z: 0.3, r: Math.PI - 0.25 },
+          { x: -14.0, z: 0.8, r: Math.PI },
+          { x: -11.8, z: 0.3, r: Math.PI + 0.25 },
+          { x: -9.6, z: -0.8, r: Math.PI + 0.5 }
+        ] },
         { id: 'cinema', name: 'CINE & MUSIC 3D', icon: '📺', x: 0, z: -26, radius: 5.2, color: 0x8B5CF6, seats: [] },
         { id: 'wheel', name: 'FORTUNE WHEEL', icon: '🎡', x: 0, z: -15, radius: 3.4, color: 0xFB923C, seats: [{ x: -1.2, z: -13.6, r: Math.PI }, { x: 1.2, z: -13.6, r: Math.PI }] },
         { id: 'dice', name: 'DICE DUEL', icon: '🎲', x: 14, z: -4, radius: 3.4, color: 0xE11FD1, seats: [{ x: 14.0, z: -2.2, r: Math.PI }, { x: 12.6, z: -2.6, r: Math.PI - 0.25 }, { x: 15.4, z: -2.6, r: Math.PI + 0.25 }] },
@@ -2608,6 +2613,41 @@
         plat.position.y = platY; plat.receiveShadow = true;
         g.add(plat);
 
+        // Exclusive Luxury Enhancements for Roulette 3D Platform
+        if (z.id === 'roulette') {
+          // Tiered Base Step & Concentric Gold Inlaid Floor Rings
+          const stepPlat = new THREE.Mesh(new THREE.CylinderGeometry(z.radius + 0.6, z.radius + 0.8, 0.15, 48),
+            new THREE.MeshStandardMaterial({ color: 0x0c0717, metalness: 0.8, roughness: 0.2 }));
+          stepPlat.position.y = 0.075;
+          g.add(stepPlat);
+
+          const floorRing1 = new THREE.Mesh(new THREE.RingGeometry(z.radius * 0.75, z.radius * 0.78, 48),
+            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.1, side: THREE.DoubleSide }));
+          floorRing1.rotation.x = -Math.PI / 2; floorRing1.position.y = 0.36;
+          const floorRing2 = new THREE.Mesh(new THREE.RingGeometry(z.radius * 0.45, z.radius * 0.47, 48),
+            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.1, side: THREE.DoubleSide }));
+          floorRing2.rotation.x = -Math.PI / 2; floorRing2.position.y = 0.36;
+          g.add(floorRing1, floorRing2);
+
+          // 4 Brass Stanchion Pillars with VIP Velvet Ropes
+          const stanchionMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.1 });
+          const ropeMat = new THREE.MeshStandardMaterial({ color: 0x8B5CF6, roughness: 0.8, emissive: 0x8B5CF6, emissiveIntensity: 0.3 });
+
+          for (let sIdx = 0; sIdx < 4; sIdx++) {
+            const sAngle = (sIdx / 4) * Math.PI * 2 + Math.PI / 4;
+            const sx = Math.cos(sAngle) * (z.radius + 0.4);
+            const sz = Math.sin(sAngle) * (z.radius + 0.4);
+
+            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.1, 16), stanchionMat);
+            post.position.set(sx, 0.55, sz);
+            const ballTop = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 16), stanchionMat);
+            ballTop.position.set(sx, 1.15, sz);
+            const baseCap = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.08, 16), stanchionMat);
+            baseCap.position.set(sx, 0.04, sz);
+            g.add(post, ballTop, baseCap);
+          }
+        }
+
         const ring = new THREE.Mesh(new THREE.TorusGeometry(z.radius + 0.05, 0.05, 8, 48),
           new THREE.MeshBasicMaterial({ color: z.color }));
         ring.rotation.x = Math.PI / 2; ring.position.y = 0.35;
@@ -2628,7 +2668,19 @@
         if (z.id === 'roulette') {
           const rGroup = new THREE.Group();
 
-          // 1. MAIN LUXURY 3D CASINO TABLE SURFACE (Matching image 100%!)
+          // 1. SCULPTED MAHOGANY SUPPORT LEGS UNDER TABLE
+          const legMat = new THREE.MeshStandardMaterial({ color: 0x1c0d06, roughness: 0.3, metalness: 0.2 });
+          const brassFootMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.15 });
+
+          [[-1.8, -3.2], [1.8, -3.2], [-1.8, 2.4], [1.8, 2.4]].forEach(([lx, lz]) => {
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 0.45, 16), legMat);
+            leg.position.set(lx, 0.225, lz);
+            const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 0.08, 16), brassFootMat);
+            foot.position.set(lx, 0.04, lz);
+            rGroup.add(leg, foot);
+          });
+
+          // MAIN LUXURY 3D CASINO TABLE SURFACE
           const tableBaseGeo = new THREE.BoxGeometry(4.8, 0.30, 8.4);
           const tableBaseMat = new THREE.MeshStandardMaterial({ color: 0x0c0717, roughness: 0.5, metalness: 0.1 });
           const tableBase = new THREE.Mesh(tableBaseGeo, tableBaseMat);
@@ -2636,14 +2688,22 @@
           tableBase.receiveShadow = true;
           rGroup.add(tableBase);
 
-          // Leather Padded Rim around Table with Metallic Trim
-          const tableRimGeo = new THREE.BoxGeometry(5.0, 0.16, 8.6);
+          // Leather Padded Rim around Table with Metallic Accent Trim
+          const tableRimGeo = new THREE.BoxGeometry(5.08, 0.18, 8.68);
           const tableRimMat = new THREE.MeshStandardMaterial({ color: 0x1b0d2b, roughness: 0.3, metalness: 0.3 });
           const tableRim = new THREE.Mesh(tableRimGeo, tableRimMat);
           tableRim.position.set(0, 0.61, -0.4);
           rGroup.add(tableRim);
 
-          // Glowing LED Perimeter Neon Tube (Gold/Violet - As in image!)
+          // Gold Accent Molding Line on Rim Edge
+          const trimGoldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.15 });
+          const rimTrimTop = new THREE.Mesh(new THREE.BoxGeometry(5.12, 0.03, 0.04), trimGoldMat);
+          rimTrimTop.position.set(0, 0.70, -4.72);
+          const rimTrimBot = new THREE.Mesh(new THREE.BoxGeometry(5.12, 0.03, 0.04), trimGoldMat);
+          rimTrimBot.position.set(0, 0.70, 3.92);
+          rGroup.add(rimTrimTop, rimTrimBot);
+
+          // Glowing LED Perimeter Neon Tube (Gold/Violet)
           const neonGeo = new THREE.TorusGeometry(2.65, 0.04, 12, 48);
           const neonMat = new THREE.MeshStandardMaterial({ color: 0xE11FD1, emissive: 0xE11FD1, emissiveIntensity: 1.6 });
           const neonRing = new THREE.Mesh(neonGeo, neonMat);
@@ -2651,38 +2711,66 @@
           neonRing.position.set(0, 0.66, -0.4);
           rGroup.add(neonRing);
 
-          // 2. ELEVATED 3D ROULETTE WHEEL BOWL AT TOP OF TABLE (z = -3.2 - Far behind Betting Grid!)
+          // 1.5. DEALER CASH DROP BOX SLOT & DEALER CHIP TRAY
+          const dealerTrayMat = new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.8, roughness: 0.2 });
+          const cashSlot = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.03, 0.16), brassFootMat);
+          cashSlot.position.set(-1.8, 0.725, -2.8);
+
+          const dealerTray = new THREE.Mesh(new THREE.BoxGeometry(0.70, 0.06, 0.40), dealerTrayMat);
+          dealerTray.position.set(0, 0.725, -2.8);
+          rGroup.add(cashSlot, dealerTray);
+
+          // Golden Dealer Win Dolly Marker
+          const dollyMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.1 });
+          const dollyBase = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.08, 16), dollyMat);
+          dollyBase.position.set(1.8, 0.76, -2.8);
+          const dollyKnob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 16), dollyMat);
+          dollyKnob.position.set(1.8, 0.82, -2.8);
+          rGroup.add(dollyBase, dollyKnob);
+
+          // 2. ELEVATED 3D ROULETTE WHEEL BOWL AT TOP OF TABLE
           const wheelGroup = new THREE.Group();
           wheelGroup.position.set(0, 0.60, -3.2);
 
           // Wheel Neon Ring Surround
-          const wheelNeon = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.04, 12, 48),
+          const wheelNeon = new THREE.Mesh(new THREE.TorusGeometry(1.92, 0.04, 12, 48),
             new THREE.MeshStandardMaterial({ color: 0x8B5CF6, emissive: 0x8B5CF6, emissiveIntensity: 1.8 }));
           wheelNeon.rotation.x = Math.PI / 2;
           wheelNeon.position.y = 0.45;
           wheelGroup.add(wheelNeon);
 
-          // Volumetric Mahogany Bowl (Lathe Geometry)
+          // Volumetric Mahogany Bowl (Lathe Geometry with Polished Metallic Rim Inserts)
           const bowlPoints = [
             new THREE.Vector2(0, 0.20),
-            new THREE.Vector2(1.82, 0.20),
-            new THREE.Vector2(1.78, 0.64),
+            new THREE.Vector2(1.84, 0.20),
+            new THREE.Vector2(1.80, 0.64),
             new THREE.Vector2(1.68, 0.64),
             new THREE.Vector2(1.28, 0.36),
             new THREE.Vector2(0, 0.36),
           ];
           const bowlGeo = new THREE.LatheGeometry(bowlPoints, 48);
-          const bowlMat = new THREE.MeshStandardMaterial({ color: 0x1c0d06, roughness: 0.3, metalness: 0.2, side: THREE.DoubleSide });
+          const bowlMat = new THREE.MeshStandardMaterial({ color: 0x1c0d06, roughness: 0.25, metalness: 0.2, side: THREE.DoubleSide });
           const bowl = new THREE.Mesh(bowlGeo, bowlMat);
           bowl.receiveShadow = true; bowl.castShadow = true;
           wheelGroup.add(bowl);
 
-          // Golden Rim
-          const rimGeo = new THREE.TorusGeometry(1.48, 0.05, 12, 48);
-          const rimMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85, roughness: 0.2, side: THREE.DoubleSide });
+          // Polished Brass Outer Rim
+          const rimGeo = new THREE.TorusGeometry(1.50, 0.05, 12, 48);
+          const rimMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.92, roughness: 0.15, side: THREE.DoubleSide });
           const rim = new THREE.Mesh(rimGeo, rimMat);
           rim.rotation.x = Math.PI / 2; rim.position.y = 0.64;
           wheelGroup.add(rim);
+
+          // 12 Physical Brass Diamond Deflectors (Fret Pins around sloped track)
+          const deflectorMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.1 });
+          for (let d = 0; d < 12; d++) {
+            const angle = (d / 12) * Math.PI * 2;
+            const deflector = new THREE.Mesh(new THREE.OctahedronGeometry(0.045, 0), deflectorMat);
+            deflector.scale.set(0.6, 1.4, 0.6);
+            deflector.position.set(Math.cos(angle) * 1.38, 0.54, Math.sin(angle) * 1.38);
+            deflector.rotation.y = angle;
+            wheelGroup.add(deflector);
+          }
 
           // Sunken Rotor Group
           const rotorGroup = new THREE.Group();
@@ -2698,7 +2786,7 @@
             const c = document.createElement('canvas'); c.width = 64; c.height = 64;
             const ctx = c.getContext('2d');
             ctx.clearRect(0, 0, 64, 64);
-            ctx.font = 'bold 36px Segoe UI, Arial';
+            ctx.font = '900 36px Segoe UI, Arial';
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.strokeStyle = '#000'; ctx.lineWidth = 5;
             ctx.strokeText(num, 32, 32);
@@ -2707,16 +2795,18 @@
             return new THREE.CanvasTexture(c);
           }
 
-          // 37 Pocket segments on rotor with 3D Numbers (Unified pocketGroup facing green 0 on felt!)
+          // 37 Pocket segments on rotor with 3D Numbers & 3D Metallic Separator Frets
           const segAngle = (Math.PI * 2) / 37;
           const startOffset = -0.4263;
+          const fretMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.1 });
+
           for (let i = 0; i < 37; i++) {
             const num = WHEEL_ORDER[i];
             const col = numColor(num);
             const hexCol = col === 'green' ? 0x15803d : col === 'red' ? 0xb91c1c : 0x18181b;
 
             const pocketGroup = new THREE.Group();
-            pocketGroup.rotation.y = startOffset + i * segAngle;
+            pocketGroup.rotation.y = startOffset - i * segAngle;
 
             // 1. Segment Box
             const segGeo = new THREE.CylinderGeometry(1.24, 0.38, 0.06, 6, 1, false, -segAngle / 2, segAngle);
@@ -2725,7 +2815,15 @@
             seg.position.y = 0.03;
             pocketGroup.add(seg);
 
-            // 2. Number Sprite (100% aligned with segment box!)
+            // 2. 3D Metallic Fret Separator Blade (Placed at the boundary between color segments!)
+            const fretGroup = new THREE.Group();
+            fretGroup.rotation.y = segAngle / 2;
+            const fretMesh = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.045, 0.36), fretMat);
+            fretMesh.position.set(0, 0.05, 1.05);
+            fretGroup.add(fretMesh);
+            pocketGroup.add(fretGroup);
+
+            // 3. Number Sprite (100% aligned with segment box!)
             const numSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeNumTexture(num), transparent: true }));
             numSpr.scale.set(0.18, 0.18, 1);
             numSpr.position.set(0, 0.08, 1.08);
@@ -2734,20 +2832,38 @@
             rotorGroup.add(pocketGroup);
           }
 
-          // Spindle
-          const turretGeo = new THREE.CylinderGeometry(0.16, 0.30, 0.35, 16);
-          const turretMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9, roughness: 0.1 });
+          // Multi-Tier Spindle & Brass Cross Arms (Authentic Casino Turret Centerpiece)
+          const turretGeo = new THREE.CylinderGeometry(0.14, 0.28, 0.35, 24);
+          const turretMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.92, roughness: 0.1 });
           const turret = new THREE.Mesh(turretGeo, turretMat);
           turret.position.y = 0.18;
-          const turretTop = new THREE.Mesh(new THREE.SphereGeometry(0.20, 16, 16), turretMat);
-          turretTop.position.y = 0.35;
-          rotorGroup.add(turret, turretTop);
 
+          const turretTop = new THREE.Mesh(new THREE.SphereGeometry(0.18, 24, 24), turretMat);
+          turretTop.position.y = 0.36;
+
+          const crossArmGroup = new THREE.Group();
+          crossArmGroup.position.y = 0.32;
+          for (let a = 0; a < 4; a++) {
+            const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.42, 16), turretMat);
+            arm.rotation.z = Math.PI / 2;
+            arm.position.x = 0.21;
+            const armGroup = new THREE.Group();
+            armGroup.rotation.y = (a * Math.PI) / 2;
+            armGroup.add(arm);
+
+            const knob = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 16), turretMat);
+            knob.position.set(0.42, 0, 0);
+            armGroup.add(knob);
+
+            crossArmGroup.add(armGroup);
+          }
+
+          rotorGroup.add(turret, turretTop, crossArmGroup);
           wheelGroup.add(rotorGroup);
 
-          // Ball
-          const ballGeo = new THREE.SphereGeometry(0.07, 16, 16);
-          const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1, emissive: 0xffffff, emissiveIntensity: 0.3 });
+          // Polished Ivory Ball Mesh
+          const ballGeo = new THREE.SphereGeometry(0.07, 24, 24);
+          const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.05, metalness: 0.05, emissive: 0xffffff, emissiveIntensity: 0.2 });
           const ballMesh = new THREE.Mesh(ballGeo, ballMat);
           ballMesh.position.set(1.48, 0.70, 0);
           ballMesh.castShadow = true;
@@ -2947,33 +3063,81 @@
           feltMesh.name = 'rouletteFelt3D';
           rGroup.add(feltMesh);
 
-          // 3.5. PHYSICAL 3D GRID FRAME & METALLIC DIVIDER BARS OVER FELT
+          // 3.5. PHYSICAL 3D GRID FRAME & METALLIC DIVIDER BARS OVER FELT (1:1 Exact Frame Alignment with Felt PNG Layout)
           const gridFrameGroup = new THREE.Group();
-          gridFrameGroup.position.set(0, 0.728, -0.2);
+          gridFrameGroup.position.set(0, 0.726, -0.2);
 
           const frameBarMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85, roughness: 0.2 });
-          const topBar = new THREE.Mesh(new THREE.BoxGeometry(3.84, 0.02, 0.03), frameBarMat);
-          topBar.position.set(0, 0, -1.2);
-          const botBar = new THREE.Mesh(new THREE.BoxGeometry(3.84, 0.02, 0.03), frameBarMat);
-          botBar.position.set(0, 0, 1.2);
-          const leftBar = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 2.4), frameBarMat);
-          leftBar.position.set(-1.92, 0, 0);
-          const rightBar = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 2.4), frameBarMat);
-          rightBar.position.set(1.92, 0, 0);
+          const divMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.25 });
+
+          // Helper conversion from Canvas pixels (2048x1024) to 3D Plane coordinates (3.8m x 2.4m)
+          const c2x = (cx) => ((cx / 2048) - 0.5) * 3.8;
+          const c2z = (cy) => ((cy / 1024) - 0.5) * 2.4;
+
+          // Outer Gold Border Frame
+          const xMin = c2x(30), xMax = c2x(2018);
+          const zMin = c2z(20), zMax = c2z(1004);
+          const frameW = xMax - xMin;
+          const frameH = zMax - zMin;
+
+          const topBar = new THREE.Mesh(new THREE.BoxGeometry(frameW, 0.012, 0.02), frameBarMat);
+          topBar.position.set((xMin + xMax) / 2, 0, zMin);
+
+          const botBar = new THREE.Mesh(new THREE.BoxGeometry(frameW, 0.012, 0.02), frameBarMat);
+          botBar.position.set((xMin + xMax) / 2, 0, zMax);
+
+          const leftBar = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.012, frameH), frameBarMat);
+          leftBar.position.set(xMin, 0, (zMin + zMax) / 2);
+
+          const rightBar = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.012, frameH), frameBarMat);
+          rightBar.position.set(xMax, 0, (zMin + zMax) / 2);
+
           gridFrameGroup.add(topBar, botBar, leftBar, rightBar);
 
-          const divMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.25 });
-          [-0.72, -0.24, 0.24, 0.60, 0.95].forEach(zPos => {
-            const hBar = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.012, 0.015), divMat);
-            hBar.position.set(0.1, 0, zPos);
+          // Horizontal Grid Divider Lines
+          const hLines = [
+            { cy: 240, xStart: 240, xEnd: 1920 }, // Row 0 / Row 1 boundary (starts at 240 to leave 0 cell clean)
+            { cy: 450, xStart: 240, xEnd: 1920 }, // Row 1 / Row 2 boundary (starts at 240 to leave 0 cell clean)
+            { cy: 660, xStart: 50,  xEnd: 1920 }, // Row 2 / Dozens boundary (bottom of 0 cell)
+            { cy: 810, xStart: 240, xEnd: 1752 }, // Dozens / Outside bets boundary (ends at 1752 right edge of 3RD 12)
+          ];
+
+          hLines.forEach(hl => {
+            const zP = c2z(hl.cy);
+            const x1 = c2x(hl.xStart), x2 = c2x(hl.xEnd);
+            const len = x2 - x1;
+            const hBar = new THREE.Mesh(new THREE.BoxGeometry(len, 0.010, 0.012), divMat);
+            hBar.position.set((x1 + x2) / 2, 0, zP);
             gridFrameGroup.add(hBar);
           });
-          for (let c = 0; c <= 13; c++) {
-            const xPos = -1.48 + c * 0.234;
-            const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.012, 1.44), divMat);
-            vBar.position.set(xPos, 0, -0.24);
+
+          // Vertical Grid Divider Lines
+          const zTop = c2z(30), zNumBot = c2z(660), zAllBot = c2z(990);
+
+          // Left border of 0 green cell
+          const zGreenH = zNumBot - zTop;
+          const greenBar = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.010, zGreenH), divMat);
+          greenBar.position.set(c2x(50), 0, (zTop + zNumBot) / 2);
+          gridFrameGroup.add(greenBar);
+
+          // Columns 0 through 12 vertical grid lines
+          for (let c = 0; c <= 12; c++) {
+            const cx = 240 + c * 126;
+            const xP = c2x(cx);
+            const isFullExtension = (c === 0 || c === 4 || c === 8 || c === 12);
+            const zB = isFullExtension ? zAllBot : zNumBot;
+            const vLen = zB - zTop;
+            const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.010, vLen), divMat);
+            vBar.position.set(xP, 0, (zTop + zB) / 2);
             gridFrameGroup.add(vBar);
           }
+
+          // Column 13 (right border of 2 to 1 column bets)
+          const xRightDoz = c2x(1920);
+          const vBarRight = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.010, zNumBot - zTop), divMat);
+          vBarRight.position.set(xRightDoz, 0, (zTop + zNumBot) / 2);
+          gridFrameGroup.add(vBarRight);
+
           rGroup.add(gridFrameGroup);
 
           // 4. PHYSICAL 3D CHIP RACK & CONTROL BAR ON TABLE BOTTOM (z = 1.8 - In front of Betting Grid!)
@@ -3028,20 +3192,7 @@
             chip3DMeshes.push(stack);
           });
 
-          // 3D GIRAR Button on Table
-          const spinBtnCanvas = document.createElement('canvas'); spinBtnCanvas.width = 512; spinBtnCanvas.height = 160;
-          const sCtx = spinBtnCanvas.getContext('2d');
-          sCtx.fillStyle = '#8B5CF6'; sCtx.fillRect(0, 0, 512, 160);
-          sCtx.font = '900 52px Segoe UI'; sCtx.fillStyle = '#fff'; sCtx.textAlign = 'center'; sCtx.textBaseline = 'middle';
-          sCtx.fillText('GIRAR 🔄', 256, 80);
-          const spinBtnTex = new THREE.CanvasTexture(spinBtnCanvas);
-
-          const btn3DGeo = new THREE.BoxGeometry(0.85, 0.06, 0.36);
-          const btn3DMat = new THREE.MeshStandardMaterial({ map: spinBtnTex, emissive: 0x8B5CF6, emissiveIntensity: 0.5 });
-          const btn3D = new THREE.Mesh(btn3DGeo, btn3DMat);
-          btn3D.position.set(1.4, 0.06, 0);
-          btn3D.name = '3dSpinBtn';
-          controlGroup.add(btn3D);
+          // (3D GIRAR Button removed as requested)
 
           // Container group for active 3D placed chips physically on top of table
           const placedChips3DGroup = new THREE.Group();
@@ -3151,7 +3302,7 @@
           rGroup.add(controlGroup);
 
           centerpiece = rGroup;
-          roulette3DRefs = { group: rGroup, rotor: rotorGroup, ball: ballMesh, feltMesh, draw3DFeltGrid, update3DPlacedChips, update3DChipRackSelection, chipMeshes: chip3DMeshes, spinBtn: btn3D };
+          roulette3DRefs = { group: rGroup, rotor: rotorGroup, ball: ballMesh, feltMesh, draw3DFeltGrid, update3DPlacedChips, update3DChipRackSelection, chipMeshes: chip3DMeshes, spinBtn: null };
         } else if (z.id === 'plinko') {
           const plinkoGroup = new THREE.Group();
 
@@ -3842,13 +3993,14 @@
           }
         });
 
-        // 3. Remote Player Moved or Updated Name
+        // 3. Remote Player Moved or Updated Name / Seat
         socket.on('playerMoved', (pData) => {
           if (pData && pData.id && pData.id !== mySocketId && remotePlayers[pData.id]) {
             const rp = remotePlayers[pData.id];
             rp.targetX = pData.x;
             rp.targetZ = pData.z;
             rp.targetRotY = pData.rotY;
+            if (pData.seat !== undefined) rp.seat = pData.seat;
 
             if (pData.name && pData.name !== rp.name) {
               rp.name = pData.name;
@@ -3896,6 +4048,7 @@
           id: pData.id,
           name: pName,
           mesh: mesh,
+          seat: pData.seat || null,
           targetX: pData.x || 0,
           targetZ: pData.z || 0,
           targetRotY: pData.rotY || 0
@@ -4378,6 +4531,66 @@
       /* ============================================================
          CAMERA TRANSITION & OVERLAYS (WORLD IS MAIN UI)
       ============================================================ */
+      function getClosestAvailableSeat(z, px, pz) {
+        if (!z || !z.seats || z.seats.length === 0) {
+          return { x: z.x, z: z.z + 1.5, r: Math.PI, seatIndex: 0 };
+        }
+
+        // Collect all currently occupied seat indices in zone z
+        const occupiedIndices = new Set();
+
+        // Local player seat
+        if (state.player.currentSeat && state.player.currentSeat.zone === z.id && typeof state.player.currentSeat.seatIndex === 'number') {
+          occupiedIndices.add(state.player.currentSeat.seatIndex);
+        }
+
+        // Remote online players seats
+        if (typeof remotePlayers !== 'undefined') {
+          Object.values(remotePlayers).forEach(rp => {
+            if (rp.seat && rp.seat.zone === z.id && typeof rp.seat.seatIndex === 'number') {
+              occupiedIndices.add(rp.seat.seatIndex);
+            }
+          });
+        }
+
+        // Bots seats
+        if (typeof BOTS !== 'undefined') {
+          BOTS.forEach(b => {
+            if (b.seat && b.seat.zone === z.id && typeof b.seat.seatIndex === 'number') {
+              occupiedIndices.add(b.seat.seatIndex);
+            }
+          });
+        }
+
+        let bestSeat = null;
+        let bestDist = Infinity;
+
+        // 1. Find nearest seat among UNOCCUPIED seats
+        z.seats.forEach((seat, idx) => {
+          if (!occupiedIndices.has(idx)) {
+            const dist = Math.hypot(px - seat.x, pz - seat.z);
+            if (dist < bestDist) {
+              bestDist = dist;
+              bestSeat = { ...seat, seatIndex: idx };
+            }
+          }
+        });
+
+        // 2. If all seats are occupied, notify user and select closest seat
+        if (!bestSeat) {
+          showToast('⚠️ Todos los asientos de esta mesa están ocupados');
+          z.seats.forEach((seat, idx) => {
+            const dist = Math.hypot(px - seat.x, pz - seat.z);
+            if (dist < bestDist) {
+              bestDist = dist;
+              bestSeat = { ...seat, seatIndex: idx };
+            }
+          });
+        }
+
+        return bestSeat;
+      }
+
       function openGameOverlay(gameId) {
         state.savedCasinoCam = { pos: camera.position.clone(), look: state.camFollowLook.clone() };
         state.mode = 'transition';
@@ -4389,11 +4602,31 @@
         });
 
         const z = ZONES.find(x => x.id === gameId);
-        const seat = z.seats[0] || { x: z.x, z: z.z + 1.5, r: 0 };
+        const seat = getClosestAvailableSeat(z, state.player.x, state.player.z);
 
-        // Move avatar physically to table seat socket
+        // Store active seat on local player state
+        state.player.currentSeat = { zone: z.id, seatIndex: seat.seatIndex };
+
+        // Move avatar physically to closest unoccupied table seat socket
         playerAvatar.position.set(seat.x, 0, seat.z);
         playerAvatar.rotation.y = seat.r;
+        state.player.x = seat.x;
+        state.player.z = seat.z;
+        state.player.rotY = seat.r;
+
+        // Emit updated position and seat reservation via Socket.IO
+        if (typeof socket !== 'undefined' && socket && socket.connected) {
+          socket.emit('updateTransform', {
+            x: seat.x,
+            z: seat.z,
+            rotY: seat.r,
+            name: state.player.name || 'Axel',
+            seat: state.player.currentSeat
+          });
+          if (gameId === 'roulette') {
+            socket.emit('rouletteJoin', { rouletteId: 'roulette', seatIndex: seat.seatIndex });
+          }
+        }
 
         // Custom camera angles for optimal 3D game view
         let toPos = new THREE.Vector3(z.x, 2.6, z.z + 3.6);
@@ -4493,11 +4726,13 @@
           return;
         }
 
-        // 2. Raycast on 3D Spin Button
-        const spinHits = tableRaycaster.intersectObject(roulette3DRefs.spinBtn);
-        if (spinHits.length > 0) {
-          document.getElementById('spinBtn').click();
-          return;
+        // 2. Raycast on 3D Spin Button (if present)
+        if (roulette3DRefs && roulette3DRefs.spinBtn) {
+          const spinHits = tableRaycaster.intersectObject(roulette3DRefs.spinBtn);
+          if (spinHits.length > 0) {
+            document.getElementById('spinBtn').click();
+            return;
+          }
         }
 
         // 3. Raycast on 3D Felt Mesh (Placing bets on numbers, columns, dozens, etc.)
@@ -4546,6 +4781,21 @@
         if (state.mode === 'casino') return;
         document.querySelectorAll('.game-overlay').forEach(wrap => wrap.classList.remove('show'));
         state.mode = 'transition';
+
+        // Clear local seat occupancy
+        if (state.mode === 'roulette' && typeof socket !== 'undefined' && socket && socket.connected) {
+          socket.emit('rouletteLeave', { rouletteId: 'roulette' });
+        }
+        state.player.currentSeat = null;
+        if (typeof socket !== 'undefined' && socket && socket.connected) {
+          socket.emit('updateTransform', {
+            x: state.player.x,
+            z: state.player.z,
+            rotY: state.player.rotY,
+            name: state.player.name || 'Axel',
+            seat: null
+          });
+        }
 
         // Restaurar visibilidad de carteles flotantes 3D
         Object.values(zoneMeshes).forEach(zm => {
@@ -4644,6 +4894,10 @@
 
       function placeBetR(key) {
         if (rState.spinning) return;
+        if (rouletteServerState && rouletteServerState.status && rouletteServerState.status !== 'WAITING') {
+          showToast('⚠️ Las apuestas están cerradas durante la ronda');
+          return;
+        }
         if (state.balance < rState.selectedChip) { showToast('Saldo insuficiente'); return; }
         playSound('chip');
         state.balance -= rState.selectedChip;
@@ -4654,6 +4908,10 @@
         renderStakesR();
         if (roulette3DRefs && roulette3DRefs.draw3DFeltGrid) roulette3DRefs.draw3DFeltGrid();
         if (roulette3DRefs && roulette3DRefs.update3DPlacedChips) roulette3DRefs.update3DPlacedChips();
+
+        if (typeof socket !== 'undefined' && socket && socket.connected) {
+          socket.emit('rouletteBet', { rouletteId: 'roulette', betKey: key, amount: rState.selectedChip });
+        }
       }
 
       function renderStakesR() {
@@ -4683,7 +4941,7 @@
         const idx = WHEEL_ORDER.indexOf(winNum);
         const segAngle = (Math.PI * 2) / WHEEL_ORDER.length;
         const startOffset = -0.4263;
-        const pocketAngle = startOffset + idx * segAngle;
+        const pocketAngle = startOffset - idx * segAngle;
 
         const startRotorRot = rotor.rotation.y;
         const rotorSpins = 6 * Math.PI * 2;
@@ -4784,41 +5042,180 @@
         requestAnimationFrame(step);
       }
 
-      document.getElementById('spinBtn').addEventListener('click', () => {
-        if (rState.spinning || rState.totalBet <= 0) return;
-        rState.spinning = true;
-        document.getElementById('spinBtn').disabled = true;
+      /* ============================================================
+         1. MULTIPLAYER AUTHORITATIVE ROULETTE ENGINE
+      ============================================================ */
+      let rouletteServerState = null;
+      let isLocalReady = false;
+      let lastHandledSpinId = -1;
 
-        const winNum = WHEEL_ORDER[Math.floor(Math.random() * WHEEL_ORDER.length)];
+      // Socket.IO Multiplayer Event Listeners for Roulette
+      if (typeof socket !== 'undefined' && socket) {
+        socket.on('rouletteState', (s) => {
+          if (!s || s.rouletteId !== 'roulette') return;
+          rouletteServerState = s;
 
-        animateRoulette3DSpin(winNum, 3200, () => {
-          let winAmt = 0;
-          const color = numColor(winNum);
+          const statusBadge = document.getElementById('rouletteStatusBadge');
+          const readyBtn = document.getElementById('rouletteReadyBtn');
 
-          Object.entries(rState.bets).forEach(([key, amt]) => {
-            if (key === 'num-' + winNum) winAmt += amt * 36;
-            else if (key === 'red' && color === 'red') winAmt += amt * 2;
-            else if (key === 'black' && color === 'black') winAmt += amt * 2;
-            else if (key === 'even' && winNum !== 0 && winNum % 2 === 0) winAmt += amt * 2;
-            else if (key === 'odd' && winNum % 2 === 1) winAmt += amt * 2;
-          });
+          const totalP = s.totalPlayers || 0;
+          const totalR = s.totalReady || 0;
 
-          state.balance += winAmt; updateBalanceUI();
-          const net = winAmt - rState.totalBet;
+          if (s.status === 'WAITING' || s.status === 'READY') {
+            if (totalP === 0) {
+              if (statusBadge) statusBadge.textContent = '⏳ Esperando jugadores...';
+            } else if (totalR === totalP && totalP > 0) {
+              if (statusBadge) statusBadge.textContent = '🟢 ¡Todos listos! Girando...';
+            } else {
+              const needed = totalP - totalR;
+              if (statusBadge) statusBadge.textContent = `⏳ ${totalR}/${totalP} Listos (Esperando a ${needed})`;
+            }
+          } else if (s.status === 'SPINNING') {
+            if (statusBadge) statusBadge.textContent = '🎰 Giro en curso...';
+          } else if (s.status === 'RESULT') {
+            if (statusBadge) statusBadge.textContent = `🏆 Resultado: ${s.result}`;
+          }
 
-          const banner = document.getElementById('resultBanner');
-          document.getElementById('resultNum').textContent = winNum;
-          const msg = document.getElementById('resultMsg');
-          if (net >= 0) { msg.className = 'win'; msg.textContent = '+$' + net; triggerConfetti(); addXP(100); }
-          else { msg.className = 'lose'; msg.textContent = '-$' + rState.totalBet; playSound('lose'); }
-          banner.classList.add('show');
+          // Check if local player is ready
+          const myId = socket.id;
+          isLocalReady = !!(s.readyPlayers && myId && s.readyPlayers[myId]);
 
-          rState.bets = {}; rState.totalBet = 0;
-          document.getElementById('totalBetDisplay').textContent = '$0'; renderStakesR();
-          if (roulette3DRefs && roulette3DRefs.update3DPlacedChips) roulette3DRefs.update3DPlacedChips();
-          rState.spinning = false; document.getElementById('spinBtn').disabled = false;
+          if (readyBtn) {
+            if (isLocalReady) {
+              readyBtn.textContent = 'CANCELAR LISTO ❌';
+              readyBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+            } else {
+              readyBtn.textContent = 'LISTO 👍';
+              readyBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            }
+            readyBtn.disabled = (s.status === 'SPINNING' || s.status === 'RESULT');
+          }
         });
-      });
+
+        socket.on('rouletteSpin', (data) => {
+          if (!data || data.rouletteId !== 'roulette') return;
+          if (lastHandledSpinId === data.spinId) return;
+          lastHandledSpinId = data.spinId;
+          rState.spinning = true;
+
+          const winNum = data.result;
+
+          animateRoulette3DSpin(winNum, 3200, () => {
+            let winAmt = 0;
+            const color = numColor(winNum);
+
+            Object.entries(rState.bets).forEach(([key, amt]) => {
+              if (key === 'num-' + winNum) winAmt += amt * 36;
+              else if (key === 'red' && color === 'red') winAmt += amt * 2;
+              else if (key === 'black' && color === 'black') winAmt += amt * 2;
+              else if (key === 'even' && winNum !== 0 && winNum % 2 === 0) winAmt += amt * 2;
+              else if (key === 'odd' && winNum % 2 === 1) winAmt += amt * 2;
+              else if (key === 'low' && winNum >= 1 && winNum <= 18) winAmt += amt * 2;
+              else if (key === 'high' && winNum >= 19 && winNum <= 36) winAmt += amt * 2;
+              else if (key === 'dozen1' && winNum >= 1 && winNum <= 12) winAmt += amt * 3;
+              else if (key === 'dozen2' && winNum >= 13 && winNum <= 24) winAmt += amt * 3;
+              else if (key === 'dozen3' && winNum >= 25 && winNum <= 36) winAmt += amt * 3;
+              else if (key === 'col1' && winNum > 0 && winNum % 3 === 1) winAmt += amt * 3;
+              else if (key === 'col2' && winNum > 0 && winNum % 3 === 2) winAmt += amt * 3;
+              else if (key === 'col3' && winNum > 0 && winNum % 3 === 0) winAmt += amt * 3;
+            });
+
+            state.balance += winAmt; updateBalanceUI();
+            const net = winAmt - rState.totalBet;
+
+            const banner = document.getElementById('resultBanner');
+            document.getElementById('resultNum').textContent = winNum;
+            const msg = document.getElementById('resultMsg');
+            if (net >= 0) { msg.className = 'win'; msg.textContent = '+$' + net; triggerConfetti(); addXP(100); }
+            else { msg.className = 'lose'; msg.textContent = '-$' + rState.totalBet; playSound('lose'); }
+            banner.classList.add('show');
+
+            setTimeout(() => {
+              banner.classList.remove('show');
+              rState.bets = {}; rState.totalBet = 0;
+              document.getElementById('totalBetDisplay').textContent = '$0'; renderStakesR();
+              if (roulette3DRefs && roulette3DRefs.update3DPlacedChips) roulette3DRefs.update3DPlacedChips();
+              rState.spinning = false;
+              isLocalReady = false;
+            }, 3000);
+          });
+        });
+      }
+
+      const readyBtnEl = document.getElementById('rouletteReadyBtn');
+      if (readyBtnEl) {
+        readyBtnEl.addEventListener('click', () => {
+          if (rState.spinning) return;
+          if (socket && socket.connected) {
+            if (isLocalReady) {
+              socket.emit('rouletteUnready', { rouletteId: 'roulette' });
+            } else {
+              socket.emit('rouletteReady', { rouletteId: 'roulette' });
+            }
+          } else {
+            // Fallback for standalone offline local testing
+            isLocalReady = !isLocalReady;
+            const statusBadge = document.getElementById('rouletteStatusBadge');
+            if (isLocalReady) {
+              readyBtnEl.textContent = 'CANCELAR LISTO ❌';
+              readyBtnEl.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+              if (statusBadge) statusBadge.textContent = '🟢 ¡Listo! Girando...';
+
+              setTimeout(() => {
+                const winNum = WHEEL_ORDER[Math.floor(Math.random() * WHEEL_ORDER.length)];
+                rState.spinning = true;
+
+                animateRoulette3DSpin(winNum, 3200, () => {
+                  let winAmt = 0;
+                  const color = numColor(winNum);
+
+                  Object.entries(rState.bets).forEach(([key, amt]) => {
+                    if (key === 'num-' + winNum) winAmt += amt * 36;
+                    else if (key === 'red' && color === 'red') winAmt += amt * 2;
+                    else if (key === 'black' && color === 'black') winAmt += amt * 2;
+                    else if (key === 'even' && winNum !== 0 && winNum % 2 === 0) winAmt += amt * 2;
+                    else if (key === 'odd' && winNum % 2 === 1) winAmt += amt * 2;
+                    else if (key === 'low' && winNum >= 1 && winNum <= 18) winAmt += amt * 2;
+                    else if (key === 'high' && winNum >= 19 && winNum <= 36) winAmt += amt * 2;
+                    else if (key === 'dozen1' && winNum >= 1 && winNum <= 12) winAmt += amt * 3;
+                    else if (key === 'dozen2' && winNum >= 13 && winNum <= 24) winAmt += amt * 3;
+                    else if (key === 'dozen3' && winNum >= 25 && winNum <= 36) winAmt += amt * 3;
+                    else if (key === 'col1' && winNum > 0 && winNum % 3 === 1) winAmt += amt * 3;
+                    else if (key === 'col2' && winNum > 0 && winNum % 3 === 2) winAmt += amt * 3;
+                    else if (key === 'col3' && winNum > 0 && winNum % 3 === 0) winAmt += amt * 3;
+                  });
+
+                  state.balance += winAmt; updateBalanceUI();
+                  const net = winAmt - rState.totalBet;
+
+                  const banner = document.getElementById('resultBanner');
+                  document.getElementById('resultNum').textContent = winNum;
+                  const msg = document.getElementById('resultMsg');
+                  if (net >= 0) { msg.className = 'win'; msg.textContent = '+$' + net; triggerConfetti(); addXP(100); }
+                  else { msg.className = 'lose'; msg.textContent = '-$' + rState.totalBet; playSound('lose'); }
+                  banner.classList.add('show');
+
+                  setTimeout(() => {
+                    banner.classList.remove('show');
+                    rState.bets = {}; rState.totalBet = 0;
+                    document.getElementById('totalBetDisplay').textContent = '$0'; renderStakesR();
+                    if (roulette3DRefs && roulette3DRefs.update3DPlacedChips) roulette3DRefs.update3DPlacedChips();
+                    rState.spinning = false;
+                    isLocalReady = false;
+                    readyBtnEl.textContent = 'LISTO 👍';
+                    readyBtnEl.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    if (statusBadge) statusBadge.textContent = '⏳ 0/0 Listos';
+                  }, 3000);
+                });
+              }, 600);
+            } else {
+              readyBtnEl.textContent = 'LISTO 👍';
+              readyBtnEl.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+              if (statusBadge) statusBadge.textContent = '⏳ 0/0 Listos';
+            }
+          }
+        });
+      }
 
       /* ============================================================
          2. DICE DUEL LOGIC — MOTOR DE FÍSICA REAL PARA LOS DADOS
@@ -6420,14 +6817,15 @@
         updateBots(dt);
         if (typeof updateRemotePlayers === 'function') updateRemotePlayers(dt);
 
-        // Throttle sending local player position & name to server (~15 updates/sec)
+        // Throttle sending local player position, name & seat reservation to server (~15 updates/sec)
         if (socket && socket.connected && playerAvatar && (now - lastTransformEmit >= 65)) {
           lastTransformEmit = now;
           socket.emit('updateTransform', {
             x: playerAvatar.position.x,
             z: playerAvatar.position.z,
             rotY: playerAvatar.rotation.y,
-            name: state.player.name || 'Axel'
+            name: state.player.name || 'Axel',
+            seat: state.player.currentSeat || null
           });
         }
 
@@ -6439,8 +6837,11 @@
         try { updateCoinPhysics(dt); } catch (e) { }
         try { updateTvOcclusion(dt); } catch (e) { }
 
-        /* rotate fountain & zone rings */
+        /* rotate fountain, roulette rotor & zone rings */
         fountainPillar.rotation.y += dt * 0.5;
+        if (typeof roulette3DRefs !== 'undefined' && roulette3DRefs && roulette3DRefs.rotor && typeof rState !== 'undefined' && !rState.spinning) {
+          roulette3DRefs.rotor.rotation.y += dt * 0.35;
+        }
         Object.values(zoneMeshes).forEach(zm => {
           zm.pulse += 0.03;
           const s = 1 + Math.sin(zm.pulse) * 0.05;
