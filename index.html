@@ -2148,12 +2148,12 @@
     </div>
   </div>
 
-  <!-- ================= 3D TV IFRAME OVERLAY (CSS3D OBJECT) ================= -->
+  <!-- ================= 3D TV IFRAME OVERLAY (NATIVE 4K ULTRA HD CSS3D OBJECT) ================= -->
   <div id="tvIframeOverlay"
-    style="position:absolute; width:1280px; height:720px; z-index:1; pointer-events:auto; display:block; transform-origin:50% 50%; border-radius:8px; overflow:hidden;">
-    <div id="tvYoutubePlayerContainer" style="width:1280px; height:720px; pointer-events:auto;">
+    style="position:absolute; width:3840px; height:2160px; z-index:1; pointer-events:auto; display:block; transform-origin:50% 50%; border-radius:12px; overflow:hidden;">
+    <div id="tvYoutubePlayerContainer" style="width:3840px; height:2160px; pointer-events:auto;">
       <iframe id="tvIframeElement" width="100%" height="100%"
-        src="https://www.youtube-nocookie.com/embed/jfKfPfyJRdk?enablejsapi=1&autoplay=1&mute=1&controls=1&playsinline=1&rel=0"
+        src="https://www.youtube-nocookie.com/embed/jfKfPfyJRdk?enablejsapi=1&autoplay=1&mute=1&controls=1&playsinline=1&rel=0&vq=hd2160&hd=1"
         frameborder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowfullscreen referrerpolicy="strict-origin-when-cross-origin"
@@ -2398,8 +2398,8 @@
       const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 300);
       let camDist = 17;
 
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3));
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.shadowMap.enabled = true;
       host.appendChild(renderer.domElement);
@@ -6056,7 +6056,7 @@
             tvGroup.position.y,
             tvGroup.position.z + 0.16 * TV_SCALE
           );
-          tvCss3DObject.scale.set(tvScreenW / 1280, tvScreenH / 720, 1.0); // mapeo exacto px -> metros
+          tvCss3DObject.scale.set(tvScreenW / 3840, tvScreenH / 2160, 1.0); // mapeo exacto 4K (3840x2160) -> metros 3D
 
           if (typeof cssScene !== 'undefined' && cssScene) {
             cssScene.add(tvCss3DObject);
@@ -6181,13 +6181,15 @@
 
           const muteParam = (!userHasInteracted || tvIsMuted) ? 1 : 0;
           const originParam = getValidOriginParam();
-          const embedUrl = `https://www.youtube-nocookie.com/embed/${tvVideoId}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=1&playsinline=1&rel=0${originParam}`;
+          const embedUrl = `https://www.youtube-nocookie.com/embed/${tvVideoId}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=1&playsinline=1&rel=0&vq=hd2160&hd=1${originParam}`;
 
           try { sendYtCommand('pauseVideo'); } catch (e) { }
           iframe.src = embedUrl;
 
           setTimeout(() => {
-            if (stateEl) stateEl.textContent = tvIsPaused ? '⏸️ En Pausa' : '🟢 Reproduciendo';
+            sendYtCommand('setPlaybackQuality', ['hd2160']);
+            sendYtCommand('setPlaybackQuality', ['highres']);
+            if (stateEl) stateEl.textContent = tvIsPaused ? '⏸️ En Pausa' : '🟢 Reproduciendo (4K Ultra HD)';
           }, 1200);
         }
 
