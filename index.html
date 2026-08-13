@@ -8,6 +8,7 @@
   <title>Midnight Arcade — Casino Social 3D Multijugador</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
   <script src="https://www.youtube.com/iframe_api"></script>
   <style>
     :root {
@@ -1322,27 +1323,28 @@
 
     /* ---------- BLACKJACK OVERLAY ---------- */
     .bj-arena {
-      flex: 1;
+      position: absolute;
+      top: 100px;
+      right: 28px;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      padding-top: 60px;
+      align-items: flex-end;
+      gap: 14px;
+      z-index: 30;
+      pointer-events: none;
     }
 
     .bj-hand {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .bj-cards {
-      display: flex;
-      gap: 10px;
-      min-height: 100px;
-      align-items: center;
+      align-items: flex-end;
+      gap: 6px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      padding: 10px 16px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     }
 
     .card {
@@ -1395,12 +1397,13 @@
     }
 
     .bj-score {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 800;
-      background: rgba(0, 0, 0, 0.5);
-      padding: 4px 12px;
+      color: #fff;
+      background: rgba(139, 92, 246, 0.25);
+      padding: 5px 14px;
       border-radius: 10px;
-      border: 1px solid var(--panel-border);
+      border: 1px solid rgba(196, 181, 253, 0.4);
     }
 
     /* ---------- MINES OVERLAY ---------- */
@@ -1553,25 +1556,43 @@
     }
 
     .coin-choice {
+      position: absolute;
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
       display: flex;
+      flex-direction: column;
       gap: 16px;
+      background: var(--panel);
+      padding: 20px 24px;
+      border-radius: 18px;
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(10px);
+      z-index: 20;
     }
 
     .choice-btn {
-      padding: 14px 28px;
+      padding: 16px 32px;
       border-radius: 14px;
       border: 1px solid var(--panel-border);
-      background: var(--panel);
+      background: rgba(30, 20, 50, 0.7);
       color: #fff;
       font-weight: 800;
+      font-size: 16px;
       cursor: pointer;
       transition: all .15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
     }
 
     .choice-btn.selected {
       border-color: var(--amber);
-      background: rgba(251, 146, 60, 0.2);
-      box-shadow: 0 0 14px var(--amber);
+      background: linear-gradient(135deg, rgba(251, 146, 60, 0.3), rgba(225, 31, 209, 0.3));
+      box-shadow: 0 0 18px rgba(251, 146, 60, 0.5);
+      transform: scale(1.05);
     }
 
     .tv-change-btn {
@@ -1847,24 +1868,22 @@
     </div>
   </div>
 
-  <!-- ================= BLACKJACK OVERLAY ================= -->
+  <!-- ================= BLACKJACK 3D OVERLAY ================= -->
   <div class="game-overlay" id="blackjackWrap">
     <button class="exit-game-btn" onclick="exitActiveGame()">🚪 LEVANTARSE DE LA MESA [ESC]</button>
     <div class="table-title">
-      <h2>BLACKJACK 21</h2><span>PAGA 3 A 2 · DEAN SE PLANTA EN 17</span>
+      <h2>BLACKJACK 3D</h2><span>CARTAS Y FICHAS 3D · 21 PAGA 3 A 2 · DEALER SE PLANTA EN 17</span>
     </div>
 
     <div class="bj-arena">
       <div class="bj-hand">
         <div class="who" style="font-size:12px; font-weight:800; color:var(--amber);">DEALER</div>
-        <div class="bj-cards" id="dealerCards"></div>
         <div class="bj-score" id="dealerScore">Puntos: –</div>
       </div>
 
-      <div class="bj-hand" style="margin-top:20px;">
-        <div class="bj-score" id="playerScore">Puntos: –</div>
-        <div class="bj-cards" id="playerCards"></div>
+      <div class="bj-hand">
         <div class="who" style="font-size:12px; font-weight:800; color:var(--violet);">JUGADOR</div>
+        <div class="bj-score" id="playerScore">Puntos: –</div>
       </div>
     </div>
 
@@ -1874,19 +1893,24 @@
     </div>
 
     <div class="duel-bottom">
-      <div class="duel-controls" style="display:flex; align-items:center; gap:14px;">
+      <div class="duel-controls"
+        style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;">
         <div class="chip-rack" id="chipRackBJ">
           <div class="chip" data-v="10">10</div>
           <div class="chip selected" data-v="50">50</div>
           <div class="chip" data-v="100">100</div>
           <div class="chip" data-v="500">500</div>
+          <div class="chip" data-v="1000">1K</div>
         </div>
-        <div class="total-bet-pill">APUESTA<span class="v" id="bjBetDisplay">$0</span></div>
+        <div class="total-bet-pill" id="bjBetPill">APUESTA<span class="v" id="bjBetDisplay">$50</span></div>
+        <button class="action-btn" id="bjClearBetBtn" style="background:rgba(239,68,68,0.25); border:1px solid #ef4444; color:#fca5a5;">BORRAR 🗑️</button>
         <button class="action-btn" id="bjDealBtn">REPARTIR 🃏</button>
         <button class="action-btn" id="bjHitBtn"
-          style="display:none; background:linear-gradient(135deg,#2563eb,#1d4ed8);">PEDIR</button>
+          style="display:none; background:linear-gradient(135deg,#2563eb,#1d4ed8);">PEDIR ➕</button>
         <button class="action-btn" id="bjStandBtn"
-          style="display:none; background:linear-gradient(135deg,#059669,#10b981);">PLANTARSE</button>
+          style="display:none; background:linear-gradient(135deg,#059669,#10b981);">PLANTARSE ✋</button>
+        <button class="action-btn" id="bjDoubleBtn"
+          style="display:none; background:linear-gradient(135deg,#d97706,#b45309);">DOBLAR ✖2</button>
       </div>
     </div>
   </div>
@@ -2098,7 +2122,8 @@
         <span>🔊 VOLUMEN MANUAL (referencia máxima)</span>
         <small id="tvVolumeSliderPct">100%</small>
       </div>
-      <input type="range" class="tv-volume-slider" id="tvVolumeSlider" min="0" max="100" value="100" style="--fillpct:100%;">
+      <input type="range" class="tv-volume-slider" id="tvVolumeSlider" min="0" max="100" value="100"
+        style="--fillpct:100%;">
       <div style="font-size:10px; color:var(--dim); line-height:1.4;">
         Este control fija el volumen máximo de la TV. El sistema de audio espacial 3D reduce ese
         máximo automáticamente cuanto más te alejas — nunca lo supera.
@@ -2306,15 +2331,15 @@
       const rState = { selectedChip: 50, bets: {}, totalBet: 0, spinning: false };
 
       const ZONES = [
-        { id: 'roulette', name: 'ROULETTE 3D', icon: '🎰', x: -14, z: -4, radius: 7.2, color: 0x8B5CF6, seats: [{ x: -15.6, z: 0.2, r: 0 }, { x: -14, z: 0.2, r: 0 }, { x: -12.4, z: 0.2, r: 0 }] },
+        { id: 'roulette', name: 'ROULETTE 3D', icon: '🎰', x: -14, z: -4, radius: 7.2, color: 0x8B5CF6, seats: [{ x: -14, z: -2.3, r: Math.PI }, { x: -15.6, z: -2.3, r: Math.PI }, { x: -12.4, z: -2.3, r: Math.PI }] },
         { id: 'cinema', name: 'CINE & MUSIC 3D', icon: '📺', x: 0, z: -26, radius: 5.2, color: 0x8B5CF6, seats: [] },
-        { id: 'wheel', name: 'FORTUNE WHEEL', icon: '🎡', x: 0, z: -15, radius: 3.4, color: 0xFB923C, seats: [{ x: -1.2, z: -13.6, r: 0 }, { x: 1.2, z: -13.6, r: 0 }] },
-        { id: 'dice', name: 'DICE DUEL', icon: '🎲', x: 14, z: -4, radius: 3.4, color: 0xE11FD1, seats: [{ x: 12.8, z: -2.6, r: 0 }, { x: 15.2, z: -2.6, r: 0 }] },
-        { id: 'blackjack', name: 'BLACKJACK 21', icon: '🃏', x: 18, z: 7, radius: 3.4, color: 0x22c55e, seats: [{ x: 16.8, z: 8.4, r: 0 }, { x: 19.2, z: 8.4, r: 0 }] },
-        { id: 'mines', name: 'MINES', icon: '💣', x: 11, z: 15, radius: 3.2, color: 0xef4444, seats: [{ x: 11, z: 16.4, r: Math.PI }] },
+        { id: 'wheel', name: 'FORTUNE WHEEL', icon: '🎡', x: 0, z: -15, radius: 3.4, color: 0xFB923C, seats: [{ x: -1.2, z: -13.6, r: Math.PI }, { x: 1.2, z: -13.6, r: Math.PI }] },
+        { id: 'dice', name: 'DICE DUEL', icon: '🎲', x: 14, z: -4, radius: 3.4, color: 0xE11FD1, seats: [{ x: 14.0, z: -2.6, r: Math.PI }, { x: 12.8, z: -2.6, r: Math.PI }, { x: 15.2, z: -2.6, r: Math.PI }] },
+        { id: 'blackjack', name: 'BLACKJACK 21', icon: '🃏', x: 18, z: 7, radius: 3.4, color: 0x22c55e, seats: [{ x: 18.0, z: 9.1, r: Math.PI }, { x: 16.6, z: 8.8, r: Math.PI - 0.25 }, { x: 19.4, z: 8.8, r: Math.PI + 0.25 }] },
+        { id: 'mines', name: 'MINES', icon: '💣', x: 11, z: 15, radius: 3.2, color: 0xef4444, seats: [{ x: 11, z: 17.0, r: Math.PI }] },
         { id: 'plinko', name: 'PLINKO', icon: '🎯', x: 0, z: 14, radius: 3.2, color: 0x38bdf8, seats: [{ x: 0, z: 18.2, r: Math.PI }] },
-        { id: 'coin', name: 'COIN FLIP', icon: '🪙', x: -11, z: 15, radius: 3.2, color: 0xFBBF24, seats: [{ x: -11, z: 16.4, r: Math.PI }] },
-        { id: 'bar', name: 'BAR & LOUNGE', icon: '🍸', x: -18, z: 7, radius: 3.4, color: 0xf472b6, seats: [{ x: -19.2, z: 5.8, r: 0 }, { x: -16.8, z: 5.8, r: 0 }] },
+        { id: 'coin', name: 'COIN FLIP', icon: '🪙', x: -11, z: 15, radius: 3.2, color: 0xFBBF24, seats: [{ x: -11, z: 17.0, r: Math.PI }] },
+        { id: 'bar', name: 'BAR & LOUNGE', icon: '🍸', x: -18, z: 7, radius: 3.4, color: 0xf472b6, seats: [{ x: -18.0, z: 8.4, r: Math.PI }, { x: -19.2, z: 8.4, r: Math.PI }] },
         { id: 'store', name: 'TIENDA', icon: '🛍️', x: 17, z: -12, radius: 3.2, color: 0x34d399, seats: [{ x: 17, z: -10.6, r: Math.PI }] },
         { id: 'jackpot', name: 'JACKPOT', icon: '🏆', x: 0, z: 0, radius: 2.8, color: 0xFFD700, seats: [{ x: 0, z: 1.6, r: Math.PI }] },
       ];
@@ -2554,8 +2579,8 @@
 
         /* 3D seats around table */
         z.seats.forEach(seat => {
-          const stoolH = z.id === 'roulette' ? 0.55 : 0.5;
-          const stoolY = z.id === 'roulette' ? 0.50 : 0.25;
+          const stoolH = 0.5;
+          const stoolY = 0.25;
           const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.38, stoolH, 14),
             new THREE.MeshStandardMaterial({ color: 0x201438, emissive: new THREE.Color(z.color), emissiveIntensity: 0.15 }));
           stool.position.set(seat.x - z.x, stoolY, seat.z - z.z);
@@ -2885,6 +2910,35 @@
           feltMesh.position.set(0, 0.72, -0.2);
           feltMesh.name = 'rouletteFelt3D';
           rGroup.add(feltMesh);
+
+          // 3.5. PHYSICAL 3D GRID FRAME & METALLIC DIVIDER BARS OVER FELT
+          const gridFrameGroup = new THREE.Group();
+          gridFrameGroup.position.set(0, 0.728, -0.2);
+
+          const frameBarMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85, roughness: 0.2 });
+          const topBar = new THREE.Mesh(new THREE.BoxGeometry(3.84, 0.02, 0.03), frameBarMat);
+          topBar.position.set(0, 0, -1.2);
+          const botBar = new THREE.Mesh(new THREE.BoxGeometry(3.84, 0.02, 0.03), frameBarMat);
+          botBar.position.set(0, 0, 1.2);
+          const leftBar = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 2.4), frameBarMat);
+          leftBar.position.set(-1.92, 0, 0);
+          const rightBar = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 2.4), frameBarMat);
+          rightBar.position.set(1.92, 0, 0);
+          gridFrameGroup.add(topBar, botBar, leftBar, rightBar);
+
+          const divMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8, roughness: 0.25 });
+          [-0.72, -0.24, 0.24, 0.60, 0.95].forEach(zPos => {
+            const hBar = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.012, 0.015), divMat);
+            hBar.position.set(0.1, 0, zPos);
+            gridFrameGroup.add(hBar);
+          });
+          for (let c = 0; c <= 13; c++) {
+            const xPos = -1.48 + c * 0.234;
+            const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.012, 1.44), divMat);
+            vBar.position.set(xPos, 0, -0.24);
+            gridFrameGroup.add(vBar);
+          }
+          rGroup.add(gridFrameGroup);
 
           // 4. PHYSICAL 3D CHIP RACK & CONTROL BAR ON TABLE BOTTOM (z = 1.8 - In front of Betting Grid!)
           const controlGroup = new THREE.Group();
@@ -3357,55 +3411,246 @@
           centerpiece = minesGroup;
         } else if (z.id === 'blackjack') {
           const bjGroup = new THREE.Group();
-          const bjR = 2.55;
+          const bjR = 2.65;
 
-          // Base pedestal (D-shape, half cylinder)
-          const bjBase = new THREE.Mesh(new THREE.CylinderGeometry(bjR, bjR, 0.35, 40, 1, false, 0, Math.PI),
-            new THREE.MeshStandardMaterial({ color: 0x0c0717, roughness: 0.5, metalness: 0.15 }));
-          bjBase.position.y = 0.53; bjBase.receiveShadow = true; bjBase.castShadow = true;
-          bjGroup.add(bjBase);
+          // 1. Wooden H-Legs Understructure (Rich Warm Mahogany Wood)
+          const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a2211, roughness: 0.42, metalness: 0.08 });
+          
+          // Left Leg Assembly (x = -1.65)
+          const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.68, 0.36), woodMat);
+          leftPillar.position.set(-1.65, 0.35, 0); leftPillar.castShadow = true;
+          const leftFootFront = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.50), woodMat);
+          leftFootFront.position.set(-1.65, 0.06, 0.25); leftFootFront.castShadow = true;
+          const leftFootBack = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.50), woodMat);
+          leftFootBack.position.set(-1.65, 0.06, -0.25); leftFootBack.castShadow = true;
+          const leftMount = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.90), woodMat);
+          leftMount.position.set(-1.65, 0.69, 0);
+          bjGroup.add(leftPillar, leftFootFront, leftFootBack, leftMount);
 
-          // Neon trim lip peeking out from under the felt
-          const bjTrim = new THREE.Mesh(new THREE.CylinderGeometry(bjR + 0.18, bjR + 0.18, 0.08, 40, 1, false, 0, Math.PI),
-            new THREE.MeshStandardMaterial({ color: 0x0f3d24, emissive: 0x22c55e, emissiveIntensity: 1.4 }));
-          bjTrim.position.y = 0.745;
-          bjGroup.add(bjTrim);
+          // Right Leg Assembly (x = +1.65)
+          const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.68, 0.36), woodMat);
+          rightPillar.position.set(1.65, 0.35, 0); rightPillar.castShadow = true;
+          const rightFootFront = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.50), woodMat);
+          rightFootFront.position.set(1.65, 0.06, 0.25); rightFootFront.castShadow = true;
+          const rightFootBack = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.50), woodMat);
+          rightFootBack.position.set(1.65, 0.06, -0.25); rightFootBack.castShadow = true;
+          const rightMount = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.90), woodMat);
+          rightMount.position.set(1.65, 0.69, 0);
+          bjGroup.add(rightPillar, rightFootFront, rightFootBack, rightMount);
 
-          // Felt playing surface with painted rules/betting circles
-          const bjFeltCanvas = document.createElement('canvas'); bjFeltCanvas.width = 1024; bjFeltCanvas.height = 640;
+          // Heavy Horizontal Stretcher Beam connecting Left & Right Legs
+          const stretcherBeam = new THREE.Mesh(new THREE.BoxGeometry(3.15, 0.18, 0.14), woodMat);
+          stretcherBeam.position.set(0, 0.32, 0); stretcherBeam.castShadow = true;
+          bjGroup.add(stretcherBeam);
+
+          // 2. D-Shaped Wooden Tabletop Base Board (Matching felt & rail 1-to-1)
+          const bjBaseShape = new THREE.Shape();
+          bjBaseShape.absarc(0, 0, bjR, 0, Math.PI, false);
+          bjBaseShape.lineTo(-bjR, 0);
+          const bjBaseGeo = new THREE.ExtrudeGeometry(bjBaseShape, { depth: 0.10, bevelEnabled: false });
+          const bjBase = new THREE.Mesh(bjBaseGeo, woodMat);
+          bjBase.rotation.x = Math.PI / 2;
+          bjBase.position.y = 0.78; bjBase.receiveShadow = true; bjBase.castShadow = true;
+
+          // 3. Continuous Padded Black Leather Armrest Rail (Aligned with felt arc)
+          const leatherMat = new THREE.MeshStandardMaterial({ color: 0x121216, roughness: 0.32, metalness: 0.05 });
+          const bjRail = new THREE.Mesh(new THREE.TorusGeometry(bjR + 0.10, 0.16, 24, 64, Math.PI), leatherMat);
+          bjRail.rotation.x = Math.PI / 2;
+          bjRail.position.set(0, 0.81, 0);
+          bjRail.castShadow = true;
+
+          // Rear Corner Armrest End Caps (Left & Right rear corners)
+          const rearCapGeo = new THREE.BoxGeometry(0.95, 0.22, 0.32);
+          const rearCapL = new THREE.Mesh(rearCapGeo, leatherMat);
+          rearCapL.position.set(-2.15, 0.81, 0);
+          const rearCapR = new THREE.Mesh(rearCapGeo, leatherMat);
+          rearCapR.position.set(2.15, 0.81, 0);
+
+          // 4. Emerald Green Felt Surface with Perfect Semicircle & Undistorted 3 White Card Spaces
+          const bjFeltCanvas = document.createElement('canvas'); bjFeltCanvas.width = 1024; bjFeltCanvas.height = 512;
           const bjCtx = bjFeltCanvas.getContext('2d');
-          bjCtx.fillStyle = '#0b3d24'; bjCtx.fillRect(0, 0, 1024, 640);
-          bjCtx.strokeStyle = 'rgba(255,215,120,0.55)'; bjCtx.lineWidth = 5;
-          bjCtx.beginPath(); bjCtx.arc(512, 40, 470, 0.15 * Math.PI, 0.85 * Math.PI); bjCtx.stroke();
-          bjCtx.beginPath(); bjCtx.arc(512, 40, 430, 0.18 * Math.PI, 0.82 * Math.PI); bjCtx.stroke();
-          bjCtx.textAlign = 'center'; bjCtx.fillStyle = 'rgba(255,215,120,0.85)';
-          bjCtx.font = '900 34px Segoe UI'; bjCtx.fillText('BLACKJACK PAGA 3 A 2', 512, 260);
-          bjCtx.font = '700 20px Segoe UI'; bjCtx.fillStyle = 'rgba(237,231,246,0.75)';
-          bjCtx.fillText('EL DEALER SE PLANTA EN 17', 512, 296);
-          for (let i = 0; i < 6; i++) {
-            const cx = 130 + i * 152;
-            bjCtx.strokeStyle = 'rgba(237,231,246,0.35)'; bjCtx.lineWidth = 3;
-            bjCtx.beginPath(); bjCtx.arc(cx, 470, 60, 0, Math.PI * 2); bjCtx.stroke();
+          
+          // Rich Casino Emerald Green Felt Background
+          const bgGrad = bjCtx.createRadialGradient(512, 0, 20, 512, 250, 500);
+          bgGrad.addColorStop(0, '#00b454');
+          bgGrad.addColorStop(1, '#027a38');
+          bjCtx.fillStyle = bgGrad;
+          bjCtx.fillRect(0, 0, 1024, 512);
+
+          // Subtle Felt Cloth Texture
+          bjCtx.fillStyle = 'rgba(255, 255, 255, 0.025)';
+          for (let i = 0; i < 1024; i += 6) {
+            for (let j = 0; j < 512; j += 6) {
+              if ((i + j) % 12 === 0) bjCtx.fillRect(i, j, 3, 3);
+            }
           }
+
+          // Perfect Semicircle Golden Yellow Double Rules Arc
+          bjCtx.strokeStyle = '#facc15'; bjCtx.lineWidth = 5;
+          bjCtx.beginPath(); bjCtx.arc(512, 0, 420, 0.08 * Math.PI, 0.92 * Math.PI); bjCtx.stroke();
+          bjCtx.lineWidth = 3.5;
+          bjCtx.beginPath(); bjCtx.arc(512, 0, 345, 0.12 * Math.PI, 0.88 * Math.PI); bjCtx.stroke();
+
+          // Rules Typography (Curving naturally inside the semicircle)
+          bjCtx.textAlign = 'center'; bjCtx.fillStyle = '#facc15';
+          bjCtx.font = '900 32px Segoe UI, Arial'; bjCtx.fillText('BLACKJACK PAYS 3 TO 2', 512, 140);
+          bjCtx.font = '700 20px Segoe UI, Arial'; bjCtx.fillStyle = '#ffffff';
+          bjCtx.fillText('Dealer must draw to 16, and stand on all 17s', 512, 180);
+          bjCtx.font = '800 22px Segoe UI, Arial'; bjCtx.fillStyle = '#facc15';
+          bjCtx.fillText('INSURANCE PAYS 2 TO 1', 512, 245);
+          bjCtx.font = '800 16px Segoe UI, Arial';
+          bjCtx.fillText('PAYS 2 TO 1', 200, 190);
+          bjCtx.fillText('PAYS 2 TO 1', 824, 190);
+
+          // 3 Undistorted White Rectangular Player Card Outline Spaces
+          const spotAngles = [0.28, 0.50, 0.72];
+          spotAngles.forEach(ang => {
+            const rad = 410;
+            const cx = 512 + Math.cos(ang * Math.PI) * rad;
+            const cy = Math.sin(ang * Math.PI) * rad;
+            const angleRad = ang * Math.PI - Math.PI / 2;
+
+            bjCtx.save();
+            bjCtx.translate(cx, cy);
+            bjCtx.rotate(angleRad);
+
+            // White Rectangular Card Outer Box with Rounded Corners
+            bjCtx.strokeStyle = '#ffffff';
+            bjCtx.lineWidth = 4;
+            bjCtx.beginPath();
+            if (bjCtx.roundRect) {
+              bjCtx.roundRect(-42, -59, 84, 118, 10);
+            } else {
+              bjCtx.rect(-42, -59, 84, 118);
+            }
+            bjCtx.stroke();
+
+            // Inner subtle double line trim
+            bjCtx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+            bjCtx.lineWidth = 1.5;
+            bjCtx.beginPath();
+            if (bjCtx.roundRect) {
+              bjCtx.roundRect(-37, -54, 74, 108, 7);
+            } else {
+              bjCtx.rect(-37, -54, 74, 108);
+            }
+            bjCtx.stroke();
+
+            // Circular Betting Marker Circle beside/below box
+            bjCtx.strokeStyle = '#facc15';
+            bjCtx.lineWidth = 3;
+            bjCtx.beginPath();
+            bjCtx.arc(58, 0, 28, 0, Math.PI * 2);
+            bjCtx.stroke();
+
+            bjCtx.restore();
+          });
+
           const bjFeltTex = new THREE.CanvasTexture(bjFeltCanvas);
-          const bjFelt = new THREE.Mesh(new THREE.CylinderGeometry(bjR - 0.1, bjR - 0.1, 0.08, 40, 1, false, 0, Math.PI),
-            new THREE.MeshStandardMaterial({ color: 0xffffff, map: bjFeltTex, roughness: 0.85 }));
+          bjFeltTex.anisotropy = 16;
+          
+          // Extruded D-shaped geometry for 100% exact alignment with leather frame
+          const bjFeltShape = new THREE.Shape();
+          bjFeltShape.absarc(0, 0, bjR - 0.04, 0, Math.PI, false);
+          bjFeltShape.lineTo(-bjR + 0.04, 0);
+
+          const bjFeltGeo = new THREE.ShapeGeometry(bjFeltShape, 64);
+          
+          // Custom UVs for ShapeGeometry to align Canvas 1-to-1 seamlessly
+          const posAttr = bjFeltGeo.attributes.position;
+          const uvAttr = bjFeltGeo.attributes.uv;
+          for (let i = 0; i < posAttr.count; i++) {
+            const px = posAttr.getX(i);
+            const py = posAttr.getY(i);
+            const u = (px + bjR) / (2 * bjR);
+            const v = py / bjR;
+            uvAttr.setXY(i, u, 1 - v);
+          }
+          uvAttr.needsUpdate = true;
+
+          const bjFelt = new THREE.Mesh(
+            bjFeltGeo,
+            new THREE.MeshStandardMaterial({ color: 0xffffff, map: bjFeltTex, roughness: 0.75, side: THREE.DoubleSide })
+          );
+          bjFelt.rotation.x = Math.PI / 2;
           bjFelt.position.y = 0.825; bjFelt.receiveShadow = true;
-          bjGroup.add(bjFelt);
 
-          // Dealer card shoe (near the flat/dealer edge)
-          const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.32, 0.42),
-            new THREE.MeshStandardMaterial({ color: 0x1b0d2b, emissive: 0xFBBF24, emissiveIntensity: 0.5, metalness: 0.4, roughness: 0.3 }));
-          shoe.position.set(-1.5, 0.98, -0.65);
-          shoe.rotation.y = 0.35;
-          bjGroup.add(shoe);
+          // 5. Black Metal Dealer Chip Tray (Shifted further forward onto felt: x = 0, z = 0.20)
+          const trayBase = new THREE.Mesh(
+            new THREE.BoxGeometry(1.15, 0.08, 0.38),
+            new THREE.MeshStandardMaterial({ color: 0x111116, metalness: 0.85, roughness: 0.2 })
+          );
+          trayBase.position.set(0, 0.835, 0.20);
 
-          // Dealer chip tray
-          const tray = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.12, 0.32),
-            new THREE.MeshStandardMaterial({ color: 0x120a24, emissive: 0x8B5CF6, emissiveIntensity: 0.4 }));
-          tray.position.set(1.3, 0.87, -0.7);
-          bjGroup.add(tray);
+          // Color-Coded Chip Cylinders inside Dealer Chip Tray
+          const trayChipCols = [0x18181b, 0xea580c, 0x7c3aed, 0x2563eb, 0x22c55e, 0xf59e0b];
+          const trayGroup = new THREE.Group();
+          trayGroup.add(trayBase);
+          trayChipCols.forEach((colHex, cIdx) => {
+            const stack = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.085, 0.085, 0.16, 20),
+              new THREE.MeshStandardMaterial({ color: colHex, metalness: 0.5, roughness: 0.3 })
+            );
+            stack.rotation.z = Math.PI / 2;
+            stack.position.set(-0.42 + cIdx * 0.17, 0.88, 0.20);
+            trayGroup.add(stack);
+          });
 
+          // 6. 3D Dealer Card Shoe (Shifted further forward onto felt: x = -1.3, z = 0.25)
+          const shoeGroup = new THREE.Group();
+          shoeGroup.position.set(-1.3, 0.94, 0.25);
+          shoeGroup.rotation.set(-0.15, 0.45, 0);
+
+          const shoeBox = new THREE.Mesh(
+            new THREE.BoxGeometry(0.55, 0.28, 0.38),
+            new THREE.MeshStandardMaterial({ color: 0x180d28, metalness: 0.6, roughness: 0.25, transparent: true, opacity: 0.95 })
+          );
+          shoeGroup.add(shoeBox);
+
+          const shoeTrim = new THREE.Mesh(
+            new THREE.BoxGeometry(0.57, 0.05, 0.40),
+            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.15 })
+          );
+          shoeTrim.position.y = 0.12;
+          shoeGroup.add(shoeTrim);
+
+          const shoeCards = new THREE.Mesh(
+            new THREE.BoxGeometry(0.48, 0.20, 0.32),
+            new THREE.MeshStandardMaterial({ color: 0xefeee8, roughness: 0.5 })
+          );
+          shoeCards.position.set(0, 0.02, -0.02);
+          shoeGroup.add(shoeCards);
+
+          // 8. 3D Cards Group & 3D Chips Group (Placed flush on felt surface y = 0.865)
+          const bjCardsGroup = new THREE.Group();
+          bjCardsGroup.position.set(0, 0.865, 0);
+
+          const bjChipsGroup = new THREE.Group();
+          bjChipsGroup.position.set(0, 0.865, 0);
+
+          // Tabletop Assembly Group shifted -1.25m towards the empty side (-Z) to center over legs
+          const tabletopGroup = new THREE.Group();
+          tabletopGroup.position.z = -1.25;
+          tabletopGroup.add(
+            bjBase, bjRail, rearCapL, rearCapR, bjFelt,
+            trayGroup, shoeGroup,
+            bjCardsGroup, bjChipsGroup
+          );
+          bjGroup.add(tabletopGroup);
+
+          // bjGroup aligned naturally facing player position (+Z)
+
+          // bjGroup aligned naturally facing player seats (+Z)
+
+          window.bj3DRefs = {
+            group: bjGroup,
+            shoe: shoeGroup,
+            felt: bjFelt,
+            cardsGroup: bjCardsGroup,
+            chipsGroup: bjChipsGroup
+          };
+
+          bjGroup.position.y = 0.35;
           centerpiece = bjGroup;
         } else {
           centerpiece = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.2, 1.2),
@@ -3444,6 +3689,79 @@
       playerAvatar.position.set(state.player.x, 0, state.player.z);
       scene.add(playerAvatar);
 
+      /* ============================================================
+         REAL-TIME MULTIPLAYER CLIENT (SOCKET.IO)
+      ============================================================ */
+      const remotePlayers = {};
+      let socket = null;
+      let mySocketId = null;
+      let lastTransformEmit = 0;
+
+      if (typeof io !== 'undefined') {
+        socket = io();
+
+        // 1. Initial State from Server
+        socket.on('init', (data) => {
+          mySocketId = data.id;
+          const serverPlayers = data.players || {};
+
+          Object.keys(serverPlayers).forEach(id => {
+            if (id !== mySocketId && !remotePlayers[id]) {
+              addRemotePlayer(serverPlayers[id]);
+            }
+          });
+        });
+
+        // 2. New Player Joined
+        socket.on('playerJoined', (pData) => {
+          if (pData && pData.id && pData.id !== mySocketId && !remotePlayers[pData.id]) {
+            addRemotePlayer(pData);
+          }
+        });
+
+        // 3. Remote Player Moved
+        socket.on('playerMoved', (pData) => {
+          if (pData && pData.id && pData.id !== mySocketId && remotePlayers[pData.id]) {
+            const rp = remotePlayers[pData.id];
+            rp.targetX = pData.x;
+            rp.targetZ = pData.z;
+            rp.targetRotY = pData.rotY;
+          }
+        });
+
+        // 4. Remote Player Left
+        socket.on('playerLeft', (id) => {
+          if (remotePlayers[id]) {
+            if (remotePlayers[id].mesh) scene.remove(remotePlayers[id].mesh);
+            delete remotePlayers[id];
+          }
+        });
+      }
+
+      function addRemotePlayer(pData) {
+        const mesh = createAvatarMesh(pData.color || 0x8B5CF6);
+        mesh.position.set(pData.x || 0, 0, pData.z || 0);
+        mesh.rotation.y = pData.rotY || 0;
+        scene.add(mesh);
+
+        remotePlayers[pData.id] = {
+          id: pData.id,
+          mesh: mesh,
+          targetX: pData.x || 0,
+          targetZ: pData.z || 0,
+          targetRotY: pData.rotY || 0
+        };
+      }
+
+      function updateRemotePlayers(dt) {
+        Object.values(remotePlayers).forEach(rp => {
+          if (!rp.mesh) return;
+          rp.mesh.position.x += (rp.targetX - rp.mesh.position.x) * Math.min(1, dt * 15);
+          rp.mesh.position.z += (rp.targetZ - rp.mesh.position.z) * Math.min(1, dt * 15);
+          rp.mesh.rotation.y += (rp.targetRotY - rp.mesh.rotation.y) * Math.min(1, dt * 15);
+        });
+      }
+
       /* simulated AI bot avatars with state machines */
       const BOTS = [
         { id: 'bot1', name: '@Elena', color: 0xE11FD1, x: -5, z: 5, tx: -5, tz: 5, mesh: null, state: 'EXPLORING', seat: null, timer: 0 },
@@ -3480,7 +3798,11 @@
             } else {
               b.x += (dx / dist) * dt * 3; b.z += (dz / dist) * dt * 3;
               b.mesh.position.set(b.x, 0, b.z);
-              b.mesh.rotation.y = Math.atan2(dx, dz);
+              let targetR = Math.atan2(dx, dz);
+              let diffR = targetR - b.mesh.rotation.y;
+              while (diffR < -Math.PI) diffR += Math.PI * 2;
+              while (diffR > Math.PI) diffR -= Math.PI * 2;
+              b.mesh.rotation.y += diffR * Math.min(1, dt * 10);
             }
           }
           else if (b.state === 'WANDERING_TO_TABLE') {
@@ -3493,7 +3815,11 @@
             } else {
               b.x += (dx / dist) * dt * 3.5; b.z += (dz / dist) * dt * 3.5;
               b.mesh.position.set(b.x, 0, b.z);
-              b.mesh.rotation.y = Math.atan2(dx, dz);
+              let targetR = Math.atan2(dx, dz);
+              let diffR = targetR - b.mesh.rotation.y;
+              while (diffR < -Math.PI) diffR += Math.PI * 2;
+              while (diffR > Math.PI) diffR -= Math.PI * 2;
+              b.mesh.rotation.y += diffR * Math.min(1, dt * 10);
             }
           }
           else if (b.state === 'PLAYING_AT_TABLE') {
@@ -3664,7 +3990,7 @@
 
       window.addEventListener('mousedown', e => {
         if (e.button === 0 || e.button === 2) {
-          if (e.target.tagName === 'CANVAS' || e.target.id === 'canvas-host' || e.target.classList.contains('hud')) {
+          if (!e.target.closest('button, input, textarea, select, .action-btn, .chip, .exit-game-btn')) {
             isDraggingCam = true;
             previousMousePos = { x: e.clientX, y: e.clientY };
           }
@@ -3735,6 +4061,10 @@
         if (state.keys['d'] || state.keys['arrowright']) inRight += 1;
         if (state.keys['a'] || state.keys['arrowleft']) inRight -= 1;
 
+        // Q and E keys for smooth 360 degree camera rotation
+        if (state.keys['q']) targetCamYaw -= dt * 2.2;
+        if (state.keys['e'] && !state.activeZone) targetCamYaw += dt * 2.2;
+
         // Joystick input mapping
         inRight += state.joyVec.x;
         inForward -= state.joyVec.y;
@@ -3766,7 +4096,10 @@
 
         if (Math.hypot(state.player.vx, state.player.vz) > 0.1) {
           const targetRot = Math.atan2(state.player.vx, state.player.vz);
-          state.player.rotY += (targetRot - state.player.rotY) * Math.min(1, dt * 10);
+          let diff = targetRot - state.player.rotY;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          state.player.rotY += diff * Math.min(1, dt * 14);
         }
 
         playerAvatar.position.set(state.player.x, 0, state.player.z);
@@ -3830,6 +4163,27 @@
         const lookUpFactor = Math.max(0, 0.35 - camPitch);
         const lookY = pivot.y + 3.5 + lookUpFactor * 6.5;
         state.camFollowLook.lerp(new THREE.Vector3(pivot.x, lookY, pivot.z - 6), Math.min(1, dt * 8));
+        camera.lookAt(state.camFollowLook);
+      }
+
+      /* 360 Degree Seated Camera Orbiting for all Casino Game Tables */
+      function updateSeated360Camera(dt) {
+        if (!state.seatedPivot) return;
+
+        if (state.keys['q'] || state.keys['arrowleft']) targetCamYaw -= dt * 2.0;
+        if (state.keys['e'] || state.keys['arrowright']) targetCamYaw += dt * 2.0;
+
+        camYaw += (targetCamYaw - camYaw) * Math.min(1, dt * 10);
+        camPitch += (targetCamPitch - camPitch) * Math.min(1, dt * 10);
+        camDist += (targetCamDist - camDist) * Math.min(1, dt * 10);
+
+        const pivot = state.seatedPivot;
+        const cx = pivot.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist;
+        const cy = Math.max(CAM_FLOOR_Y, pivot.y + Math.sin(camPitch) * camDist);
+        const cz = pivot.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist;
+
+        camera.position.lerp(new THREE.Vector3(cx, cy, cz), Math.min(1, dt * 8));
+        state.camFollowLook.lerp(pivot, Math.min(1, dt * 8));
         camera.lookAt(state.camFollowLook);
       }
 
@@ -3915,14 +4269,15 @@
           toPos = new THREE.Vector3(z.x + 0.3, 3.4, z.z + 3.4);
           toLook = new THREE.Vector3(z.x, 0.68, z.z);
         } else if (gameId === 'coin') {
-          toPos = new THREE.Vector3(z.x + 0.2, 2.6, z.z + 2.6);
-          toLook = new THREE.Vector3(z.x, 0.85, z.z);
+          toPos = new THREE.Vector3(z.x, 3.8, z.z + 4.4);
+          toLook = new THREE.Vector3(z.x, 1.1, z.z - 0.2);
         } else if (gameId === 'mines') {
-          toPos = new THREE.Vector3(z.x, 4.4, z.z + 3.1);
-          toLook = new THREE.Vector3(z.x, 0.78, z.z);
+          toPos = new THREE.Vector3(z.x, 5.2, z.z + 4.2);
+          toLook = new THREE.Vector3(z.x, 0.78, z.z - 0.1);
         } else if (gameId === 'blackjack') {
-          toPos = new THREE.Vector3(z.x, 4.0, z.z + 4.6);
-          toLook = new THREE.Vector3(z.x, 0.8, z.z - 0.5);
+          toPos = new THREE.Vector3(z.x, 2.75, z.z + 2.10);
+          toLook = new THREE.Vector3(z.x, 0.86, z.z - 1.40);
+          if (typeof update3DBJChips === 'function') update3DBJChips(bjState.bet);
         } else if (gameId === 'cinema') {
           toPos = new THREE.Vector3(z.x, 3.0, z.z + 4.0);
           toLook = new THREE.Vector3(z.x, 6.0, z.z - 10);
@@ -3941,18 +4296,19 @@
             const wrap = document.getElementById(gameId + 'Wrap');
             if (wrap) wrap.classList.add('show');
 
-            if (gameId === 'cinema' && state.cinemaPivot) {
-              // Sincroniza el orbit-cam con el encuadre en el que terminó la transición,
-              // para que al empezar a mover el ratón no haya ningún salto de cámara.
-              const dx = toPos.x - state.cinemaPivot.x;
-              const dz = toPos.z - state.cinemaPivot.z;
-              const horiz = Math.max(0.001, Math.hypot(dx, dz));
-              const dy = toPos.y - state.cinemaPivot.y;
-              camDist = Math.hypot(horiz, dy);
-              camPitch = Math.atan2(dy, horiz);
-              camYaw = Math.atan2(dx, dz);
-              targetCamDist = camDist; targetCamPitch = camPitch; targetCamYaw = camYaw;
-            }
+            const pivot = (gameId === 'cinema' && state.cinemaPivot) ? state.cinemaPivot : toLook;
+            state.seatedPivot = pivot;
+
+            // Sincroniza el orbit-cam con el encuadre en el que terminó la transición,
+            // para que al empezar a mover el ratón no haya ningún salto de cámara.
+            const dx = toPos.x - pivot.x;
+            const dz = toPos.z - pivot.z;
+            const horiz = Math.max(0.001, Math.hypot(dx, dz));
+            const dy = toPos.y - pivot.y;
+            camDist = Math.hypot(horiz, dy);
+            camPitch = Math.atan2(dy, horiz);
+            camYaw = Math.atan2(dx, dz);
+            targetCamDist = camDist; targetCamPitch = camPitch; targetCamYaw = camYaw;
           }
         }
         requestAnimationFrame(step);
@@ -4076,6 +4432,7 @@
           else {
             state.mode = 'casino';
             state.cinemaPivot = null;
+            state.seatedPivot = null;
             // Resincroniza yaw/pitch/distancia del orbit-cam del mundo con el encuadre
             // final de la transición, para que no salte al reanudar el control WASD
             // (por ejemplo si el ratón se movió mientras se orbitaba el cine o una mesa).
@@ -4506,9 +4863,17 @@
       });
 
       /* ============================================================
-         3. BLACKJACK 21 LOGIC
+         3. BLACKJACK 3D LOGIC & ANIMATED 3D CARDS
       ============================================================ */
-      const bjState = { bet: 50, deck: [], player: [], dealer: [], active: false };
+      const bjState = {
+        bet: 50,
+        deck: [],
+        player: [],
+        dealer: [],
+        player3DMeshes: [],
+        dealer3DMeshes: [],
+        active: false
+      };
 
       function createDeck() {
         const suits = ['♠', '♥', '♦', '♣'];
@@ -4529,81 +4894,372 @@
         return total;
       }
 
-      function renderHand(elId, hand, hideSecond = false) {
-        const el = document.getElementById(elId); el.innerHTML = '';
-        hand.forEach((c, idx) => {
-          const card = document.createElement('div');
-          if (hideSecond && idx === 1) {
-            card.className = 'card back';
-          } else {
-            card.className = 'card ' + (c.red ? 'red' : '');
-            card.innerHTML = '<div class="card-val">' + c.v + '</div><div class="card-suit">' + c.s + '</div><div class="card-val" style="align-self:flex-end;">' + c.v + '</div>';
+      // Generate a 3D Card Mesh (10% smaller: W = 0.396, H = 0.007, D = 0.558)
+      function make3DCardMesh(cardObj, faceUp = true) {
+        const cardW = 0.396, cardH = 0.007, cardD = 0.558;
+        const cardGeo = new THREE.BoxGeometry(cardW, cardH, cardD);
+
+        // Front Face Canvas
+        const fCanvas = document.createElement('canvas'); fCanvas.width = 256; fCanvas.height = 384;
+        const fCtx = fCanvas.getContext('2d');
+        fCtx.fillStyle = '#fcfbf7'; fCtx.fillRect(0, 0, 256, 384);
+        fCtx.strokeStyle = '#d4af37'; fCtx.lineWidth = 6; fCtx.strokeRect(8, 8, 240, 368);
+
+        const isRed = cardObj ? (cardObj.s === '♥' || cardObj.s === '♦') : false;
+        const mainColor = isRed ? '#dc2626' : '#111827';
+
+        if (cardObj) {
+          fCtx.font = '900 48px Segoe UI, Arial';
+          fCtx.fillStyle = mainColor;
+          fCtx.textAlign = 'left';
+          fCtx.fillText(cardObj.v, 20, 56);
+          fCtx.font = '40px Segoe UI';
+          fCtx.fillText(cardObj.s, 20, 100);
+
+          fCtx.save();
+          fCtx.translate(236, 328);
+          fCtx.rotate(Math.PI);
+          fCtx.font = '900 48px Segoe UI, Arial';
+          fCtx.fillText(cardObj.v, 0, 0);
+          fCtx.font = '40px Segoe UI';
+          fCtx.fillText(cardObj.s, 0, -44);
+          fCtx.restore();
+
+          fCtx.font = '110px Segoe UI';
+          fCtx.textAlign = 'center';
+          fCtx.textBaseline = 'middle';
+          fCtx.fillText(cardObj.s, 128, 192);
+        }
+        const frontTex = new THREE.CanvasTexture(fCanvas);
+
+        // Back Face Canvas (Midnight Casino)
+        const bCanvas = document.createElement('canvas'); bCanvas.width = 256; bCanvas.height = 384;
+        const bCtx = bCanvas.getContext('2d');
+        bCtx.fillStyle = '#1b0d2b'; bCtx.fillRect(0, 0, 256, 384);
+        bCtx.strokeStyle = '#d4af37'; bCtx.lineWidth = 6; bCtx.strokeRect(8, 8, 240, 368);
+        bCtx.strokeStyle = 'rgba(212,175,55,0.35)'; bCtx.lineWidth = 2;
+        for (let i = -300; i < 600; i += 30) {
+          bCtx.beginPath(); bCtx.moveTo(i, 0); bCtx.lineTo(i + 300, 384); bCtx.stroke();
+          bCtx.beginPath(); bCtx.moveTo(i, 384); bCtx.lineTo(i + 300, 0); bCtx.stroke();
+        }
+        bCtx.beginPath(); bCtx.arc(128, 192, 60, 0, Math.PI * 2);
+        bCtx.fillStyle = '#2a1145'; bCtx.fill(); bCtx.strokeStyle = '#f59e0b'; bCtx.lineWidth = 4; bCtx.stroke();
+        bCtx.font = 'bold 50px Segoe UI'; bCtx.fillStyle = '#f59e0b'; bCtx.textAlign = 'center'; bCtx.textBaseline = 'middle';
+        bCtx.fillText('♠', 128, 192);
+        const backTex = new THREE.CanvasTexture(bCanvas);
+
+        const edgeMat = new THREE.MeshStandardMaterial({ color: 0xefeee8, roughness: 0.7 });
+        const topMat = new THREE.MeshStandardMaterial({ map: frontTex, roughness: 0.35 });
+        const botMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.35 });
+
+        const materials = [edgeMat, edgeMat, topMat, botMat, edgeMat, edgeMat];
+        const mesh = new THREE.Mesh(cardGeo, materials);
+        mesh.castShadow = true; mesh.receiveShadow = true;
+
+        if (!faceUp) {
+          mesh.rotation.z = Math.PI;
+        }
+        return mesh;
+      }
+
+      // Animate card sliding from shoe to 3D spot on felt
+      function animateCardDeal3D(cardMesh, targetPos, faceUp = true, delay = 0, onDone) {
+        if (!window.bj3DRefs) { onDone && onDone(); return; }
+
+        const spawnPos = new THREE.Vector3(-1.3, 0.15, 0.25);
+        cardMesh.position.copy(spawnPos);
+        cardMesh.rotation.set(0.1, 0.35, faceUp ? 0 : Math.PI);
+        window.bj3DRefs.cardsGroup.add(cardMesh);
+
+        setTimeout(() => {
+          playSound('chip');
+          const start = performance.now();
+          const duration = 380;
+
+          const startPos = cardMesh.position.clone();
+          const startRot = cardMesh.rotation.clone();
+          const targetRotZ = faceUp ? 0 : Math.PI;
+
+          function step(now) {
+            const elapsed = now - start;
+            const t = Math.min(1, elapsed / duration);
+            const easeT = 1 - Math.pow(1 - t, 3);
+
+            cardMesh.position.x = startPos.x + (targetPos.x - startPos.x) * easeT;
+            cardMesh.position.z = startPos.z + (targetPos.z - startPos.z) * easeT;
+
+            const heightArc = Math.sin(t * Math.PI) * 0.22;
+            cardMesh.position.y = startPos.y + (targetPos.y - startPos.y) * easeT + heightArc;
+
+            cardMesh.rotation.x = startRot.x * (1 - easeT);
+            cardMesh.rotation.y = startRot.y * (1 - easeT);
+            cardMesh.rotation.z = startRot.z + (targetRotZ - startRot.z) * easeT;
+
+            if (t < 1) requestAnimationFrame(step);
+            else {
+              cardMesh.position.copy(targetPos);
+              cardMesh.rotation.set(0, 0, targetRotZ);
+              onDone && onDone();
+            }
           }
-          el.appendChild(card);
+          requestAnimationFrame(step);
+        }, delay);
+      }
+
+      // Flip dealer second card 3D mesh
+      function flipCard3D(cardMesh, onDone) {
+        const start = performance.now();
+        const duration = 350;
+        const startRotZ = cardMesh.rotation.z;
+        const targetRotZ = 0;
+        const startY = cardMesh.position.y;
+
+        function step(now) {
+          const t = Math.min(1, (now - start) / duration);
+          const easeT = 1 - Math.pow(1 - t, 2);
+          cardMesh.rotation.z = startRotZ + (targetRotZ - startRotZ) * easeT;
+          cardMesh.position.y = startY + Math.sin(t * Math.PI) * 0.12;
+
+          if (t < 1) requestAnimationFrame(step);
+          else {
+            cardMesh.rotation.z = targetRotZ;
+            cardMesh.position.y = startY;
+            onDone && onDone();
+          }
+        }
+        requestAnimationFrame(step);
+      }
+
+      // Render 3D Chip Stack on Blackjack felt surface beside player cards (X = 0.65, Z = 1.15)
+      function update3DBJChips(betAmount) {
+        if (!window.bj3DRefs || !window.bj3DRefs.chipsGroup) return;
+        const grp = window.bj3DRefs.chipsGroup;
+        while (grp.children.length > 0) grp.remove(grp.children[0]);
+
+        if (betAmount <= 0) return;
+
+        let remaining = betAmount;
+        const chipValues = [1000, 500, 100, 50, 10];
+        const chipColors = { 1000: 0x18181b, 500: 0xea580c, 100: 0x7c3aed, 50: 0x2563eb, 10: 0x22c55e };
+
+        let stackY = 0.01;
+        let stackCol = 0;
+        let chipsInCol = 0;
+
+        chipValues.forEach(val => {
+          const count = Math.floor(remaining / val);
+          remaining %= val;
+          for (let i = 0; i < count; i++) {
+            const chipGroup = new THREE.Group();
+
+            const chipGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.035, 24);
+            const chipMat = new THREE.MeshStandardMaterial({ color: chipColors[val], metalness: 0.5, roughness: 0.25 });
+            const chipMesh = new THREE.Mesh(chipGeo, chipMat);
+            chipMesh.castShadow = true; chipMesh.receiveShadow = true;
+            chipGroup.add(chipMesh);
+
+            // Metallic Gold Edge Ring
+            const ringGeo = new THREE.TorusGeometry(0.122, 0.010, 10, 24);
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.15 });
+            const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+            ringMesh.rotation.x = Math.PI / 2;
+            chipGroup.add(ringMesh);
+
+            const posX = 0.42 + stackCol * 0.26;
+            const posZ = 2.12;
+            const rotY = (stackCol * 0.5 + chipsInCol * 0.23) % (Math.PI * 2);
+
+            chipGroup.position.set(posX, stackY, posZ);
+            chipGroup.rotation.y = rotY;
+            grp.add(chipGroup);
+
+            stackY += 0.038;
+            chipsInCol++;
+
+            if (chipsInCol >= 7) {
+              chipsInCol = 0;
+              stackY = 0.01;
+              stackCol++;
+            }
+          }
         });
       }
 
+      // Allow piling up multiple chips of any denomination on the 3D felt (capped by state.balance)
+      let bjBetFirstClick = true;
       document.querySelectorAll('#chipRackBJ .chip').forEach(c => {
         c.addEventListener('click', () => {
+          if (bjState.active) return;
+          const val = parseInt(c.dataset.v, 10);
+          const nextBet = bjBetFirstClick ? val : (bjState.bet + val);
+
+          if (nextBet > state.balance) {
+            showToast('⚠️ No tienes suficiente saldo para esa apuesta');
+            return;
+          }
+
           playSound('chip');
+          bjState.bet = nextBet;
+          bjBetFirstClick = false;
+
           document.querySelectorAll('#chipRackBJ .chip').forEach(x => x.classList.remove('selected'));
-          c.classList.add('selected'); bjState.bet = parseInt(c.dataset.v, 10);
+          c.classList.add('selected');
+
           document.getElementById('bjBetDisplay').textContent = '$' + bjState.bet;
+          if (window.bj3DRefs) update3DBJChips(bjState.bet);
         });
       });
+
+      // Clear / Reset bet button handler
+      const bjClearBtn = document.getElementById('bjClearBetBtn');
+      if (bjClearBtn) {
+        bjClearBtn.addEventListener('click', () => {
+          if (bjState.active) return;
+          playSound('chip');
+          bjState.bet = 0;
+          bjBetFirstClick = true;
+          document.getElementById('bjBetDisplay').textContent = '$0';
+          if (window.bj3DRefs) update3DBJChips(0);
+        });
+      }
 
       document.getElementById('bjDealBtn').addEventListener('click', () => {
         if (state.balance < bjState.bet) { showToast('Saldo insuficiente'); return; }
         state.balance -= bjState.bet; updateBalanceUI();
         playSound('chip');
 
+        // Clear 3D cards from previous round
+        if (window.bj3DRefs && window.bj3DRefs.cardsGroup) {
+          const grp = window.bj3DRefs.cardsGroup;
+          while (grp.children.length > 0) grp.remove(grp.children[0]);
+        }
+        update3DBJChips(bjState.bet);
+
         bjState.deck = createDeck();
         bjState.player = [bjState.deck.pop(), bjState.deck.pop()];
         bjState.dealer = [bjState.deck.pop(), bjState.deck.pop()];
+        bjState.player3DMeshes = [];
+        bjState.dealer3DMeshes = [];
         bjState.active = true;
 
-        renderHand('playerCards', bjState.player);
-        renderHand('dealerCards', bjState.dealer, true);
+        // 3D Card Dealing Animation sequence with 50% overlap & physical height stacking
+        const p1Mesh = make3DCardMesh(bjState.player[0], true);
+        bjState.player3DMeshes.push(p1Mesh);
+        animateCardDeal3D(p1Mesh, new THREE.Vector3(-0.09, 0.010, 2.12), true, 0);
 
-        document.getElementById('playerScore').textContent = 'Puntos: ' + getHandScore(bjState.player);
-        document.getElementById('dealerScore').textContent = 'Puntos: ?';
+        const d1Mesh = make3DCardMesh(bjState.dealer[0], true);
+        bjState.dealer3DMeshes.push(d1Mesh);
+        animateCardDeal3D(d1Mesh, new THREE.Vector3(-0.14, 0.010, 0.75), true, 220);
 
-        document.getElementById('bjDealBtn').style.display = 'none';
-        document.getElementById('bjHitBtn').style.display = 'inline-block';
-        document.getElementById('bjStandBtn').style.display = 'inline-block';
-        document.getElementById('bjResultBanner').classList.remove('show');
+        const p2Mesh = make3DCardMesh(bjState.player[1], true);
+        bjState.player3DMeshes.push(p2Mesh);
+        animateCardDeal3D(p2Mesh, new THREE.Vector3(0.09, 0.013, 2.12), true, 440);
+
+        const d2Mesh = make3DCardMesh(bjState.dealer[1], false); // Face Down!
+        bjState.dealer3DMeshes.push(d2Mesh);
+        animateCardDeal3D(d2Mesh, new THREE.Vector3(0.04, 0.013, 0.75), false, 660, () => {
+          document.getElementById('playerScore').textContent = 'Puntos: ' + getHandScore(bjState.player);
+          document.getElementById('dealerScore').textContent = 'Puntos: ?';
+
+          document.getElementById('bjDealBtn').style.display = 'none';
+          document.getElementById('bjHitBtn').style.display = 'inline-block';
+          document.getElementById('bjStandBtn').style.display = 'inline-block';
+          document.getElementById('bjDoubleBtn').style.display = 'inline-block';
+          document.getElementById('bjResultBanner').classList.remove('show');
+        });
       });
 
       document.getElementById('bjHitBtn').addEventListener('click', () => {
         if (!bjState.active) return;
-        bjState.player.push(bjState.deck.pop());
-        renderHand('playerCards', bjState.player);
-        const score = getHandScore(bjState.player);
-        document.getElementById('playerScore').textContent = 'Puntos: ' + score;
-        if (score > 21) bjEndRound('BUST! PERDISTE', false);
+        const newCard = bjState.deck.pop();
+        bjState.player.push(newCard);
+        const idx = bjState.player.length - 1;
+        const posX = -0.09 + idx * 0.18;
+        const posY = 0.010 + idx * 0.003;
+
+        const mesh = make3DCardMesh(newCard, true);
+        bjState.player3DMeshes.push(mesh);
+        animateCardDeal3D(mesh, new THREE.Vector3(posX, posY, 2.12), true, 0, () => {
+          const score = getHandScore(bjState.player);
+          document.getElementById('playerScore').textContent = 'Puntos: ' + score;
+          if (score > 21) bjEndRound('BUST! PERDISTE', false);
+        });
       });
 
       document.getElementById('bjStandBtn').addEventListener('click', () => {
         if (!bjState.active) return;
-        renderHand('dealerCards', bjState.dealer);
-        let dScore = getHandScore(bjState.dealer);
-        while (dScore < 17) {
-          bjState.dealer.push(bjState.deck.pop());
-          dScore = getHandScore(bjState.dealer);
-        }
-        renderHand('dealerCards', bjState.dealer);
-        document.getElementById('dealerScore').textContent = 'Puntos: ' + dScore;
+        bjState.active = false;
+        document.getElementById('bjHitBtn').style.display = 'none';
+        document.getElementById('bjStandBtn').style.display = 'none';
+        document.getElementById('bjDoubleBtn').style.display = 'none';
 
-        const pScore = getHandScore(bjState.player);
-        if (dScore > 21 || pScore > dScore) bjEndRound('¡GANASTE!', true);
-        else if (pScore < dScore) bjEndRound('PERDISTE', false);
-        else bjEndRound('EMPATE', null);
+        // Flip dealer hidden card in 3D
+        if (bjState.dealer3DMeshes[1]) {
+          flipCard3D(bjState.dealer3DMeshes[1], () => {
+            let dScore = getHandScore(bjState.dealer);
+            document.getElementById('dealerScore').textContent = 'Puntos: ' + dScore;
+
+            function dealerDrawNext() {
+              if (dScore < 17) {
+                const newCard = bjState.deck.pop();
+                bjState.dealer.push(newCard);
+                dScore = getHandScore(bjState.dealer);
+                const idx = bjState.dealer.length - 1;
+                const posX = -0.14 + idx * 0.18;
+                const posY = 0.010 + idx * 0.003;
+
+                const mesh = make3DCardMesh(newCard, true);
+                bjState.dealer3DMeshes.push(mesh);
+                animateCardDeal3D(mesh, new THREE.Vector3(posX, posY, 0.75), true, 0, () => {
+                  document.getElementById('dealerScore').textContent = 'Puntos: ' + dScore;
+                  setTimeout(dealerDrawNext, 350);
+                });
+              } else {
+                const pScore = getHandScore(bjState.player);
+                if (dScore > 21 || pScore > dScore) bjEndRound('¡GANASTE!', true);
+                else if (pScore < dScore) bjEndRound('PERDISTE', false);
+                else bjEndRound('EMPATE', null);
+              }
+            }
+            dealerDrawNext();
+          });
+        }
+      });
+
+      document.getElementById('bjDoubleBtn').addEventListener('click', () => {
+        if (!bjState.active) return;
+        if (state.balance < bjState.bet) { showToast('Saldo insuficiente para doblar'); return; }
+        state.balance -= bjState.bet;
+        bjState.bet *= 2;
+        updateBalanceUI();
+        document.getElementById('bjBetDisplay').textContent = '$' + bjState.bet;
+        update3DBJChips(bjState.bet);
+
+        const newCard = bjState.deck.pop();
+        bjState.player.push(newCard);
+        const idx = bjState.player.length - 1;
+        const posX = -0.09 + idx * 0.18;
+        const posY = 0.010 + idx * 0.003;
+
+        const mesh = make3DCardMesh(newCard, true);
+        bjState.player3DMeshes.push(mesh);
+        animateCardDeal3D(mesh, new THREE.Vector3(posX, posY, 2.12), true, 0, () => {
+          const score = getHandScore(bjState.player);
+          document.getElementById('playerScore').textContent = 'Puntos: ' + score;
+          if (score > 21) {
+            bjEndRound('BUST! PERDISTE', false);
+          } else {
+            document.getElementById('bjStandBtn').click();
+          }
+        });
       });
 
       function bjEndRound(titleMsg, won) {
         bjState.active = false;
+        bjBetFirstClick = true;
         document.getElementById('bjHitBtn').style.display = 'none';
         document.getElementById('bjStandBtn').style.display = 'none';
+        document.getElementById('bjDoubleBtn').style.display = 'none';
         document.getElementById('bjDealBtn').style.display = 'inline-block';
 
         const banner = document.getElementById('bjResultBanner');
@@ -5217,61 +5873,64 @@
          cuando quedan entre la cámara y la pantalla (iframe CSS3D)
       ============================================================ */
       const tvOcclusionRaycaster = new THREE.Raycaster();
-      let tvOcclusionTimer = 0;
-      let tvOccludedSmoothed = false;
-      const TV_SCALE_REF = 4;
-      const TV_SCREEN_W_REF = 7.0 * TV_SCALE_REF;
-      const TV_SCREEN_H_REF = 4.0 * TV_SCALE_REF;
-      // 5 puntos de muestreo (centro + 4 esquinas, con un pequeño margen hacia dentro)
-      // para que un objeto de la sala que tape sólo una parte de la pantalla la oculte igualmente
-      const TV_SAMPLE_OFFSETS = [
-        [0, 0],
-        [-0.42, 0.42], [0.42, 0.42],
-        [-0.42, -0.42], [0.42, -0.42],
-      ];
-      const TV_SCREEN_SAMPLE_POINTS = TV_SAMPLE_OFFSETS.map(([ox, oy]) => new THREE.Vector3(
-        tvGroupRef.position.x + ox * TV_SCREEN_W_REF,
-        tvGroupRef.position.y + oy * TV_SCREEN_H_REF,
-        tvGroupRef.position.z + 0.16 * TV_SCALE_REF
-      ));
-      const TV_SCREEN_WORLD_POS = TV_SCREEN_SAMPLE_POINTS[0];
+
       function updateTvOcclusion(dt) {
         const overlayEl = document.getElementById('tvIframeOverlay');
         if (!overlayEl || overlayEl.style.display === 'none') return;
 
-        tvOcclusionTimer += dt;
-        if (tvOcclusionTimer < 0.1) return; // ~10 comprobaciones/seg, suficiente y barato
-        tvOcclusionTimer = 0;
-
         const camPos = camera.position;
-        const distCenter = TV_SCREEN_WORLD_POS.clone().sub(camPos).length();
-        if (distCenter < 0.6) { overlayEl.style.visibility = 'visible'; tvOccludedSmoothed = false; return; }
+        const centerWorldPos = new THREE.Vector3();
+        if (tvScreenMeshRef) {
+          tvScreenMeshRef.getWorldPosition(centerWorldPos);
+        } else if (tvGroupRef) {
+          centerWorldPos.copy(tvGroupRef.position);
+          centerWorldPos.z += 0.64;
+        } else {
+          centerWorldPos.set(0, 16, -51.36);
+        }
+
+        const distCenter = centerWorldPos.distanceTo(camPos);
+        if (distCenter < 0.8) {
+          overlayEl.style.visibility = 'visible';
+          return;
+        }
+
+        // 5 Puntos de muestreo en el espacio del mundo (centro + 4 esquinas)
+        const samplePoints = [
+          centerWorldPos.clone(),
+          centerWorldPos.clone().add(new THREE.Vector3(-10, 5, 0)),
+          centerWorldPos.clone().add(new THREE.Vector3(10, 5, 0)),
+          centerWorldPos.clone().add(new THREE.Vector3(-10, -5, 0)),
+          centerWorldPos.clone().add(new THREE.Vector3(10, -5, 0))
+        ];
 
         let occludedSamples = 0;
-        for (let i = 0; i < TV_SCREEN_SAMPLE_POINTS.length; i++) {
-          const toScreen = TV_SCREEN_SAMPLE_POINTS[i].clone().sub(camPos);
+        for (let i = 0; i < samplePoints.length; i++) {
+          const toScreen = samplePoints[i].clone().sub(camPos);
           const dist = toScreen.length();
           toScreen.normalize();
 
           tvOcclusionRaycaster.set(camPos, toScreen);
-          tvOcclusionRaycaster.near = 0.1;
-          tvOcclusionRaycaster.far = dist - 0.5; // se detiene justo antes de llegar a la pantalla
+          tvOcclusionRaycaster.near = 0.5;
+          tvOcclusionRaycaster.far = Math.max(0.6, dist - 0.2); // se detiene justo antes de la pantalla
 
           const hits = tvOcclusionRaycaster.intersectObjects(scene.children, true);
           const hit = hits.some(h => {
             if (!h.object.isMesh || h.object.visible === false) return false;
             let o = h.object;
-            while (o) { if (o === tvGroupRef) return false; o = o.parent; }
+            while (o) {
+              if (o === tvGroupRef || o === tvScreenMeshRef) return false;
+              o = o.parent;
+            }
             return true;
           });
           if (hit) occludedSamples++;
         }
 
-        // Mayoría simple: si al menos 3 de los 5 rayos (incluye el centro con doble peso) chocan
-        // con algo de la sala, la pantalla se considera tapada por ese objeto físico.
-        const occluded = occludedSamples >= 3;
-        tvOccludedSmoothed = occluded;
-        overlayEl.style.visibility = tvOccludedSmoothed ? 'hidden' : 'visible';
+        // Si cualquier rayo (o el centro) choca con un objeto de la sala (pared, columna, barra, avatar, mueble),
+        // se oculta la capa HTML iframe CSS3D para que el WebGL renderice el objeto tapando la pantalla.
+        const occluded = occludedSamples >= 1;
+        overlayEl.style.visibility = occluded ? 'hidden' : 'visible';
       }
 
       function extractYoutubeId(input) {
@@ -5489,7 +6148,20 @@
 
         updatePlayer(dt);
         if (state.mode === 'cinema') updateCinemaCamera(dt);
+        else if (state.mode !== 'casino' && state.mode !== 'transition') updateSeated360Camera(dt);
         updateBots(dt);
+        if (typeof updateRemotePlayers === 'function') updateRemotePlayers(dt);
+
+        // Throttle sending local player position to server (~15 updates/sec)
+        if (socket && socket.connected && playerAvatar && (now - lastTransformEmit >= 65)) {
+          lastTransformEmit = now;
+          socket.emit('updateTransform', {
+            x: playerAvatar.position.x,
+            z: playerAvatar.position.z,
+            rotY: playerAvatar.rotation.y
+          });
+        }
+
         updateParticles();
         updateAvatarTag();
         updateTVSpatialAudioAndProjection();

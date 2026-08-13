@@ -70,6 +70,6 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Casino 3D Servidor Multijugador activo en puerto ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`🚀 Casino 3D Servidor Multijugador activo en http://localhost:${PORT}`);
 });
