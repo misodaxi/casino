@@ -290,6 +290,70 @@
       gap: 6px;
     }
 
+    /* ---------- manual master volume slider ---------- */
+    .tv-volume-row {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tv-volume-row .tv-volume-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .tv-volume-row .tv-volume-label small {
+      font-weight: 600;
+      color: var(--dim);
+    }
+
+    input[type="range"].tv-volume-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--violet), var(--magenta) var(--fillpct, 100%), rgba(255, 255, 255, 0.08) var(--fillpct, 100%));
+      outline: none;
+      cursor: pointer;
+      margin: 4px 0 2px;
+    }
+
+    input[type="range"].tv-volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.55), 0 2px 6px rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+      border: none;
+    }
+
+    input[type="range"].tv-volume-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.55), 0 2px 6px rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+      border: none;
+    }
+
+    input[type="range"].tv-volume-slider::-moz-range-progress {
+      background: linear-gradient(90deg, var(--violet), var(--magenta));
+      height: 6px;
+      border-radius: 4px;
+    }
+
     /* ---------- corner panels ---------- */
     .panel {
       background: var(--panel);
@@ -2012,6 +2076,18 @@
       <button id="loadYoutubeBtn">CARGAR 📺</button>
     </div>
 
+    <div class="tv-volume-row">
+      <div class="tv-volume-label">
+        <span>🔊 VOLUMEN MANUAL (referencia máxima)</span>
+        <small id="tvVolumeSliderPct">100%</small>
+      </div>
+      <input type="range" class="tv-volume-slider" id="tvVolumeSlider" min="0" max="100" value="100" style="--fillpct:100%;">
+      <div style="font-size:10px; color:var(--dim); line-height:1.4;">
+        Este control fija el volumen máximo de la TV. El sistema de audio espacial 3D reduce ese
+        máximo automáticamente cuanto más te alejas — nunca lo supera.
+      </div>
+    </div>
+
     <div class="tv-status-bar">
       <div style="display:flex; justify-content:space-between; font-weight:800; color:#fff;">
         <span id="tvStatusState">🟢 Reproduciendo</span>
@@ -2348,7 +2424,57 @@
       /* zone platforms & 3D models */
       let roulette3DRefs = null;
       let plinko3DRefs = null;
+      let dice3DRefs = null;
       const zoneMeshes = {};
+
+      /* ============================================================
+         PHYSICS DICE — pip textures + real 3D cube geometry
+         BoxGeometry material order = [+X, -X, +Y, -Y, +Z, -Z]
+         Opposite faces sum to 7: +X=2, -X=5, +Y=1, -Y=6, +Z=3, -Z=4
+      ============================================================ */
+      const DIE_FACE_VALUES = [2, 5, 1, 6, 3, 4];
+      const DIE_FACE_NORMALS = [
+        new THREE.Vector3(1, 0, 0), new THREE.Vector3(-1, 0, 0),
+        new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -1, 0),
+        new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1),
+      ];
+      const PIP_LAYOUTS = {
+        1: [[64, 64]],
+        2: [[38, 38], [90, 90]],
+        3: [[38, 38], [64, 64], [90, 90]],
+        4: [[38, 38], [90, 38], [38, 90], [90, 90]],
+        5: [[38, 38], [90, 38], [64, 64], [38, 90], [90, 90]],
+        6: [[38, 30], [90, 30], [38, 64], [90, 64], [38, 98], [90, 98]],
+      };
+      function makeDiePipTexture(value, accentHex) {
+        const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#f4f1ff'; ctx.fillRect(0, 0, 128, 128);
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 5;
+        ctx.strokeRect(2.5, 2.5, 123, 123);
+        ctx.fillStyle = '#' + accentHex.toString(16).padStart(6, '0');
+        (PIP_LAYOUTS[value] || []).forEach(([px, py]) => {
+          ctx.beginPath(); ctx.arc(px, py, 11, 0, Math.PI * 2); ctx.fill();
+        });
+        return new THREE.CanvasTexture(c);
+      }
+      function makeDieMesh(size, accentHex) {
+        const mats = DIE_FACE_VALUES.map(v => new THREE.MeshStandardMaterial({
+          map: makeDiePipTexture(v, accentHex), roughness: 0.35, metalness: 0.06
+        }));
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size, 1, 1, 1), mats);
+        mesh.castShadow = true; mesh.receiveShadow = true;
+        return mesh;
+      }
+      /* Reads which face currently points up (+Y world) from a die's quaternion */
+      function readDieFaceUp(mesh) {
+        let best = -Infinity, bestIdx = 2;
+        for (let i = 0; i < 6; i++) {
+          const n = DIE_FACE_NORMALS[i].clone().applyQuaternion(mesh.quaternion);
+          if (n.y > best) { best = n.y; bestIdx = i; }
+        }
+        return DIE_FACE_VALUES[bestIdx];
+      }
 
       ZONES.forEach(z => {
         const g = new THREE.Group();
@@ -3064,12 +3190,93 @@
           plinko3DRefs = { group: plinkoGroup, pegs: pegs3DMeshes, buckets: bucketMeshes, ballsGroup: plinkoBallsGroup };
         } else if (z.id === 'dice') {
           const dGroup = new THREE.Group();
-          const boxG = new THREE.BoxGeometry(1.0, 1.0, 1.0);
-          const m1 = new THREE.Mesh(boxG, new THREE.MeshStandardMaterial({ color: 0xEDE7F6, emissive: 0x8B5CF6, emissiveIntensity: .2 }));
-          m1.position.set(-0.6, 0.7, 0);
-          const m2 = new THREE.Mesh(boxG, new THREE.MeshStandardMaterial({ color: 0xFB923C, emissive: 0xFB923C, emissiveIntensity: .2 }));
-          m2.position.set(0.6, 0.7, 0);
-          dGroup.add(m1, m2); centerpiece = dGroup;
+
+          // Bounded felt pit that contains the physics dice roll
+          const pitR = 1.35;
+          const pitFloor = new THREE.Mesh(new THREE.CylinderGeometry(pitR, pitR, 0.08, 32),
+            new THREE.MeshStandardMaterial({ color: 0x120a24, roughness: 0.7 }));
+          pitFloor.position.y = 0.4; pitFloor.receiveShadow = true;
+          dGroup.add(pitFloor);
+
+          // Raised rim wall (bounces dice back into the pit)
+          const rimWall = new THREE.Mesh(new THREE.TorusGeometry(pitR, 0.09, 10, 40),
+            new THREE.MeshStandardMaterial({ color: 0x241a3d, emissive: 0xE11FD1, emissiveIntensity: 0.5 }));
+          rimWall.rotation.x = Math.PI / 2; rimWall.position.y = 0.46;
+          dGroup.add(rimWall);
+
+          // Two decorative dice resting in the pit before the first roll
+          const restDie1 = makeDieMesh(0.5, 0x8B5CF6);
+          restDie1.position.set(-0.5, 0.68, 0.15);
+          restDie1.rotation.set(0.1, 0.5, 0.05);
+          const restDie2 = makeDieMesh(0.5, 0xFB923C);
+          restDie2.position.set(0.5, 0.68, -0.15);
+          restDie2.rotation.set(-0.08, -0.3, 0.12);
+          dGroup.add(restDie1, restDie2);
+
+          // Container for the live physics dice spawned on each roll
+          const diceRollGroup = new THREE.Group();
+          dGroup.add(diceRollGroup);
+
+          centerpiece = dGroup;
+          dice3DRefs = {
+            group: dGroup,
+            rollGroup: diceRollGroup,
+            restDice: [restDie1, restDie2],
+            pitRadius: pitR - 0.22,   // margen interior para el rebote de los dados
+            floorY: 0.68,             // altura de la superficie del fieltro donde reposan los dados
+          };
+        } else if (z.id === 'blackjack') {
+          const bjGroup = new THREE.Group();
+          const bjR = 2.55;
+
+          // Base pedestal (D-shape, half cylinder)
+          const bjBase = new THREE.Mesh(new THREE.CylinderGeometry(bjR, bjR, 0.35, 40, 1, false, 0, Math.PI),
+            new THREE.MeshStandardMaterial({ color: 0x0c0717, roughness: 0.5, metalness: 0.15 }));
+          bjBase.position.y = 0.53; bjBase.receiveShadow = true; bjBase.castShadow = true;
+          bjGroup.add(bjBase);
+
+          // Neon trim lip peeking out from under the felt
+          const bjTrim = new THREE.Mesh(new THREE.CylinderGeometry(bjR + 0.18, bjR + 0.18, 0.08, 40, 1, false, 0, Math.PI),
+            new THREE.MeshStandardMaterial({ color: 0x0f3d24, emissive: 0x22c55e, emissiveIntensity: 1.4 }));
+          bjTrim.position.y = 0.745;
+          bjGroup.add(bjTrim);
+
+          // Felt playing surface with painted rules/betting circles
+          const bjFeltCanvas = document.createElement('canvas'); bjFeltCanvas.width = 1024; bjFeltCanvas.height = 640;
+          const bjCtx = bjFeltCanvas.getContext('2d');
+          bjCtx.fillStyle = '#0b3d24'; bjCtx.fillRect(0, 0, 1024, 640);
+          bjCtx.strokeStyle = 'rgba(255,215,120,0.55)'; bjCtx.lineWidth = 5;
+          bjCtx.beginPath(); bjCtx.arc(512, 40, 470, 0.15 * Math.PI, 0.85 * Math.PI); bjCtx.stroke();
+          bjCtx.beginPath(); bjCtx.arc(512, 40, 430, 0.18 * Math.PI, 0.82 * Math.PI); bjCtx.stroke();
+          bjCtx.textAlign = 'center'; bjCtx.fillStyle = 'rgba(255,215,120,0.85)';
+          bjCtx.font = '900 34px Segoe UI'; bjCtx.fillText('BLACKJACK PAGA 3 A 2', 512, 260);
+          bjCtx.font = '700 20px Segoe UI'; bjCtx.fillStyle = 'rgba(237,231,246,0.75)';
+          bjCtx.fillText('EL DEALER SE PLANTA EN 17', 512, 296);
+          for (let i = 0; i < 6; i++) {
+            const cx = 130 + i * 152;
+            bjCtx.strokeStyle = 'rgba(237,231,246,0.35)'; bjCtx.lineWidth = 3;
+            bjCtx.beginPath(); bjCtx.arc(cx, 470, 60, 0, Math.PI * 2); bjCtx.stroke();
+          }
+          const bjFeltTex = new THREE.CanvasTexture(bjFeltCanvas);
+          const bjFelt = new THREE.Mesh(new THREE.CylinderGeometry(bjR - 0.1, bjR - 0.1, 0.08, 40, 1, false, 0, Math.PI),
+            new THREE.MeshStandardMaterial({ color: 0xffffff, map: bjFeltTex, roughness: 0.85 }));
+          bjFelt.position.y = 0.825; bjFelt.receiveShadow = true;
+          bjGroup.add(bjFelt);
+
+          // Dealer card shoe (near the flat/dealer edge)
+          const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.32, 0.42),
+            new THREE.MeshStandardMaterial({ color: 0x1b0d2b, emissive: 0xFBBF24, emissiveIntensity: 0.5, metalness: 0.4, roughness: 0.3 }));
+          shoe.position.set(-1.5, 0.98, -0.65);
+          shoe.rotation.y = 0.35;
+          bjGroup.add(shoe);
+
+          // Dealer chip tray
+          const tray = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.12, 0.32),
+            new THREE.MeshStandardMaterial({ color: 0x120a24, emissive: 0x8B5CF6, emissiveIntensity: 0.4 }));
+          tray.position.set(1.3, 0.87, -0.7);
+          bjGroup.add(tray);
+
+          centerpiece = bjGroup;
         } else {
           centerpiece = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.2, 1.2),
             new THREE.MeshStandardMaterial({ color: 0x1f1438, emissive: new THREE.Color(z.color), emissiveIntensity: 0.3 }));
@@ -3534,6 +3741,12 @@
         } else if (gameId === 'plinko') {
           toPos = new THREE.Vector3(z.x, 3.5, z.z + 7.8);
           toLook = new THREE.Vector3(z.x, 2.6, z.z - 0.4);
+        } else if (gameId === 'dice') {
+          toPos = new THREE.Vector3(z.x + 0.3, 3.4, z.z + 3.4);
+          toLook = new THREE.Vector3(z.x, 0.68, z.z);
+        } else if (gameId === 'blackjack') {
+          toPos = new THREE.Vector3(z.x, 4.0, z.z + 4.6);
+          toLook = new THREE.Vector3(z.x, 0.8, z.z - 0.5);
         }
 
         const start = performance.now();
@@ -3845,7 +4058,7 @@
       });
 
       /* ============================================================
-         2. DICE DUEL LOGIC
+         2. DICE DUEL LOGIC — MOTOR DE FÍSICA REAL PARA LOS DADOS
       ============================================================ */
       const dState = { bet: 50, rolling: false };
       document.querySelectorAll('#chipRackDice .chip').forEach(c => {
@@ -3857,45 +4070,174 @@
         });
       });
 
+      let activeDiceRoll = null; // { dice:[...], resolved:false }
+      const DICE_FACE_EMOJI = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+      function spawnPhysicsDie(localX, localZ, accentHex) {
+        const mesh = makeDieMesh(0.42, accentHex);
+        mesh.position.set(localX, 2.4 + Math.random() * 0.6, localZ);
+        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        dice3DRefs.rollGroup.add(mesh);
+        return {
+          mesh,
+          vel: new THREE.Vector3((Math.random() - 0.5) * 2.6, -1, (Math.random() - 0.5) * 2.6),
+          angVel: new THREE.Vector3(
+            (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14
+          ),
+          settled: false,
+          groundedTimer: 0,
+          snapT: -1,
+          snapFrom: null,
+          snapTo: null,
+          value: 1,
+        };
+      }
+
+      function rollDiceDuel3D() {
+        if (!dice3DRefs) return;
+        dice3DRefs.restDice.forEach(d => d.visible = false);
+        while (dice3DRefs.rollGroup.children.length) {
+          dice3DRefs.rollGroup.remove(dice3DRefs.rollGroup.children[0]);
+        }
+        const playerDice = [
+          spawnPhysicsDie(-0.55, 0.35, 0x8B5CF6),
+          spawnPhysicsDie(-0.3, -0.35, 0x8B5CF6),
+        ];
+        const houseDice = [
+          spawnPhysicsDie(0.55, 0.35, 0xFB923C),
+          spawnPhysicsDie(0.3, -0.35, 0xFB923C),
+        ];
+        activeDiceRoll = { player: playerDice, house: houseDice, resolved: false };
+      }
+
+      function updateDicePhysics(dt) {
+        if (!dice3DRefs || !activeDiceRoll) return;
+        const gravity = 16;
+        const floorY = dice3DRefs.floorY;
+        const halfSize = 0.21;
+        const boundR = dice3DRefs.pitRadius;
+        const all = activeDiceRoll.player.concat(activeDiceRoll.house);
+        let allSettled = true;
+
+        all.forEach(d => {
+          if (d.settled) {
+            // snap suave hacia la orientación final una vez asentado
+            if (d.snapT >= 0 && d.snapT < 1) {
+              d.snapT = Math.min(1, d.snapT + dt * 3.2);
+              d.mesh.quaternion.slerpQuaternions(d.snapFrom, d.snapTo, d.snapT);
+            }
+            return;
+          }
+          allSettled = false;
+
+          d.vel.y -= gravity * dt;
+          d.mesh.position.x += d.vel.x * dt;
+          d.mesh.position.y += d.vel.y * dt;
+          d.mesh.position.z += d.vel.z * dt;
+
+          // integración de rotación a partir de la velocidad angular
+          const angMag = d.angVel.length();
+          if (angMag > 0.0001) {
+            const axis = d.angVel.clone().normalize();
+            const dq = new THREE.Quaternion().setFromAxisAngle(axis, angMag * dt);
+            d.mesh.quaternion.premultiply(dq);
+          }
+
+          // colisión con el suelo del cuenco
+          if (d.mesh.position.y <= floorY + halfSize) {
+            d.mesh.position.y = floorY + halfSize;
+            if (Math.abs(d.vel.y) > 0.4) {
+              d.vel.y = -d.vel.y * 0.42;
+              d.vel.x *= 0.7; d.vel.z *= 0.7;
+              d.angVel.multiplyScalar(0.6);
+              d.groundedTimer = 0;
+            } else {
+              d.vel.y = 0;
+              d.vel.x *= 0.82; d.vel.z *= 0.82;
+              d.angVel.multiplyScalar(0.8);
+              d.groundedTimer += dt;
+            }
+          }
+
+          // colisión con la pared circular del cuenco
+          const dist = Math.hypot(d.mesh.position.x, d.mesh.position.z);
+          if (dist > boundR) {
+            const nx = d.mesh.position.x / dist, nz = d.mesh.position.z / dist;
+            d.mesh.position.x = nx * boundR; d.mesh.position.z = nz * boundR;
+            const vDotN = d.vel.x * nx + d.vel.z * nz;
+            d.vel.x -= 2 * vDotN * nx; d.vel.z -= 2 * vDotN * nz;
+            d.vel.x *= 0.55; d.vel.z *= 0.55;
+            d.angVel.multiplyScalar(0.7);
+          }
+
+          // ¿asentado? velocidad lineal/angular baja y apoyado varios frames
+          const settledEnough = d.vel.length() < 0.18 && d.angVel.length() < 0.6 && d.groundedTimer > 0.18;
+          if (settledEnough) {
+            d.settled = true;
+            d.value = readDieFaceUp(d.mesh);
+            // snap a la orientación exacta de esa cara para que se vea perfectamente asentado
+            let bestI = 2, bestDot = -Infinity;
+            for (let i = 0; i < 6; i++) {
+              const n = DIE_FACE_NORMALS[i].clone().applyQuaternion(d.mesh.quaternion);
+              if (n.y > bestDot) { bestDot = n.y; bestI = i; }
+            }
+            const n = DIE_FACE_NORMALS[bestI].clone().applyQuaternion(d.mesh.quaternion).normalize();
+            const correction = new THREE.Quaternion().setFromUnitVectors(n, new THREE.Vector3(0, 1, 0));
+            d.snapFrom = d.mesh.quaternion.clone();
+            d.snapTo = correction.multiply(d.mesh.quaternion.clone());
+            d.snapT = 0;
+          }
+        });
+
+        if (allSettled && !activeDiceRoll.resolved) {
+          activeDiceRoll.resolved = true;
+          resolveDiceDuel(activeDiceRoll);
+        }
+      }
+
+      function resolveDiceDuel(roll) {
+        const p1 = roll.player[0].value, p2 = roll.player[1].value;
+        const h1 = roll.house[0].value, h2 = roll.house[1].value;
+        const pSum = p1 + p2, hSum = h1 + h2;
+
+        document.getElementById('myDice').innerHTML =
+          '<div class="die">' + DICE_FACE_EMOJI[p1] + '</div><div class="die">' + DICE_FACE_EMOJI[p2] + '</div>';
+        document.getElementById('houseDice').innerHTML =
+          '<div class="die">' + DICE_FACE_EMOJI[h1] + '</div><div class="die">' + DICE_FACE_EMOJI[h2] + '</div>';
+        document.getElementById('mySum').textContent = pSum;
+        document.getElementById('houseSum').textContent = hSum;
+
+        const banner = document.getElementById('diceResultBanner');
+        const title = document.getElementById('diceResultTitle');
+        const msg = document.getElementById('diceResultMsg');
+
+        if (pSum > hSum) {
+          state.balance += dState.bet * 2; updateBalanceUI();
+          title.textContent = '¡GANASTE!'; title.style.color = '#4ade80';
+          msg.className = 'win'; msg.textContent = '+$' + dState.bet;
+          triggerConfetti(); addXP(80);
+          playSound('win');
+        } else if (pSum < hSum) {
+          title.textContent = 'PERDISTE'; title.style.color = '#f87171';
+          msg.className = 'lose'; msg.textContent = '-$' + dState.bet;
+          playSound('lose');
+        } else {
+          state.balance += dState.bet; updateBalanceUI();
+          title.textContent = 'EMPATE'; title.style.color = '#d4d4d8';
+          msg.className = 'win'; msg.textContent = 'Reembolsado';
+        }
+        banner.classList.add('show');
+        dState.rolling = false;
+      }
+
       document.getElementById('diceRollBtn').addEventListener('click', () => {
         if (dState.rolling) return;
         if (state.balance < dState.bet) { showToast('Saldo insuficiente'); return; }
         dState.rolling = true;
         state.balance -= dState.bet; updateBalanceUI();
         playSound('dice');
-
-        setTimeout(() => {
-          const p1 = 1 + Math.floor(Math.random() * 6), p2 = 1 + Math.floor(Math.random() * 6);
-          const h1 = 1 + Math.floor(Math.random() * 6), h2 = 1 + Math.floor(Math.random() * 6);
-          const pSum = p1 + p2, hSum = h1 + h2;
-
-          const faces = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-          document.getElementById('myDice').innerHTML = '<div class="die">' + faces[p1] + '</div><div class="die">' + faces[p2] + '</div>';
-          document.getElementById('houseDice').innerHTML = '<div class="die">' + faces[h1] + '</div><div class="die">' + faces[h2] + '</div>';
-          document.getElementById('mySum').textContent = pSum;
-          document.getElementById('houseSum').textContent = hSum;
-
-          const banner = document.getElementById('diceResultBanner');
-          const title = document.getElementById('diceResultTitle');
-          const msg = document.getElementById('diceResultMsg');
-
-          if (pSum > hSum) {
-            state.balance += dState.bet * 2; updateBalanceUI();
-            title.textContent = '¡GANASTE!'; title.style.color = '#4ade80';
-            msg.className = 'win'; msg.textContent = '+$' + dState.bet;
-            triggerConfetti(); addXP(80);
-          } else if (pSum < hSum) {
-            title.textContent = 'PERDISTE'; title.style.color = '#f87171';
-            msg.className = 'lose'; msg.textContent = '-$' + dState.bet;
-            playSound('lose');
-          } else {
-            state.balance += dState.bet; updateBalanceUI();
-            title.textContent = 'EMPATE'; title.style.color = '#d4d4d8';
-            msg.className = 'win'; msg.textContent = 'Reembolsado';
-          }
-          banner.classList.add('show');
-          dState.rolling = false;
-        }, 1200);
+        document.getElementById('diceResultBanner').classList.remove('show');
+        rollDiceDuel3D();
       });
 
       /* ============================================================
@@ -4401,32 +4743,34 @@
       let tvIsMuted = false;
       let tvIsPaused = false;
       let userHasInteracted = false;
+      let masterVolume = 100; // Sistema de audio 1: volumen manual (referencia máxima, 0-100)
 
       function create3DCasinoTV() {
+        const TV_SCALE = 4; // "4 veces más grande" per la solicitud
         const tvGroup = new THREE.Group();
-        tvGroup.position.set(0, 3.8, -28.2);
+        tvGroup.position.set(0, 9.2, -42); // movida hacia atrás para verla mejor a su nuevo tamaño (sin perderse en la niebla)
 
         // Steel Support Cables hanging from ceiling
         const cableMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8, roughness: 0.2 });
-        const cable1 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 8, 8), cableMat);
-        cable1.position.set(-3.2, 4.0, 0);
-        const cable2 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 8, 8), cableMat);
-        cable2.position.set(3.2, 4.0, 0);
+        const cable1 = new THREE.Mesh(new THREE.CylinderGeometry(0.02 * TV_SCALE, 0.02 * TV_SCALE, 8 * TV_SCALE, 8), cableMat);
+        cable1.position.set(-3.2 * TV_SCALE, 4.0 * TV_SCALE, 0);
+        const cable2 = new THREE.Mesh(new THREE.CylinderGeometry(0.02 * TV_SCALE, 0.02 * TV_SCALE, 8 * TV_SCALE, 8), cableMat);
+        cable2.position.set(3.2 * TV_SCALE, 4.0 * TV_SCALE, 0);
         tvGroup.add(cable1, cable2);
 
         // Metallic TV Frame
         const tvFrame = new THREE.Mesh(
-          new THREE.BoxGeometry(7.4, 4.4, 0.3),
+          new THREE.BoxGeometry(7.4 * TV_SCALE, 4.4 * TV_SCALE, 0.3 * TV_SCALE),
           new THREE.MeshStandardMaterial({ color: 0x0a0514, roughness: 0.2, metalness: 0.8 })
         );
         tvGroup.add(tvFrame);
 
         // TV Neon Ambient Backlight Tube
         const tvNeon = new THREE.Mesh(
-          new THREE.BoxGeometry(7.6, 4.6, 0.08),
+          new THREE.BoxGeometry(7.6 * TV_SCALE, 4.6 * TV_SCALE, 0.08 * TV_SCALE),
           new THREE.MeshStandardMaterial({ color: 0x8B5CF6, emissive: 0x8B5CF6, emissiveIntensity: 2.0 })
         );
-        tvNeon.position.z = -0.12;
+        tvNeon.position.z = -0.12 * TV_SCALE;
         tvGroup.add(tvNeon);
 
         // 3D Screen Canvas Texture
@@ -4440,15 +4784,16 @@
         const tvTex = new THREE.CanvasTexture(tvCanvas);
 
         const tvScreenMat = new THREE.MeshBasicMaterial({ map: tvTex });
-        const tvScreenMesh = new THREE.Mesh(new THREE.PlaneGeometry(7.0, 4.0), tvScreenMat);
-        tvScreenMesh.position.z = 0.16;
+        const tvScreenW = 7.0 * TV_SCALE, tvScreenH = 4.0 * TV_SCALE;
+        const tvScreenMesh = new THREE.Mesh(new THREE.PlaneGeometry(tvScreenW, tvScreenH), tvScreenMat);
+        tvScreenMesh.position.z = 0.16 * TV_SCALE;
         tvScreenMesh.name = 'tvScreen3DMesh';
         tvGroup.add(tvScreenMesh);
         tvScreenMeshRef = tvScreenMesh;
 
-        // Dynamic Light Bleed into Casino Scene
-        const tvLight = new THREE.PointLight(0x8B5CF6, 2.5, 28);
-        tvLight.position.set(0, -1.0, 2.0);
+        // Dynamic Light Bleed into Casino Scene (rango ampliado para la pantalla mucho mayor)
+        const tvLight = new THREE.PointLight(0x8B5CF6, 3.2, 28 * TV_SCALE);
+        tvLight.position.set(0, -1.0 * TV_SCALE, 2.0 * TV_SCALE);
         tvGroup.add(tvLight);
         tvLightRef = tvLight;
 
@@ -4461,8 +4806,13 @@
           overlayEl.style.pointerEvents = 'auto';
 
           const tvCss3DObject = new THREE.CSS3DObject(overlayEl);
-          tvCss3DObject.position.set(0, 3.8, -28.02); // Exact 3D World position of TV Screen Face
-          tvCss3DObject.scale.set(7.0 / 1280, 4.0 / 720, 1.0); // Exact 3D Scale mapping (7.0m x 4.0m to 1280px x 720px)
+          // Posición exacta en mundo 3D de la cara de la pantalla (grupo + offset local * escala)
+          tvCss3DObject.position.set(
+            tvGroup.position.x,
+            tvGroup.position.y,
+            tvGroup.position.z + 0.16 * TV_SCALE
+          );
+          tvCss3DObject.scale.set(tvScreenW / 1280, tvScreenH / 720, 1.0); // mapeo exacto px -> metros
 
           if (typeof cssScene !== 'undefined' && cssScene) {
             cssScene.add(tvCss3DObject);
@@ -4470,8 +4820,9 @@
         }
 
         scene.add(tvGroup);
+        return tvGroup;
       }
-      create3DCasinoTV();
+      const tvGroupRef = create3DCasinoTV();
 
       function extractYoutubeId(input) {
         if (!input || typeof input !== 'string') return null;
@@ -4552,12 +4903,15 @@
           return;
         }
 
-        const dx = state.player.x - 0;
-        const dz = state.player.z - (-28.2);
+        const tvX = tvGroupRef ? tvGroupRef.position.x : 0;
+        const tvZ = tvGroupRef ? tvGroupRef.position.z : -52;
+        const dx = state.player.x - tvX;
+        const dz = state.player.z - tvZ;
         const dist = Math.hypot(dx, dz);
 
-        const minDist = 6;
-        const maxDist = 38;
+        // Distancias recalibradas para la pantalla 4x más grande y más alejada
+        const minDist = 20;
+        const maxDist = 90;
         let volRatio = 1.0;
 
         if (dist > minDist) {
@@ -4565,10 +4919,12 @@
           volRatio = Math.pow(volRatio, 1.6);
         }
 
-        let volPercent = Math.round(volRatio * 100);
+        // Sistema de audio 2 (distancia): reduce el volumen manual (sistema 1) según te alejas,
+        // usando SIEMPRE `masterVolume` como techo — nunca puede sonar por encima de ese máximo.
+        let volPercent = Math.round(volRatio * masterVolume);
 
         const nowVolTime = performance.now();
-        if (Math.abs(volPercent - lastTvVolPercent) >= 3 && (nowVolTime - lastTvVolTime) > 300) {
+        if (Math.abs(volPercent - lastTvVolPercent) >= 2 && (nowVolTime - lastTvVolTime) > 250) {
           lastTvVolPercent = volPercent;
           lastTvVolTime = nowVolTime;
           if (!tvIsMuted) sendYtCommand('setVolume', [volPercent]);
@@ -4583,6 +4939,31 @@
             iframeOverlay.style.opacity = Math.min(1, volRatio * 1.6).toFixed(2);
           }
         }
+
+        // Refrescar indicadores de estado del modal de TV
+        const distEl = document.getElementById('tvStatusDist');
+        const volEl = document.getElementById('tvStatusVol');
+        const filterEl = document.getElementById('tvStatusFilter');
+        if (distEl) distEl.textContent = 'Distancia: ' + Math.round(dist) + 'm';
+        if (volEl) volEl.textContent = 'Volumen 3D: ' + volPercent + '% (máx ' + masterVolume + '%)';
+        if (filterEl) {
+          if (volRatio > 0.66) filterEl.textContent = 'Filtro Acústico: Transparente (20kHz)';
+          else if (volRatio > 0.3) filterEl.textContent = 'Filtro Acústico: Amortiguado (8kHz)';
+          else if (volRatio > 0.05) filterEl.textContent = 'Filtro Acústico: Muy amortiguado (2kHz)';
+          else filterEl.textContent = 'Filtro Acústico: Inaudible';
+        }
+      }
+
+      // Sistema de audio 1: barra de volumen manual — fija el volumen MÁXIMO de referencia
+      const tvVolumeSliderEl = document.getElementById('tvVolumeSlider');
+      const tvVolumeSliderPctEl = document.getElementById('tvVolumeSliderPct');
+      if (tvVolumeSliderEl) {
+        tvVolumeSliderEl.addEventListener('input', function () {
+          masterVolume = parseInt(this.value, 10);
+          this.style.setProperty('--fillpct', masterVolume + '%');
+          if (tvVolumeSliderPctEl) tvVolumeSliderPctEl.textContent = masterVolume + '%';
+          lastTvVolTime = 0; // fuerza actualización inmediata del volumen 3D en el próximo frame
+        });
       }
 
       // TV Modal Event Listeners
@@ -4662,6 +5043,7 @@
         updateAvatarTag();
         updateTVSpatialAudioAndProjection();
         try { updatePlinko3DBalls(dt); } catch (e) { }
+        try { updateDicePhysics(dt); } catch (e) { }
 
         /* rotate fountain & zone rings */
         fountainPillar.rotation.y += dt * 0.5;
