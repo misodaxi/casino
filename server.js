@@ -121,6 +121,22 @@ function checkAndTriggerSpin(rouletteId) {
         });
         broadcastRouletteState(rouletteId);
 
+        setTimeout(() => {
+          if (roulettes[rouletteId]) {
+            const nextRound = roulettes[rouletteId];
+            nextRound.status = 'WAITING';
+            nextRound.readyPlayers = {};
+            nextRound.bets = {};
+            nextRound.userBets = {};
+            nextRound.result = null;
+            broadcastRouletteState(rouletteId);
+          }
+        }, 4000);
+      }
+    }, 7000);
+  }
+}
+
 /* ============================================================
    AUTHORITATIVE MULTIPLAYER BLACKJACK ENGINE
 ============================================================ */
@@ -542,7 +558,7 @@ io.on('connection', (socket) => {
     const r = getOrCreateRouletteState(rId);
     r.players[socket.id] = {
       id: socket.id,
-      name: players[socket.id]?.name || 'Jugador',
+      name: (players[socket.id] && players[socket.id].name) || 'Jugador',
       seatIndex: data.seatIndex || 0
     };
 
@@ -620,7 +636,7 @@ io.on('connection', (socket) => {
     const bj = getOrCreateBlackjackState(bjId);
     bj.players[socket.id] = {
       id: socket.id,
-      name: players[socket.id]?.name || 'Jugador',
+      name: (players[socket.id] && players[socket.id].name) || 'Jugador',
       seatIndex: data.seatIndex || 0,
       hand: [],
       score: 0,
@@ -759,7 +775,7 @@ io.on('connection', (socket) => {
   socket.on('chatMessage', (msg) => {
     io.emit('chatMessage', {
       id: socket.id,
-      name: players[socket.id]?.name || 'Anónimo',
+      name: (players[socket.id] && players[socket.id].name) || 'Anónimo',
       message: msg
     });
   });
