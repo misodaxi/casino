@@ -158,10 +158,13 @@ function getHandScore(hand) {
   let total = 0, aces = 0;
   if (!hand || !Array.isArray(hand)) return 0;
   hand.forEach(c => {
-    if (!c || c.hidden) return;
+    if (!c || c.hidden || c.v === '?') return;
     if (c.v === 'A') { aces++; total += 11; }
     else if (['J', 'Q', 'K'].includes(c.v)) total += 10;
-    else total += parseInt(c.v, 10);
+    else {
+      const num = parseInt(c.v, 10);
+      if (!isNaN(num)) total += num;
+    }
   });
   while (total > 21 && aces > 0) { total -= 10; aces--; }
   return total;
@@ -265,14 +268,8 @@ function startBlackjackDeal(blackjackId) {
   function processDealQueue() {
     if (stepIdx >= dealQueue.length) {
       bj.phase = 'PLAYER_TURNS';
-      bj.currentPlayerIndex = 0;
-      bj.currentPlayerId = bj.playerOrder[0];
-      broadcastBlackjackState(blackjackId);
-      io.to(`blackjack:${blackjackId}`).emit('blackjackTurnChanged', {
-        blackjackId,
-        currentPlayerId: bj.currentPlayerId,
-        playerIndex: 0
-      });
+      bj.currentPlayerIndex = -1;
+      advanceBlackjackTurn(blackjackId);
       return;
     }
 
@@ -339,21 +336,83 @@ function advanceBlackjackTurn(blackjackId) {
   if (bj.phase !== 'PLAYER_TURNS') return;
 
   bj.currentPlayerIndex++;
-  if (bj.currentPlayerIndex < bj.playerOrder.length) {
-    bj.currentPlayerId = bj.playerOrder[bj.currentPlayerIndex];
-    broadcastBlackjackState(blackjackId);
-    io.to(`blackjack:${blackjackId}`).emit('blackjackTurnChanged', {
-      blackjackId,
-      currentPlayerId: bj.currentPlayerId,
-      playerIndex: bj.currentPlayerIndex
-    });
-  } else {
-    startBlackjackDealerTurn(blackjackId);
+  while (bj.currentPlayerIndex < bj.playerOrder.length) {
+    const nextPlayerId = bj.playerOrder[bj.currentPlayerIndex];
+    const p = bj.players[nextPlayerId];
+    if (p && p.status !== 'STAND' && p.status !== 'BUST' && !p.leftTable) {
+      bj.currentPlayerId = nextPlayerId;
+      broadcastBlackjackState(blackjackId);
+      io.to(`blackjack:${blackjackId}`).emit('blackjackTurnChanged', {
+        blackjackId,
+        currentPlayerId: bj.currentPlayerId,
+        playerIndex: bj.currentPlayerIndex
+      });
+      return;
+    }
+    bj.currentPlayerIndex++;
   }
+
+  startBlackjackDealerTurn(blackjackId);
+}
+
+function resolveInstantBlackjackRound(blackjackId) {
+  const bj = getOrCreateBlackjackState(blackjackId);
+
+  // Completar el robo de cartas del crupier de forma inmediata
+  let dScore = getHandScore(bj.dealer);
+  while (dScore < 17) {
+    if (bj.deck.length === 0) bj.deck = createStandardDeck();
+    bj.dealer.push(bj.deck.pop());
+    dScore = getHandScore(bj.dealer);
+  }
+
+  // Evaluar y pagar a todos los jugadores que estaban en la mesa
+  Object.keys(bj.players).forEach(id => {
+    const p = bj.players[id];
+    const pScore = p.score;
+    let outcome = 'LOSE';
+
+    if (pScore > 21) outcome = 'BUST';
+    else if (dScore > 21 || pScore > dScore) outcome = 'WIN';
+    else if (pScore === dScore) outcome = 'PUSH';
+    else outcome = 'LOSE';
+
+    const res = {
+      playerId: id,
+      result: outcome,
+      playerScore: pScore,
+      dealerScore: dScore,
+      bet: p.bets
+    };
+
+    io.to(id).emit('blackjackResult', {
+      blackjackId,
+      results: { [id]: res },
+      dealerScore: dScore
+    });
+  });
+
+  // Limpiar y resetear la mesa de inmediato a estado WAITING
+  bj.phase = 'WAITING';
+  bj.dealer = [];
+  bj.dealerHiddenCard = null;
+  bj.results = {};
+  bj.players = {};
+  bj.playerOrder = [];
+  bj.currentPlayerIndex = -1;
+  bj.currentPlayerId = null;
+
+  broadcastBlackjackState(blackjackId);
 }
 
 function startBlackjackDealerTurn(blackjackId) {
   const bj = getOrCreateBlackjackState(blackjackId);
+  const activeSeated = Object.values(bj.players).filter(p => !p.leftTable);
+  if (activeSeated.length === 0) {
+    resolveInstantBlackjackRound(blackjackId);
+    return;
+  }
+
   bj.phase = 'DEALER_TURN';
   bj.currentPlayerId = 'dealer';
 
@@ -418,13 +477,22 @@ function evaluateBlackjackRoundResults(blackjackId) {
       outcome = 'PUSH';
     }
 
-    bj.results[id] = {
+    const res = {
       playerId: id,
       result: outcome,
       playerScore: pScore,
       dealerScore: dScore,
       bet: p.bets
     };
+
+    bj.results[id] = res;
+
+    // Emitir resultado directamente al socket individual del jugador
+    io.to(id).emit('blackjackResult', {
+      blackjackId,
+      results: { [id]: res },
+      dealerScore: dScore
+    });
   });
 
   io.to(`blackjack:${blackjackId}`).emit('blackjackResult', {
@@ -435,6 +503,9 @@ function evaluateBlackjackRoundResults(blackjackId) {
 
   broadcastBlackjackState(blackjackId);
 
+  const activeSeated = Object.values(bj.players).filter(p => !p.leftTable);
+  const resetDelay = (activeSeated.length === 0) ? 100 : 4000;
+
   setTimeout(() => {
     if (blackjacks[blackjackId]) {
       const room = blackjacks[blackjackId];
@@ -442,14 +513,22 @@ function evaluateBlackjackRoundResults(blackjackId) {
       room.dealer = [];
       room.dealerHiddenCard = null;
       room.results = {};
+      room.currentPlayerIndex = -1;
+      room.currentPlayerId = null;
+
       Object.keys(room.players).forEach(id => {
-        room.players[id].hand = [];
-        room.players[id].score = 0;
-        room.players[id].status = 'WAITING';
+        if (room.players[id].leftTable) {
+          delete room.players[id];
+          room.playerOrder = room.playerOrder.filter(pId => pId !== id);
+        } else {
+          room.players[id].hand = [];
+          room.players[id].score = 0;
+          room.players[id].status = 'WAITING';
+        }
       });
       broadcastBlackjackState(blackjackId);
     }
-  }, 4500);
+  }, resetDelay);
 }
 
 function getSyncedTvState() {
@@ -634,6 +713,20 @@ io.on('connection', (socket) => {
     socket.currentBlackjackId = bjId;
 
     const bj = getOrCreateBlackjackState(bjId);
+
+    // Si la mesa estaba en juego pero todos los jugadores se habían levantado, resetear inmediatamente a WAITING
+    const activeSeated = Object.values(bj.players).filter(p => !p.leftTable && p.id !== socket.id);
+    if (activeSeated.length === 0 && bj.phase !== 'WAITING') {
+      bj.phase = 'WAITING';
+      bj.dealer = [];
+      bj.dealerHiddenCard = null;
+      bj.results = {};
+      bj.players = {};
+      bj.playerOrder = [];
+      bj.currentPlayerIndex = -1;
+      bj.currentPlayerId = null;
+    }
+
     bj.players[socket.id] = {
       id: socket.id,
       name: (players[socket.id] && players[socket.id].name) || 'Jugador',
@@ -641,10 +734,11 @@ io.on('connection', (socket) => {
       hand: [],
       score: 0,
       bets: data.bet || 50,
-      status: 'WAITING'
+      status: 'WAITING',
+      leftTable: false
     };
 
-    if (bj.phase === 'WAITING' && !bj.playerOrder.includes(socket.id)) {
+    if (!bj.playerOrder.includes(socket.id)) {
       bj.playerOrder.push(socket.id);
     }
 
@@ -654,19 +748,33 @@ io.on('connection', (socket) => {
   socket.on('blackjackLeave', (data) => {
     const bjId = (data && data.blackjackId) ? data.blackjackId : socket.currentBlackjackId;
     if (bjId && blackjacks[bjId]) {
-      socket.leave(`blackjack:${bjId}`);
       const bj = blackjacks[bjId];
-      delete bj.players[socket.id];
-      bj.playerOrder = bj.playerOrder.filter(id => id !== socket.id);
       delete socket.currentBlackjackId;
+      socket.leave(`blackjack:${bjId}`);
 
-      if (bj.playerOrder.length === 0) {
-        bj.phase = 'WAITING';
-        bj.currentPlayerIndex = -1;
-        bj.currentPlayerId = null;
-        bj.dealer = [];
-      } else if (bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id) {
-        advanceBlackjackTurn(bjId);
+      if (bj.players[socket.id]) {
+        if (bj.phase === 'DEALING' || bj.phase === 'PLAYER_TURNS' || bj.phase === 'DEALER_TURN') {
+          bj.players[socket.id].status = 'STAND';
+          bj.players[socket.id].leftTable = true;
+
+          const remainingActive = Object.values(bj.players).filter(p => !p.leftTable);
+          if (remainingActive.length === 0) {
+            // Si ya no queda nadie activo en la mesa, resolver el turno del crupier de inmediato
+            startBlackjackDealerTurn(bjId);
+          } else if (bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id) {
+            advanceBlackjackTurn(bjId);
+          }
+        } else {
+          delete bj.players[socket.id];
+          bj.playerOrder = bj.playerOrder.filter(id => id !== socket.id);
+
+          if (bj.playerOrder.length === 0) {
+            bj.phase = 'WAITING';
+            bj.currentPlayerIndex = -1;
+            bj.currentPlayerId = null;
+            bj.dealer = [];
+          }
+        }
       }
 
       broadcastBlackjackState(bjId);
@@ -674,26 +782,54 @@ io.on('connection', (socket) => {
   });
 
   socket.on('blackjackStartRoundReq', (data) => {
-    const bjId = (data && data.blackjackId) ? data.blackjackId : socket.currentBlackjackId;
-    if (bjId && blackjacks[bjId]) {
-      const bj = blackjacks[bjId];
-      if (data && typeof data.bet === 'number' && bj.players[socket.id]) {
+    const bjId = (data && data.blackjackId) ? data.blackjackId : (socket.currentBlackjackId || 'blackjack');
+    const bj = getOrCreateBlackjackState(bjId);
+    socket.join(`blackjack:${bjId}`);
+    socket.currentBlackjackId = bjId;
+
+    if (!bj.players[socket.id]) {
+      bj.players[socket.id] = {
+        id: socket.id,
+        name: (players[socket.id] && players[socket.id].name) || 'Jugador',
+        seatIndex: (data && typeof data.seatIndex === 'number') ? data.seatIndex : 0,
+        hand: [],
+        score: 0,
+        bets: (data && typeof data.bet === 'number') ? data.bet : 50,
+        status: 'WAITING',
+        leftTable: false
+      };
+    } else {
+      if (data && typeof data.bet === 'number') {
         bj.players[socket.id].bets = data.bet;
       }
-      if (bj.phase === 'WAITING') {
-        startBlackjackDeal(bjId);
-      }
+      bj.players[socket.id].leftTable = false;
+    }
+
+    if (!bj.playerOrder.includes(socket.id)) {
+      bj.playerOrder.push(socket.id);
+    }
+
+    // Si la mesa no tiene cartas repartidas o los demás jugadores se habían ido, forzar WAITING
+    const activeHands = Object.values(bj.players).filter(p => !p.leftTable && p.hand && p.hand.length > 0);
+    if (activeHands.length === 0) {
+      bj.phase = 'WAITING';
+    }
+
+    if (bj.phase === 'WAITING') {
+      startBlackjackDeal(bjId);
+    } else {
+      broadcastBlackjackState(bjId);
     }
   });
 
   socket.on('blackjackHit', (data) => {
-    const bjId = (data && data.blackjackId) ? data.blackjackId : socket.currentBlackjackId;
-    if (bjId && blackjacks[bjId]) {
-      const bj = blackjacks[bjId];
-      if (bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id && bj.players[socket.id]) {
+    const bjId = (data && data.blackjackId) ? data.blackjackId : (socket.currentBlackjackId || 'blackjack');
+    const bj = getOrCreateBlackjackState(bjId);
+    if (bj.players[socket.id]) {
+      const p = bj.players[socket.id];
+      if ((bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id) || (bj.playerOrder.length === 1 && bj.phase === 'PLAYER_TURNS')) {
         if (bj.deck.length === 0) bj.deck = createStandardDeck();
         const card = bj.deck.pop();
-        const p = bj.players[socket.id];
         p.hand.push(card);
         p.score = getHandScore(p.hand);
         bj.sequence++;
@@ -725,10 +861,10 @@ io.on('connection', (socket) => {
   });
 
   socket.on('blackjackStand', (data) => {
-    const bjId = (data && data.blackjackId) ? data.blackjackId : socket.currentBlackjackId;
-    if (bjId && blackjacks[bjId]) {
-      const bj = blackjacks[bjId];
-      if (bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id && bj.players[socket.id]) {
+    const bjId = (data && data.blackjackId) ? data.blackjackId : (socket.currentBlackjackId || 'blackjack');
+    const bj = getOrCreateBlackjackState(bjId);
+    if (bj.players[socket.id]) {
+      if ((bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id) || (bj.playerOrder.length === 1 && bj.phase === 'PLAYER_TURNS')) {
         bj.players[socket.id].status = 'STAND';
         advanceBlackjackTurn(bjId);
       }
@@ -736,37 +872,35 @@ io.on('connection', (socket) => {
   });
 
   socket.on('blackjackDouble', (data) => {
-    const bjId = (data && data.blackjackId) ? data.blackjackId : socket.currentBlackjackId;
-    if (bjId && blackjacks[bjId]) {
-      const bj = blackjacks[bjId];
-      if (bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id && bj.players[socket.id]) {
-        const p = bj.players[socket.id];
-        if (p.hand.length === 2) {
-          p.bets *= 2;
-          if (bj.deck.length === 0) bj.deck = createStandardDeck();
-          const card = bj.deck.pop();
-          p.hand.push(card);
-          p.score = getHandScore(p.hand);
-          bj.sequence++;
+    const bjId = (data && data.blackjackId) ? data.blackjackId : (socket.currentBlackjackId || 'blackjack');
+    const bj = getOrCreateBlackjackState(bjId);
+    if (bj.players[socket.id]) {
+      const p = bj.players[socket.id];
+      if (((bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id) || (bj.playerOrder.length === 1 && bj.phase === 'PLAYER_TURNS')) && p.hand.length === 2) {
+        p.bets *= 2;
+        if (bj.deck.length === 0) bj.deck = createStandardDeck();
+        const card = bj.deck.pop();
+        p.hand.push(card);
+        p.score = getHandScore(p.hand);
+        bj.sequence++;
 
-          io.to(`blackjack:${bjId}`).emit('blackjackDealCard', {
-            blackjackId: bjId,
-            playerId: socket.id,
-            target: 'player',
-            card: card,
-            hidden: false,
-            sequence: bj.sequence,
-            roundId: bj.roundId,
-            score: p.score
-          });
+        io.to(`blackjack:${bjId}`).emit('blackjackDealCard', {
+          blackjackId: bjId,
+          playerId: socket.id,
+          target: 'player',
+          card: card,
+          hidden: false,
+          sequence: bj.sequence,
+          roundId: bj.roundId,
+          score: p.score
+        });
 
-          broadcastBlackjackState(bjId);
+        broadcastBlackjackState(bjId);
 
-          if (p.score > 21) p.status = 'BUST';
-          else p.status = 'STAND';
+        if (p.score > 21) p.status = 'BUST';
+        else p.status = 'STAND';
 
-          setTimeout(() => advanceBlackjackTurn(bjId), 500);
-        }
+        setTimeout(() => advanceBlackjackTurn(bjId), 500);
       }
     }
   });
@@ -809,18 +943,28 @@ io.on('connection', (socket) => {
     if (socket.currentBlackjackId && blackjacks[socket.currentBlackjackId]) {
       const bjId = socket.currentBlackjackId;
       const bj = blackjacks[bjId];
-      delete bj.players[socket.id];
-      bj.playerOrder = bj.playerOrder.filter(id => id !== socket.id);
+      if (bj.players[socket.id]) {
+        if (bj.phase === 'DEALING' || bj.phase === 'PLAYER_TURNS' || bj.phase === 'DEALER_TURN') {
+          bj.players[socket.id].status = 'STAND';
+          bj.players[socket.id].leftTable = true;
 
-      if (bj.playerOrder.length === 0) {
-        bj.phase = 'WAITING';
-        bj.currentPlayerIndex = -1;
-        bj.currentPlayerId = null;
-        bj.dealer = [];
-      } else if (bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id) {
-        advanceBlackjackTurn(bjId);
+          const remainingActive = Object.values(bj.players).filter(p => !p.leftTable);
+          if (remainingActive.length === 0) {
+            startBlackjackDealerTurn(bjId);
+          } else if (bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id) {
+            advanceBlackjackTurn(bjId);
+          }
+        } else {
+          delete bj.players[socket.id];
+          bj.playerOrder = bj.playerOrder.filter(id => id !== socket.id);
+          if (bj.playerOrder.length === 0) {
+            bj.phase = 'WAITING';
+            bj.currentPlayerIndex = -1;
+            bj.currentPlayerId = null;
+            bj.dealer = [];
+          }
+        }
       }
-
       broadcastBlackjackState(bjId);
     }
   });

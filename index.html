@@ -2377,9 +2377,9 @@
         { id: 'wheel', name: 'FORTUNE WHEEL', icon: '🎡', x: 0, z: -15, radius: 3.4, color: 0xFB923C, seats: [{ x: -1.2, z: -13.6, r: Math.PI }, { x: 1.2, z: -13.6, r: Math.PI }] },
         { id: 'dice', name: 'DICE DUEL', icon: '🎲', x: 14, z: -4, radius: 3.4, color: 0xE11FD1, seats: [{ x: 14.0, z: -2.2, r: Math.PI }, { x: 12.6, z: -2.6, r: Math.PI - 0.25 }, { x: 15.4, z: -2.6, r: Math.PI + 0.25 }] },
         { id: 'blackjack', name: 'BLACKJACK 21', icon: '🃏', x: 18, z: 7, radius: 3.4, color: 0x22c55e, seats: [
-          { x: 16.18, z: 8.25, r: Math.PI - 0.68 },
-          { x: 18.00, z: 8.55, r: Math.PI },
-          { x: 19.82, z: 8.25, r: Math.PI + 0.68 }
+          { x: 15.85, z: 8.75, r: Math.PI - 0.78 },
+          { x: 18.00, z: 9.40, r: Math.PI },
+          { x: 20.15, z: 8.75, r: Math.PI + 0.78 }
         ] },
         { id: 'mines', name: 'MINES', icon: '💣', x: 11, z: 15, radius: 3.2, color: 0xef4444, seats: [{ x: 11, z: 17.0, r: Math.PI }] },
         { id: 'plinko', name: 'PLINKO', icon: '🎯', x: 0, z: 14, radius: 3.2, color: 0x38bdf8, seats: [{ x: 0, z: 18.2, r: Math.PI }] },
@@ -3727,11 +3727,11 @@
             }
             bjCtx.stroke();
 
-            // Circular Betting Marker Circle beside/below box
+            // Circular Betting Marker Circle beside/below box (movido hacia la derecha a lo largo del semicírculo sin solapar el cuadro blanco)
             bjCtx.strokeStyle = '#facc15';
             bjCtx.lineWidth = 3;
             bjCtx.beginPath();
-            bjCtx.arc(58, 0, 28, 0, Math.PI * 2);
+            bjCtx.arc(88, 0, 28, 0, Math.PI * 2);
             bjCtx.stroke();
 
             bjCtx.restore();
@@ -4618,6 +4618,38 @@
         state.player.z = seat.z;
         state.player.rotY = seat.r;
 
+        // Hide local player's 3D floating nametag for self while seated, keeping it visible to others
+        if (playerAvatar && playerAvatar.userData && playerAvatar.userData.nameTag) {
+          playerAvatar.userData.nameTag.visible = false;
+        }
+
+        if (gameId === 'blackjack') {
+          if (window.bj3DRefs && window.bj3DRefs.cardsGroup) {
+            const grp = window.bj3DRefs.cardsGroup;
+            while (grp.children.length > 0) grp.remove(grp.children[0]);
+            if (typeof bjDealt3DMeshes !== 'undefined') bjDealt3DMeshes = {};
+          }
+          const dealBtn = document.getElementById('bjDealBtn');
+          const hitBtn = document.getElementById('bjHitBtn');
+          const standBtn = document.getElementById('bjStandBtn');
+          const doubleBtn = document.getElementById('bjDoubleBtn');
+          const playerScoreEl = document.getElementById('playerScore');
+          const dealerScoreEl = document.getElementById('dealerScore');
+          const banner = document.getElementById('bjResultBanner');
+          if (dealBtn) { dealBtn.style.display = 'inline-block'; dealBtn.textContent = 'REPARTIR 🃏'; }
+          if (hitBtn) hitBtn.style.display = 'none';
+          if (standBtn) standBtn.style.display = 'none';
+          if (doubleBtn) doubleBtn.style.display = 'none';
+          if (playerScoreEl) playerScoreEl.textContent = 'Puntos: –';
+          if (dealerScoreEl) dealerScoreEl.textContent = 'Puntos: –';
+          if (banner) banner.classList.remove('show');
+          bjState.player = [];
+          bjState.dealer = [];
+          bjState.player3DMeshes = [];
+          bjState.dealer3DMeshes = [];
+          bjState.active = false;
+        }
+
         // Emit updated position and seat reservation via Socket.IO
         if (typeof socket !== 'undefined' && socket && socket.connected) {
           socket.emit('updateTransform', {
@@ -4655,8 +4687,18 @@
           toPos = new THREE.Vector3(z.x, 5.2, z.z + 4.2);
           toLook = new THREE.Vector3(z.x, 0.78, z.z - 0.1);
         } else if (gameId === 'blackjack') {
-          toPos = new THREE.Vector3(z.x, 2.75, z.z + 2.10);
-          toLook = new THREE.Vector3(z.x, 0.86, z.z - 1.40);
+          // Elevated and pulled back camera providing a clear unobstructed view of the whole table over the player
+          const eyeY = 2.55;
+          toPos = new THREE.Vector3(
+            seat.x - Math.sin(seat.r) * 1.25,
+            eyeY,
+            seat.z - Math.cos(seat.r) * 1.25
+          );
+          toLook = new THREE.Vector3(
+            seat.x + Math.sin(seat.r) * 1.70,
+            0.80,
+            seat.z + Math.cos(seat.r) * 1.70
+          );
           if (typeof update3DBJChips === 'function') update3DBJChips(bjState.bet);
         } else if (gameId === 'cinema') {
           toPos = new THREE.Vector3(z.x, 3.0, z.z + 4.0);
@@ -4792,8 +4834,31 @@
         // Clear local seat occupancy and leave game rooms
         if (previousMode === 'roulette' && typeof socket !== 'undefined' && socket && socket.connected) {
           socket.emit('rouletteLeave', { rouletteId: 'roulette' });
-        } else if (previousMode === 'blackjack' && typeof socket !== 'undefined' && socket && socket.connected) {
-          socket.emit('blackjackLeave', { blackjackId: 'blackjack' });
+        } else if (previousMode === 'blackjack') {
+          if ((typeof socket === 'undefined' || !socket || !socket.connected) && bjState.active) {
+            bjState.active = false;
+            const pScore = getHandScore(bjState.player);
+            let dScore = getHandScore(bjState.dealer);
+            while (dScore < 17 && bjState.deck && bjState.deck.length > 0) {
+              bjState.dealer.push(bjState.deck.pop());
+              dScore = getHandScore(bjState.dealer);
+            }
+            if (pScore <= 21 && (dScore > 21 || pScore > dScore)) {
+              state.balance += bjState.bet * 2;
+              updateBalanceUI();
+              showToast('🃏 Blackjack: ¡Ganaste $' + (bjState.bet * 2) + ' con tu mano plantada!');
+              addXP(120);
+            } else if (pScore <= 21 && pScore === dScore) {
+              state.balance += bjState.bet;
+              updateBalanceUI();
+              showToast('🃏 Blackjack: Empate, apuesta de $' + bjState.bet + ' reembolsada');
+            } else {
+              showToast('🃏 Blackjack: Mano terminada (-$' + bjState.bet + ')');
+            }
+          }
+          if (typeof socket !== 'undefined' && socket && socket.connected) {
+            socket.emit('blackjackLeave', { blackjackId: 'blackjack' });
+          }
         }
         state.player.currentSeat = null;
         if (typeof socket !== 'undefined' && socket && socket.connected) {
@@ -4806,7 +4871,10 @@
           });
         }
 
-        // Restaurar visibilidad de carteles flotantes 3D
+        // Restaurar visibilidad de carteles flotantes 3D y nametag local al levantarse
+        if (playerAvatar && playerAvatar.userData && playerAvatar.userData.nameTag) {
+          playerAvatar.userData.nameTag.visible = true;
+        }
         Object.values(zoneMeshes).forEach(zm => {
           if (zm.label) zm.label.visible = true;
         });
@@ -5505,11 +5573,16 @@
       }
 
       function getHandScore(hand) {
+        if (!hand || !Array.isArray(hand)) return 0;
         let total = 0, aces = 0;
         hand.forEach(c => {
+          if (!c || c.hidden || c.v === '?') return;
           if (c.v === 'A') { aces++; total += 11; }
           else if (['J', 'Q', 'K'].includes(c.v)) total += 10;
-          else total += parseInt(c.v, 10);
+          else {
+            const num = parseInt(c.v, 10);
+            if (!isNaN(num)) total += num;
+          }
         });
         while (total > 21 && aces > 0) { total -= 10; aces--; }
         return total;
@@ -5652,22 +5725,24 @@
       }
 
       function getBlackjackSpot3D(seatIndex, cardIndex = 0) {
-        // 3 White card box centers on felt (positioned lower to cover white box completely):
-        // Seat 0 (Left seat):   X = -1.18, Z = 1.48, rotY = -0.68 rad
-        // Seat 1 (Center seat): X = 0.00,  Z = 1.82, rotY = 0.00 rad
-        // Seat 2 (Right seat):  X = +1.18, Z = 1.48, rotY = +0.68 rad
+        // Coordenadas alineadas para que la 1ª carta (cardIndex = 0) encaje directamente dentro del recuadro blanco:
+        // Seat 0 (Asiento izquierdo): X = -1.345, Z = 1.625, rotY = -0.691 rad (-39.6°)
+        // Seat 1 (Asiento central):   X =  0.000, Z = 2.110, rotY =  0.000 rad (  0.0°)
+        // Seat 2 (Asiento derecho):   X = +1.345, Z = 1.625, rotY = +0.691 rad (+39.6°)
         const spots = [
-          { x: -1.18, z: 1.48, rotY: -0.68 },
-          { x: 0.00,  z: 1.82, rotY: 0.00 },
-          { x: 1.18,  z: 1.48, rotY: 0.68 }
+          { x: -1.345, z: 1.625, rotY: -0.691 },
+          { x:  0.000, z: 2.110, rotY:  0.000 },
+          { x:  1.345, z: 1.625, rotY:  0.691 }
         ];
 
         const spot = spots[Math.min(2, Math.max(0, seatIndex))] || spots[1];
-        const cardWidthOffset = cardIndex * 0.12;
 
-        // Shift additional cards horizontally along the card box orientation
-        const offsetX = Math.cos(spot.rotY) * cardWidthOffset;
-        const offsetZ = Math.sin(spot.rotY) * cardWidthOffset;
+        // Apilado en cascada longitudinal a lo largo del recuadro con stagger lateral para mostrar los números de esquina:
+        const stepUp = 0.115 * cardIndex;
+        const stepRight = 0.025 * cardIndex;
+
+        const offsetX = -Math.sin(spot.rotY) * stepUp + Math.cos(spot.rotY) * stepRight;
+        const offsetZ = -Math.cos(spot.rotY) * stepUp - Math.sin(spot.rotY) * stepRight;
 
         return {
           x: spot.x + offsetX,
@@ -5686,11 +5761,19 @@
         if (betAmount <= 0) return;
 
         const seatIdx = (state.player.currentSeat && typeof state.player.currentSeat.seatIndex === 'number') ? state.player.currentSeat.seatIndex : 1;
-        const spot = getBlackjackSpot3D(seatIdx, 0);
 
-        // Position chips in the yellow betting circle marker beside the card box
-        const posX = spot.x + Math.cos(spot.rotY - Math.PI / 2) * 0.28;
-        const posZ = spot.z + Math.sin(spot.rotY - Math.PI / 2) * 0.28;
+        // Coordenadas calibradas con exactitud milimétrica sobre el centro del círculo amarillo:
+        // Seat 0 (Asiento izquierdo): X = -0.880, Z = 1.995
+        // Seat 1 (Asiento central):   X = +0.520, Z = 2.172
+        // Seat 2 (Asiento derecho):   X = +1.800, Z = 1.365
+        const circleSpots = [
+          { x: -0.880, z: 1.995 },
+          { x:  0.520, z: 2.172 },
+          { x:  1.800, z: 1.365 }
+        ];
+        const circleSpot = circleSpots[Math.min(2, Math.max(0, seatIdx))] || circleSpots[1];
+        const posX = circleSpot.x;
+        const posZ = circleSpot.z;
 
         let remaining = betAmount;
         const chipValues = [1000, 500, 100, 50, 10];
@@ -5788,7 +5871,7 @@
           if (!s || s.blackjackId !== 'blackjack') return;
           bjServerState = s;
 
-          const isMyTurn = (s.phase === 'PLAYER_TURNS' && s.currentPlayerId === socket.id);
+          const isMyTurn = (s.phase === 'PLAYER_TURNS' && (s.currentPlayerId === socket.id || (!s.currentPlayerId && s.playerOrder && s.playerOrder.includes(socket.id))));
           const activePlayer = (s.players && s.currentPlayerId && s.players[s.currentPlayerId]) ? s.players[s.currentPlayerId].name : 'Dealer';
 
           const playerScoreEl = document.getElementById('playerScore');
@@ -5923,21 +6006,33 @@
             if (title) title.textContent = '¡GANASTE!';
             if (msg) { msg.className = 'win'; msg.textContent = '+$' + betAmt; }
             triggerConfetti(); addXP(120);
+            if (state.mode !== 'blackjack') {
+              showToast('🃏 Blackjack: ¡Ganaste $' + (betAmt * 2) + ' con tu mano plantada!');
+            }
           } else if (outcome === 'BUST') {
             if (title) title.textContent = 'BUST! PERDISTE';
             if (msg) { msg.className = 'lose'; msg.textContent = '-$' + betAmt; }
             playSound('lose');
+            if (state.mode !== 'blackjack') {
+              showToast('🃏 Blackjack: Te pasaste de 21 (-$' + betAmt + ')');
+            }
           } else if (outcome === 'LOSE') {
             if (title) title.textContent = 'PERDISTE';
             if (msg) { msg.className = 'lose'; msg.textContent = '-$' + betAmt; }
             playSound('lose');
+            if (state.mode !== 'blackjack') {
+              showToast('🃏 Blackjack: Mano terminada (-$' + betAmt + ')');
+            }
           } else if (outcome === 'PUSH') {
             state.balance += betAmt; updateBalanceUI();
             if (title) title.textContent = 'EMPATE';
             if (msg) { msg.className = 'win'; msg.textContent = 'Reembolsado'; }
+            if (state.mode !== 'blackjack') {
+              showToast('🃏 Blackjack: Empate, apuesta de $' + betAmt + ' reembolsada');
+            }
           }
 
-          if (banner) banner.classList.add('show');
+          if (banner && state.mode === 'blackjack') banner.classList.add('show');
           setTimeout(() => {
             if (banner) banner.classList.remove('show');
           }, 3500);
