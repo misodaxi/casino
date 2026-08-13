@@ -2376,7 +2376,11 @@
         { id: 'cinema', name: 'CINE & MUSIC 3D', icon: '📺', x: 0, z: -26, radius: 5.2, color: 0x8B5CF6, seats: [] },
         { id: 'wheel', name: 'FORTUNE WHEEL', icon: '🎡', x: 0, z: -15, radius: 3.4, color: 0xFB923C, seats: [{ x: -1.2, z: -13.6, r: Math.PI }, { x: 1.2, z: -13.6, r: Math.PI }] },
         { id: 'dice', name: 'DICE DUEL', icon: '🎲', x: 14, z: -4, radius: 3.4, color: 0xE11FD1, seats: [{ x: 14.0, z: -2.2, r: Math.PI }, { x: 12.6, z: -2.6, r: Math.PI - 0.25 }, { x: 15.4, z: -2.6, r: Math.PI + 0.25 }] },
-        { id: 'blackjack', name: 'BLACKJACK 21', icon: '🃏', x: 18, z: 7, radius: 3.4, color: 0x22c55e, seats: [{ x: 18.0, z: 9.1, r: Math.PI }, { x: 16.6, z: 8.8, r: Math.PI - 0.25 }, { x: 19.4, z: 8.8, r: Math.PI + 0.25 }] },
+        { id: 'blackjack', name: 'BLACKJACK 21', icon: '🃏', x: 18, z: 7, radius: 3.4, color: 0x22c55e, seats: [
+          { x: 16.52, z: 8.42, r: Math.PI - 0.68 },
+          { x: 18.00, z: 9.15, r: Math.PI },
+          { x: 19.48, z: 8.42, r: Math.PI + 0.68 }
+        ] },
         { id: 'mines', name: 'MINES', icon: '💣', x: 11, z: 15, radius: 3.2, color: 0xef4444, seats: [{ x: 11, z: 17.0, r: Math.PI }] },
         { id: 'plinko', name: 'PLINKO', icon: '🎯', x: 0, z: 14, radius: 3.2, color: 0x38bdf8, seats: [{ x: 0, z: 18.2, r: Math.PI }] },
         { id: 'coin', name: 'COIN FLIP', icon: '🪙', x: -11, z: 15, radius: 3.2, color: 0xFBBF24, seats: [{ x: -11, z: 17.0, r: Math.PI }] },
@@ -5647,13 +5651,43 @@
         requestAnimationFrame(step);
       }
 
-      // Render 3D Chip Stack on Blackjack felt surface beside player cards (X = 0.65, Z = 1.15)
+      function getBlackjackSpot3D(seatIndex, cardIndex = 0) {
+        // 3 White card box centers on felt relative to table center:
+        // Seat index 0 (Left seat):   X = -1.35, Z = 1.28, angle = -0.68 rad
+        // Seat index 1 (Center seat): X = 0.00,  Z = 1.75, angle = 0.00 rad
+        // Seat index 2 (Right seat):  X = 1.35,  Z = 1.28, angle = 0.68 rad
+        const spots = [
+          { x: -1.35, z: 1.28, rotY: -0.68 },
+          { x: 0.00,  z: 1.75, rotY: 0 },
+          { x: 1.35,  z: 1.28, rotY: 0.68 }
+        ];
+
+        const spot = spots[Math.min(2, Math.max(0, seatIndex))] || spots[1];
+        const offsetDist = cardIndex * 0.16;
+
+        const offsetX = Math.cos(spot.rotY) * offsetDist;
+        const offsetZ = Math.sin(spot.rotY) * offsetDist;
+
+        return {
+          x: spot.x + offsetX,
+          y: 0.010 + cardIndex * 0.003,
+          z: spot.z + offsetZ,
+          rotY: spot.rotY
+        };
+      }
+
+      // Render 3D Chip Stack on Blackjack felt surface beside player cards spot
       function update3DBJChips(betAmount) {
         if (!window.bj3DRefs || !window.bj3DRefs.chipsGroup) return;
         const grp = window.bj3DRefs.chipsGroup;
         while (grp.children.length > 0) grp.remove(grp.children[0]);
 
         if (betAmount <= 0) return;
+
+        const seatIdx = (state.player.currentSeat && typeof state.player.currentSeat.seatIndex === 'number') ? state.player.currentSeat.seatIndex : 1;
+        const spot = getBlackjackSpot3D(seatIdx, 0);
+        const posX = spot.x + Math.cos(spot.rotY) * 0.32;
+        const posZ = spot.z + Math.sin(spot.rotY) * 0.32;
 
         let remaining = betAmount;
         const chipValues = [1000, 500, 100, 50, 10];
@@ -5682,11 +5716,11 @@
             ringMesh.rotation.x = Math.PI / 2;
             chipGroup.add(ringMesh);
 
-            const posX = 0.42 + stackCol * 0.26;
-            const posZ = 2.12;
+            const colOffsetX = posX + stackCol * 0.26;
+            const colOffsetZ = posZ;
             const rotY = (stackCol * 0.5 + chipsInCol * 0.23) % (Math.PI * 2);
 
-            chipGroup.position.set(posX, stackY, posZ);
+            chipGroup.position.set(colOffsetX, stackY, colOffsetZ);
             chipGroup.rotation.y = rotY;
             grp.add(chipGroup);
 
@@ -5814,16 +5848,28 @@
           const mesh = make3DCardMesh(card, !isHidden);
           bjDealt3DMeshes[data.sequence] = mesh;
 
+          let seatIdx = 1;
+          if (isMe && state.player.currentSeat && typeof state.player.currentSeat.seatIndex === 'number') {
+            seatIdx = state.player.currentSeat.seatIndex;
+          } else if (bjServerState && bjServerState.players && bjServerState.players[data.playerId]) {
+            seatIdx = bjServerState.players[data.playerId].seatIndex || 0;
+          } else if (typeof remotePlayers !== 'undefined' && remotePlayers[data.playerId] && remotePlayers[data.playerId].seat) {
+            seatIdx = remotePlayers[data.playerId].seat.seatIndex || 0;
+          }
+
           let targetX = 0, targetZ = 0, targetY = 0.010;
           if (isDealer) {
+            const dCount = (bjServerState && bjServerState.dealer) ? bjServerState.dealer.length : 1;
             targetX = -0.14 + (data.sequence % 5) * 0.18;
-            targetZ = 0.75;
+            targetZ = 0.70;
             targetY = 0.010 + (data.sequence % 5) * 0.003;
           } else {
-            const pCount = (bjServerState && bjServerState.players && bjServerState.players[data.playerId] && bjServerState.players[data.playerId].hand) ? bjServerState.players[data.playerId].hand.length : 1;
-            targetX = -0.09 + (pCount - 1) * 0.18;
-            targetZ = 2.12;
-            targetY = 0.010 + (pCount - 1) * 0.003;
+            const pHand = (bjServerState && bjServerState.players && bjServerState.players[data.playerId] && bjServerState.players[data.playerId].hand) ? bjServerState.players[data.playerId].hand : [];
+            const cardIdx = Math.max(0, pHand.length - 1);
+            const spot = getBlackjackSpot3D(seatIdx, cardIdx);
+            targetX = spot.x;
+            targetY = spot.y;
+            targetZ = spot.z;
           }
 
           animateCardDeal3D(mesh, new THREE.Vector3(targetX, targetY, targetZ), !isHidden, 0, () => {
