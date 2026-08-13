@@ -2013,13 +2013,25 @@
       <button id="loadYoutubeBtn">CARGAR 📺</button>
     </div>
 
+    <!-- Manual Master Volume Control Slider -->
+    <div style="background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; color:#fff;">
+        <span>🎚️ VOLUMEN MANUAL BASE:</span>
+        <span id="tvManualVolDisplay" style="color:var(--amber); font-size:14px; font-weight:900;">80%</span>
+      </div>
+      <input type="range" id="tvVolumeSlider" min="0" max="100" value="80" style="width:100%; cursor:pointer; accent-color:var(--violet);">
+      <div style="font-size:10px; color:var(--dim);">
+        * La atenuación acústica por distancia se calcula como un porcentaje proporcional sobre el volumen manual seleccionado.
+      </div>
+    </div>
+
     <div class="tv-status-bar">
       <div style="display:flex; justify-content:space-between; font-weight:800; color:#fff;">
         <span id="tvStatusState">🟢 Reproduciendo</span>
         <span id="tvStatusDist">Distancia: 0m</span>
       </div>
       <div style="display:flex; justify-content:space-between; font-size:11px;">
-        <span id="tvStatusVol">Volumen 3D: 100%</span>
+        <span id="tvStatusVol">Volumen Efectivo: 80%</span>
         <span id="tvStatusFilter">Filtro Acústico: Transparente (20kHz)</span>
       </div>
     </div>
@@ -4522,31 +4534,33 @@
       let tvIsPaused = false;
       let userHasInteracted = false;
 
+      let tvManualVolume = 80; // Manual master volume chosen by user (0..100)
+
       function create3DCasinoTV() {
         const tvGroup = new THREE.Group();
-        tvGroup.position.set(0, 3.8, -28.2);
+        tvGroup.position.set(0, 11.0, -48.0); // 4x Giant screen set back & higher for optimal lounge visibility
 
         // Steel Support Cables hanging from ceiling
         const cableMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8, roughness: 0.2 });
-        const cable1 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 8, 8), cableMat);
-        cable1.position.set(-3.2, 4.0, 0);
-        const cable2 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 8, 8), cableMat);
-        cable2.position.set(3.2, 4.0, 0);
+        const cable1 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 16, 8), cableMat);
+        cable1.position.set(-12.8, 10.0, 0);
+        const cable2 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 16, 8), cableMat);
+        cable2.position.set(12.8, 10.0, 0);
         tvGroup.add(cable1, cable2);
 
-        // Metallic TV Frame
+        // Metallic TV Frame (4x Giant Size: 29.6m x 17.6m x 1.2m)
         const tvFrame = new THREE.Mesh(
-          new THREE.BoxGeometry(7.4, 4.4, 0.3),
+          new THREE.BoxGeometry(29.6, 17.6, 1.2),
           new THREE.MeshStandardMaterial({ color: 0x0a0514, roughness: 0.2, metalness: 0.8 })
         );
         tvGroup.add(tvFrame);
 
-        // TV Neon Ambient Backlight Tube
+        // TV Neon Ambient Backlight Tube (4x Giant Size: 30.4m x 18.4m x 0.3m)
         const tvNeon = new THREE.Mesh(
-          new THREE.BoxGeometry(7.6, 4.6, 0.08),
-          new THREE.MeshStandardMaterial({ color: 0x8B5CF6, emissive: 0x8B5CF6, emissiveIntensity: 2.0 })
+          new THREE.BoxGeometry(30.4, 18.4, 0.3),
+          new THREE.MeshStandardMaterial({ color: 0x8B5CF6, emissive: 0x8B5CF6, emissiveIntensity: 2.5 })
         );
-        tvNeon.position.z = -0.12;
+        tvNeon.position.z = -0.5;
         tvGroup.add(tvNeon);
 
         // 3D Screen Canvas Texture
@@ -4560,19 +4574,19 @@
         const tvTex = new THREE.CanvasTexture(tvCanvas);
 
         const tvScreenMat = new THREE.MeshBasicMaterial({ map: tvTex });
-        const tvScreenMesh = new THREE.Mesh(new THREE.PlaneGeometry(7.0, 4.0), tvScreenMat);
-        tvScreenMesh.position.z = 0.16;
+        const tvScreenMesh = new THREE.Mesh(new THREE.PlaneGeometry(28.0, 16.0), tvScreenMat);
+        tvScreenMesh.position.z = 0.65;
         tvScreenMesh.name = 'tvScreen3DMesh';
         tvGroup.add(tvScreenMesh);
         tvScreenMeshRef = tvScreenMesh;
 
         // Dynamic Light Bleed into Casino Scene
-        const tvLight = new THREE.PointLight(0x8B5CF6, 2.5, 28);
-        tvLight.position.set(0, -1.0, 2.0);
+        const tvLight = new THREE.PointLight(0x8B5CF6, 4.0, 60);
+        tvLight.position.set(0, -2.0, 5.0);
         tvGroup.add(tvLight);
         tvLightRef = tvLight;
 
-        // Official Three.js CSS3DObject Integration for 3D YouTube Iframe Embedding
+        // Official Three.js CSS3DObject Integration for 3D YouTube Iframe Embedding (4x Scale)
         const overlayEl = document.getElementById('tvIframeOverlay');
         if (overlayEl && typeof THREE.CSS3DObject !== 'undefined') {
           overlayEl.style.display = 'block';
@@ -4581,8 +4595,8 @@
           overlayEl.style.pointerEvents = 'auto';
 
           const tvCss3DObject = new THREE.CSS3DObject(overlayEl);
-          tvCss3DObject.position.set(0, 3.8, -28.02); // Exact 3D World position of TV Screen Face
-          tvCss3DObject.scale.set(7.0 / 1280, 4.0 / 720, 1.0); // Exact 3D Scale mapping (7.0m x 4.0m to 1280px x 720px)
+          tvCss3DObject.position.set(0, 11.0, -47.35); // Exact 3D World position of 4x TV Screen Face
+          tvCss3DObject.scale.set(28.0 / 1280, 16.0 / 720, 1.0); // Exact 4x 3D Scale mapping (28.0m x 16.0m to 1280px x 720px)
 
           if (typeof cssScene !== 'undefined' && cssScene) {
             cssScene.add(tvCss3DObject);
@@ -4664,7 +4678,7 @@
       window.addEventListener('click', onFirstUserGesture, { once: true });
       window.addEventListener('keydown', onFirstUserGesture, { once: true });
 
-      // Update Spatial Audio & 3D Rigid Scale Perspective Projection in Animation Loop
+      // Update Spatial Audio & Dual Volume Modulation (Manual Base Volume x Distance Ratio)
       function updateTVSpatialAudioAndProjection() {
         if (state.mode !== 'casino') {
           const iframeOverlay = document.getElementById('tvIframeOverlay');
@@ -4673,26 +4687,32 @@
         }
 
         const dx = state.player.x - 0;
-        const dz = state.player.z - (-28.2);
+        const dz = state.player.z - (-48.0);
         const dist = Math.hypot(dx, dz);
 
-        const minDist = 6;
-        const maxDist = 38;
-        let volRatio = 1.0;
+        const minDist = 10;
+        const maxDist = 75;
+        let distRatio = 1.0;
 
         if (dist > minDist) {
-          volRatio = Math.max(0, 1 - (dist - minDist) / (maxDist - minDist));
-          volRatio = Math.pow(volRatio, 1.6);
+          distRatio = Math.max(0, 1 - (dist - minDist) / (maxDist - minDist));
+          distRatio = Math.pow(distRatio, 1.5);
         }
 
-        let volPercent = Math.round(volRatio * 100);
+        // Dual Volume Formula: Effective Volume = Manual Base % * Distance Ratio %
+        const effectiveVolPercent = Math.round(tvManualVolume * distRatio);
 
         const nowVolTime = performance.now();
-        if (Math.abs(volPercent - lastTvVolPercent) >= 3 && (nowVolTime - lastTvVolTime) > 300) {
-          lastTvVolPercent = volPercent;
+        if (Math.abs(effectiveVolPercent - lastTvVolPercent) >= 2 && (nowVolTime - lastTvVolTime) > 250) {
+          lastTvVolPercent = effectiveVolPercent;
           lastTvVolTime = nowVolTime;
-          if (!tvIsMuted) sendYtCommand('setVolume', [volPercent]);
+          if (!tvIsMuted) sendYtCommand('setVolume', [effectiveVolPercent]);
         }
+
+        const distEl = document.getElementById('tvStatusDist');
+        if (distEl) distEl.textContent = `Distancia: ${Math.round(dist)}m`;
+        const volEl = document.getElementById('tvStatusVol');
+        if (volEl) volEl.textContent = `Volumen Efectivo: ${effectiveVolPercent}% (${tvManualVolume}% Base x ${Math.round(distRatio * 100)}% Distancia)`;
 
         const iframeOverlay = document.getElementById('tvIframeOverlay');
         if (iframeOverlay) {
@@ -4700,9 +4720,21 @@
             iframeOverlay.style.display = 'none';
           } else {
             iframeOverlay.style.display = 'block';
-            iframeOverlay.style.opacity = Math.min(1, volRatio * 1.6).toFixed(2);
+            iframeOverlay.style.opacity = Math.min(1, distRatio * 1.5 + 0.1).toFixed(2);
           }
         }
+      }
+
+      // Manual Volume Slider Listener
+      const volSliderEl = document.getElementById('tvVolumeSlider');
+      if (volSliderEl) {
+        volSliderEl.addEventListener('input', (e) => {
+          tvManualVolume = parseInt(e.target.value, 10);
+          const disp = document.getElementById('tvManualVolDisplay');
+          if (disp) disp.textContent = `${tvManualVolume}%`;
+          lastTvVolPercent = -1; // Force immediate audio update
+          updateTVSpatialAudioAndProjection();
+        });
       }
 
       // TV Modal Event Listeners
