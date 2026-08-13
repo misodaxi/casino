@@ -2334,7 +2334,7 @@
         { id: 'roulette', name: 'ROULETTE 3D', icon: '🎰', x: -14, z: -4, radius: 7.2, color: 0x8B5CF6, seats: [{ x: -14, z: -2.3, r: Math.PI }, { x: -15.6, z: -2.3, r: Math.PI }, { x: -12.4, z: -2.3, r: Math.PI }] },
         { id: 'cinema', name: 'CINE & MUSIC 3D', icon: '📺', x: 0, z: -26, radius: 5.2, color: 0x8B5CF6, seats: [] },
         { id: 'wheel', name: 'FORTUNE WHEEL', icon: '🎡', x: 0, z: -15, radius: 3.4, color: 0xFB923C, seats: [{ x: -1.2, z: -13.6, r: Math.PI }, { x: 1.2, z: -13.6, r: Math.PI }] },
-        { id: 'dice', name: 'DICE DUEL', icon: '🎲', x: 14, z: -4, radius: 3.4, color: 0xE11FD1, seats: [{ x: 14.0, z: -2.6, r: Math.PI }, { x: 12.8, z: -2.6, r: Math.PI }, { x: 15.2, z: -2.6, r: Math.PI }] },
+        { id: 'dice', name: 'DICE DUEL', icon: '🎲', x: 14, z: -4, radius: 3.4, color: 0xE11FD1, seats: [{ x: 14.0, z: -2.2, r: Math.PI }, { x: 12.6, z: -2.6, r: Math.PI - 0.25 }, { x: 15.4, z: -2.6, r: Math.PI + 0.25 }] },
         { id: 'blackjack', name: 'BLACKJACK 21', icon: '🃏', x: 18, z: 7, radius: 3.4, color: 0x22c55e, seats: [{ x: 18.0, z: 9.1, r: Math.PI }, { x: 16.6, z: 8.8, r: Math.PI - 0.25 }, { x: 19.4, z: 8.8, r: Math.PI + 0.25 }] },
         { id: 'mines', name: 'MINES', icon: '💣', x: 11, z: 15, radius: 3.2, color: 0xef4444, seats: [{ x: 11, z: 17.0, r: Math.PI }] },
         { id: 'plinko', name: 'PLINKO', icon: '🎯', x: 0, z: 14, radius: 3.2, color: 0x38bdf8, seats: [{ x: 0, z: 18.2, r: Math.PI }] },
@@ -3696,11 +3696,12 @@
       let socket = null;
       let mySocketId = null;
       let lastTransformEmit = 0;
+      let isApplyingTvServerState = false;
 
       if (typeof io !== 'undefined') {
         socket = io();
 
-        // 1. Initial State from Server
+        // 1. Initial State from Server (Players & Synced TV 3D State)
         socket.on('init', (data) => {
           mySocketId = data.id;
           const serverPlayers = data.players || {};
@@ -3710,6 +3711,8 @@
               addRemotePlayer(serverPlayers[id]);
             }
           });
+
+          if (data.tvState) applyTvServerState(data.tvState);
         });
 
         // 2. New Player Joined
@@ -3736,6 +3739,18 @@
             delete remotePlayers[id];
           }
         });
+
+        // 5. Synced TV 3D State Update from Server
+        socket.on('tvStateUpdate', (s) => {
+          applyTvServerState(s);
+        });
+
+        // Light periodic TV sync request every 4 seconds to correct drift
+        setInterval(() => {
+          if (socket && socket.connected) {
+            socket.emit('tvSyncReq');
+          }
+        }, 4000);
       }
 
       function addRemotePlayer(pData) {
@@ -4791,8 +4806,82 @@
             d.vel.x *= 0.55; d.vel.z *= 0.55;
             d.angVel.multiplyScalar(0.7);
           }
+        });
 
-          // ¿asentado? velocidad lineal/angular baja y apoyado varios frames
+        // Colisión física entre dados (Evita que se solapen o atraviesen entre sí)
+        const minDist = 0.42; // Diámetro de colisión del dado
+        for (let i = 0; i < all.length; i++) {
+          for (let j = i + 1; j < all.length; j++) {
+            const d1 = all[i];
+            const d2 = all[j];
+
+            const dx = d2.mesh.position.x - d1.mesh.position.x;
+            const dy = d2.mesh.position.y - d1.mesh.position.y;
+            const dz = d2.mesh.position.z - d1.mesh.position.z;
+            const distSq = dx * dx + dy * dy + dz * dz;
+
+            if (distSq > 0.00001 && distSq < minDist * minDist) {
+              const dist = Math.sqrt(distSq);
+              const overlap = (minDist - dist);
+
+              // Vector normal de impacto entre d1 y d2
+              const nx = dx / dist;
+              const ny = dy / dist;
+              const nz = dz / dist;
+
+              // Corrección de posición física inmediata (Separa los dados para eliminar el clipping)
+              const pushX = nx * overlap * 0.5;
+              const pushY = ny * overlap * 0.5;
+              const pushZ = nz * overlap * 0.5;
+
+              if (!d1.settled) {
+                d1.mesh.position.x -= pushX;
+                d1.mesh.position.y -= pushY;
+                d1.mesh.position.z -= pushZ;
+              }
+              if (!d2.settled) {
+                d2.mesh.position.x += pushX;
+                d2.mesh.position.y += pushY;
+                d2.mesh.position.z += pushZ;
+              }
+
+              // Impulso de colisión elástica y transferencia de momento
+              const rvx = d2.vel.x - d1.vel.x;
+              const rvy = d2.vel.y - d1.vel.y;
+              const rvz = d2.vel.z - d1.vel.z;
+              const velAlongNormal = rvx * nx + rvy * ny + rvz * nz;
+
+              if (velAlongNormal < 0) {
+                const restitution = 0.65; // Coeficiente de restitución (rebote elástico)
+                const impulse = -(1 + restitution) * velAlongNormal * 0.5;
+
+                const impX = nx * impulse;
+                const impY = ny * impulse;
+                const impZ = nz * impulse;
+
+                if (!d1.settled) {
+                  d1.vel.x -= impX;
+                  d1.vel.y -= impY;
+                  d1.vel.z -= impZ;
+                  d1.angVel.x += (Math.random() - 0.5) * impulse * 4;
+                  d1.angVel.z += (Math.random() - 0.5) * impulse * 4;
+                  d1.groundedTimer = 0;
+                }
+                if (!d2.settled) {
+                  d2.vel.x += impX;
+                  d2.vel.y += impY;
+                  d2.vel.z += impZ;
+                  d2.angVel.x += (Math.random() - 0.5) * impulse * 4;
+                  d2.angVel.z += (Math.random() - 0.5) * impulse * 4;
+                  d2.groundedTimer = 0;
+                }
+                playSound('tick');
+              }
+            }
+          }
+        }
+
+        all.forEach(d => {
           const settledEnough = d.vel.length() < 0.18 && d.angVel.length() < 0.6 && d.groundedTimer > 0.18;
           if (settledEnough) {
             d.settled = true;
@@ -5961,7 +6050,7 @@
         return '';
       }
 
-      function loadYoutubeVideo(idOrUrl) {
+      function loadYoutubeVideo(idOrUrl, emitToServer = true) {
         const id = extractYoutubeId(idOrUrl);
         const stateEl = document.getElementById('tvStatusState');
 
@@ -5990,7 +6079,52 @@
             if (stateEl) stateEl.textContent = tvIsPaused ? '⏸️ En Pausa' : '🟢 Reproduciendo';
           }, 1200);
         }
+
+        if (emitToServer && socket && !isApplyingTvServerState) {
+          socket.emit('tvChangeVideo', {
+            videoId: id,
+            currentTime: 0,
+            playing: !tvIsPaused
+          });
+        }
         return true;
+      }
+
+      function applyTvServerState(serverState) {
+        if (!serverState || !serverState.videoId) return;
+        isApplyingTvServerState = true;
+
+        const targetId = serverState.videoId;
+        const playing = serverState.playing;
+        const targetTime = Math.max(0, serverState.currentTime || 0);
+
+        // Sincronizar vídeo de YouTube si es distinto
+        if (tvVideoId !== targetId) {
+          loadYoutubeVideo(targetId, false);
+        }
+
+        // Sincronizar estado Play / Pause
+        tvIsPaused = !playing;
+        const btn = document.getElementById('tvPlayPauseBtn');
+        if (btn) btn.textContent = tvIsPaused ? 'REPRODUCIR ▶️' : 'PAUSAR ⏸️';
+
+        const stateEl = document.getElementById('tvStatusState');
+        if (stateEl) stateEl.textContent = tvIsPaused ? '⏸️ En Pausa' : '🟢 Reproduciendo';
+
+        if (playing) {
+          sendYtCommand('playVideo');
+        } else {
+          sendYtCommand('pauseVideo');
+        }
+
+        // Sincronizar segundo exacto del vídeo
+        if (targetTime > 0) {
+          sendYtCommand('seekTo', [targetTime, true]);
+        }
+
+        setTimeout(() => {
+          isApplyingTvServerState = false;
+        }, 400);
       }
 
       function onFirstUserGesture() {
@@ -6113,9 +6247,15 @@
         if (tvIsPaused) {
           sendYtCommand('pauseVideo');
           this.textContent = 'REPRODUCIR ▶️';
+          if (socket && !isApplyingTvServerState) {
+            socket.emit('tvPause', { currentTime: 0 });
+          }
         } else {
           sendYtCommand('playVideo');
           this.textContent = 'PAUSAR ⏸️';
+          if (socket && !isApplyingTvServerState) {
+            socket.emit('tvPlay', { currentTime: 0 });
+          }
         }
       });
 
