@@ -36,8 +36,8 @@ function getClientIp(socket) {
 
 // Global TV 3D Synchronized State
 const tvState = {
-  videoId: 'dQw4w9WgXcQ',
-  playing: true,
+  videoId: '',
+  playing: false,
   currentTime: 0,
   updatedAt: Date.now()
 };
