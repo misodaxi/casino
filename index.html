@@ -4779,11 +4779,12 @@
 
       function exitActiveGame() {
         if (state.mode === 'casino') return;
+        const previousMode = state.mode;
         document.querySelectorAll('.game-overlay').forEach(wrap => wrap.classList.remove('show'));
         state.mode = 'transition';
 
-        // Clear local seat occupancy
-        if (state.mode === 'roulette' && typeof socket !== 'undefined' && socket && socket.connected) {
+        // Clear local seat occupancy and leave roulette room
+        if (previousMode === 'roulette' && typeof socket !== 'undefined' && socket && socket.connected) {
           socket.emit('rouletteLeave', { rouletteId: 'roulette' });
         }
         state.player.currentSeat = null;
