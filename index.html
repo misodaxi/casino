@@ -1724,10 +1724,10 @@
     </div>
 
     <!-- top left -->
-    <div class="top-left panel">
+    <div class="top-left panel" id="profilePanel" style="cursor:pointer;" title="Haz clic para cambiar tu nombre de jugador">
       <div class="avatar-badge" id="avatarBadge">🙂</div>
       <div class="player-info">
-        <div class="player-name">Axel <span class="crown">👑</span></div>
+        <div class="player-name" id="playerNameDisplay">Axel ✏️ <span class="crown">👑</span></div>
         <div class="xp-bar">
           <div class="xp-fill" id="xpFill"></div>
         </div>
@@ -2322,11 +2322,45 @@
         mode: 'casino', // 'casino' | 'transition' | gameId
         keys: {},
         joyVec: { x: 0, y: 0 },
-        player: { x: 0, z: 14, rotY: Math.PI, vx: 0, vz: 0, color: 0x8B5CF6, currentSeat: null },
+        player: { name: 'Axel', x: 0, z: 14, rotY: Math.PI, vx: 0, vz: 0, color: 0x8B5CF6, currentSeat: null },
         camFollowLook: new THREE.Vector3(),
         activeZone: null,
         savedCasinoCam: null,
       };
+
+      // Top-left HUD profile panel name editing handler
+      const profilePanelEl = document.getElementById('profilePanel') || document.querySelector('.top-left.panel');
+      if (profilePanelEl) {
+        profilePanelEl.addEventListener('click', () => {
+          const currentName = state.player.name || 'Axel';
+          const newName = prompt('Ingresa tu nuevo nombre de jugador:', currentName);
+          if (newName && newName.trim() !== '') {
+            const cleanName = newName.trim().substring(0, 16);
+            state.player.name = cleanName;
+            
+            // Update Top Left HUD UI
+            const nameEl = document.getElementById('playerNameDisplay') || document.querySelector('.player-name');
+            if (nameEl) nameEl.innerHTML = `${cleanName} ✏️ <span class="crown">👑</span>`;
+
+            // Update 3D Floating Nametag Sprite above local player avatar
+            if (typeof playerAvatar !== 'undefined' && playerAvatar && playerAvatar.userData && playerAvatar.userData.nameTag) {
+              updatePlayerNameTagText(playerAvatar.userData.nameTag, cleanName);
+            }
+
+            // Emit updated name to server via Socket.IO for real-time multiplayer sync
+            if (typeof socket !== 'undefined' && socket && socket.connected) {
+              socket.emit('updateTransform', {
+                x: playerAvatar.position.x,
+                z: playerAvatar.position.z,
+                rotY: playerAvatar.rotation.y,
+                name: cleanName
+              });
+            }
+
+            showToast(`✏️ Tu nombre ha sido cambiado a "${cleanName}"`);
+          }
+        });
+      }
 
       const rState = { selectedChip: 50, bets: {}, totalBet: 0, spinning: false };
 
@@ -3671,7 +3705,72 @@
         zoneMeshes[z.id] = { group: g, ring, label, pulse: Math.random() * Math.PI * 2 };
       });
 
-      /* player avatar */
+      /* player avatar & floating 3D nametag */
+      function createPlayerNameTag(name, colorHex = 0x8B5CF6) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        
+        ctx.clearRect(0, 0, 512, 128);
+        const hex = typeof colorHex === 'number' ? '#' + colorHex.toString(16).padStart(6, '0') : '#8B5CF6';
+        ctx.fillStyle = 'rgba(15, 10, 26, 0.85)';
+        ctx.strokeStyle = hex;
+        ctx.lineWidth = 6;
+
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(16, 16, 480, 96, 48);
+        } else {
+          ctx.rect(16, 16, 480, 96);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = '900 40px Segoe UI, Arial, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = hex;
+        ctx.shadowBlur = 12;
+        ctx.fillText(name || 'Jugador', 256, 64);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(2.2, 0.55, 1);
+        sprite.position.set(0, 2.15, 0); // Floats above avatar head
+        sprite.userData = { canvas, ctx, tex, colorHex };
+        return sprite;
+      }
+
+      function updatePlayerNameTagText(sprite, newName) {
+        if (!sprite || !sprite.userData || !sprite.userData.canvas) return;
+        const { canvas, ctx, tex, colorHex } = sprite.userData;
+        ctx.clearRect(0, 0, 512, 128);
+        const hex = typeof colorHex === 'number' ? '#' + colorHex.toString(16).padStart(6, '0') : '#8B5CF6';
+        ctx.fillStyle = 'rgba(15, 10, 26, 0.85)';
+        ctx.strokeStyle = hex;
+        ctx.lineWidth = 6;
+
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(16, 16, 480, 96, 48);
+        } else {
+          ctx.rect(16, 16, 480, 96);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = '900 40px Segoe UI, Arial, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = hex;
+        ctx.shadowBlur = 12;
+        ctx.fillText(newName || 'Jugador', 256, 64);
+        tex.needsUpdate = true;
+      }
+
       function createAvatarMesh(colorHex) {
         const g = new THREE.Group();
         const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.5 });
@@ -3687,6 +3786,12 @@
 
       const playerAvatar = createAvatarMesh(state.player.color);
       playerAvatar.position.set(state.player.x, 0, state.player.z);
+      
+      // Attach 3D floating nametag above local player avatar head
+      const localNameTag = createPlayerNameTag(state.player.name || 'Axel', state.player.color);
+      playerAvatar.add(localNameTag);
+      playerAvatar.userData.nameTag = localNameTag;
+
       scene.add(playerAvatar);
 
       /* ============================================================
@@ -3722,13 +3827,20 @@
           }
         });
 
-        // 3. Remote Player Moved
+        // 3. Remote Player Moved or Updated Name
         socket.on('playerMoved', (pData) => {
           if (pData && pData.id && pData.id !== mySocketId && remotePlayers[pData.id]) {
             const rp = remotePlayers[pData.id];
             rp.targetX = pData.x;
             rp.targetZ = pData.z;
             rp.targetRotY = pData.rotY;
+
+            if (pData.name && pData.name !== rp.name) {
+              rp.name = pData.name;
+              if (rp.mesh && rp.mesh.userData.nameTag) {
+                updatePlayerNameTagText(rp.mesh.userData.nameTag, pData.name);
+              }
+            }
           }
         });
 
@@ -3757,10 +3869,17 @@
         const mesh = createAvatarMesh(pData.color || 0x8B5CF6);
         mesh.position.set(pData.x || 0, 0, pData.z || 0);
         mesh.rotation.y = pData.rotY || 0;
+
+        const pName = pData.name || ('Jugador_' + pData.id.substring(0, 4));
+        const nameTag = createPlayerNameTag(pName, pData.color || 0x8B5CF6);
+        mesh.add(nameTag);
+        mesh.userData.nameTag = nameTag;
+
         scene.add(mesh);
 
         remotePlayers[pData.id] = {
           id: pData.id,
+          name: pName,
           mesh: mesh,
           targetX: pData.x || 0,
           targetZ: pData.z || 0,
@@ -4235,18 +4354,10 @@
         document.getElementById('playerLvlText').textContent = 'Nivel ' + state.level + ' · ' + state.xp + '/1000 XP';
       }
 
-      /* avatar tag projection */
+      /* avatar tag projection (Disabled in favor of native 3D floating sprite nametag) */
       const avatarTag = document.getElementById('avatarTag');
       function updateAvatarTag() {
-        if (state.mode !== 'casino') { avatarTag.style.display = 'none'; return; }
-        const pos = new THREE.Vector3(state.player.x, 2.2, state.player.z);
-        pos.project(camera);
-        if (pos.z > 1) { avatarTag.style.display = 'none'; return; }
-        const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
-        const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
-        avatarTag.style.display = 'flex';
-        avatarTag.style.left = x + 'px';
-        avatarTag.style.top = y + 'px';
+        if (avatarTag) avatarTag.style.display = 'none';
       }
 
       /* ============================================================
@@ -6292,13 +6403,14 @@
         updateBots(dt);
         if (typeof updateRemotePlayers === 'function') updateRemotePlayers(dt);
 
-        // Throttle sending local player position to server (~15 updates/sec)
+        // Throttle sending local player position & name to server (~15 updates/sec)
         if (socket && socket.connected && playerAvatar && (now - lastTransformEmit >= 65)) {
           lastTransformEmit = now;
           socket.emit('updateTransform', {
             x: playerAvatar.position.x,
             z: playerAvatar.position.z,
-            rotY: playerAvatar.rotation.y
+            rotY: playerAvatar.rotation.y,
+            name: state.player.name || 'Axel'
           });
         }
 

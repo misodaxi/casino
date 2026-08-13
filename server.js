@@ -110,6 +110,7 @@ io.on('connection', (socket) => {
       players[socket.id].x = data.x;
       players[socket.id].z = data.z;
       players[socket.id].rotY = data.rotY;
+      if (data.name) players[socket.id].name = data.name;
       socket.broadcast.emit('playerMoved', players[socket.id]);
     }
   });
