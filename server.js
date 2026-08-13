@@ -21,8 +21,18 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Multiplayer player tracking
+// Multiplayer player tracking & IP-to-Name persistence map
 const players = {};
+const ipNames = {};
+
+function getClientIp(socket) {
+  const headers = socket.handshake.headers;
+  const xForwardedFor = headers['x-forwarded-for'];
+  if (xForwardedFor) {
+    return xForwardedFor.split(',')[0].trim();
+  }
+  return socket.handshake.address || (socket.request && socket.request.connection && socket.request.connection.remoteAddress) || '127.0.0.1';
+}
 
 // Global TV 3D Synchronized State
 const tvState = {
@@ -47,15 +57,20 @@ function getSyncedTvState() {
 }
 
 io.on('connection', (socket) => {
-  console.log(`🟢 Jugador conectado: ${socket.id}`);
+  const clientIp = getClientIp(socket);
+  console.log(`🟢 Jugador conectado: ${socket.id} (IP: ${clientIp})`);
+
+  // Retrieve saved name associated with this IP or fallback to default
+  const savedName = ipNames[clientIp] || `Jugador_${socket.id.substring(0, 4)}`;
 
   // Create initial player state
   players[socket.id] = {
     id: socket.id,
+    ip: clientIp,
     x: (Math.random() - 0.5) * 6,
     z: 12 + (Math.random() - 0.5) * 4,
     rotY: Math.PI,
-    name: `Jugador_${socket.id.substring(0, 4)}`,
+    name: savedName,
     color: 0x8B5CF6
   };
 
@@ -110,7 +125,11 @@ io.on('connection', (socket) => {
       players[socket.id].x = data.x;
       players[socket.id].z = data.z;
       players[socket.id].rotY = data.rotY;
-      if (data.name) players[socket.id].name = data.name;
+      if (data.name && data.name.trim() !== '') {
+        const cleanName = data.name.trim().substring(0, 16);
+        players[socket.id].name = cleanName;
+        ipNames[clientIp] = cleanName; // Save & associate name to client IP address permanently!
+      }
       socket.broadcast.emit('playerMoved', players[socket.id]);
     }
   });

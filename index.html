@@ -2315,6 +2315,7 @@
       /* ============================================================
          GLOBAL STATE
       ============================================================ */
+      const savedNameLocal = localStorage.getItem('casino_player_name');
       const state = {
         balance: 1250,
         xp: 450,
@@ -2322,7 +2323,7 @@
         mode: 'casino', // 'casino' | 'transition' | gameId
         keys: {},
         joyVec: { x: 0, y: 0 },
-        player: { name: 'Axel', x: 0, z: 14, rotY: Math.PI, vx: 0, vz: 0, color: 0x8B5CF6, currentSeat: null },
+        player: { name: savedNameLocal || 'Axel', x: 0, z: 14, rotY: Math.PI, vx: 0, vz: 0, color: 0x8B5CF6, currentSeat: null },
         camFollowLook: new THREE.Vector3(),
         activeZone: null,
         savedCasinoCam: null,
@@ -2337,6 +2338,7 @@
           if (newName && newName.trim() !== '') {
             const cleanName = newName.trim().substring(0, 16);
             state.player.name = cleanName;
+            localStorage.setItem('casino_player_name', cleanName);
             
             // Update Top Left HUD UI
             const nameEl = document.getElementById('playerNameDisplay') || document.querySelector('.player-name');
@@ -3810,6 +3812,19 @@
         socket.on('init', (data) => {
           mySocketId = data.id;
           const serverPlayers = data.players || {};
+
+          // Apply saved player name associated with client IP address
+          if (serverPlayers[mySocketId] && serverPlayers[mySocketId].name) {
+            const myAssignedName = serverPlayers[mySocketId].name;
+            state.player.name = myAssignedName;
+
+            const nameEl = document.getElementById('playerNameDisplay') || document.querySelector('.player-name');
+            if (nameEl) nameEl.innerHTML = `${myAssignedName} ✏️ <span class="crown">👑</span>`;
+
+            if (playerAvatar && playerAvatar.userData && playerAvatar.userData.nameTag) {
+              updatePlayerNameTagText(playerAvatar.userData.nameTag, myAssignedName);
+            }
+          }
 
           Object.keys(serverPlayers).forEach(id => {
             if (id !== mySocketId && !remotePlayers[id]) {
