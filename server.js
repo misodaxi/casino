@@ -121,21 +121,319 @@ function checkAndTriggerSpin(rouletteId) {
         });
         broadcastRouletteState(rouletteId);
 
-        // Reset to WAITING for next round after 3.5 seconds
-        setTimeout(() => {
-          if (roulettes[rouletteId]) {
-            const nextRound = roulettes[rouletteId];
-            nextRound.status = 'WAITING';
-            nextRound.readyPlayers = {};
-            nextRound.bets = {};
-            nextRound.userBets = {};
-            nextRound.result = null;
-            broadcastRouletteState(rouletteId);
-          }
-        }, 3500);
-      }
-    }, 4000);
+/* ============================================================
+   AUTHORITATIVE MULTIPLAYER BLACKJACK ENGINE
+============================================================ */
+const blackjacks = {}; // blackjackId -> state object
+
+function createStandardDeck() {
+  const suits = ['♠', '♥', '♦', '♣'];
+  const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+  const deck = [];
+  suits.forEach(s => values.forEach(v => deck.push({ s, v, red: (s === '♥' || s === '♦') })));
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
   }
+  return deck;
+}
+
+function getHandScore(hand) {
+  let total = 0, aces = 0;
+  if (!hand || !Array.isArray(hand)) return 0;
+  hand.forEach(c => {
+    if (!c || c.hidden) return;
+    if (c.v === 'A') { aces++; total += 11; }
+    else if (['J', 'Q', 'K'].includes(c.v)) total += 10;
+    else total += parseInt(c.v, 10);
+  });
+  while (total > 21 && aces > 0) { total -= 10; aces--; }
+  return total;
+}
+
+function getOrCreateBlackjackState(blackjackId) {
+  if (!blackjacks[blackjackId]) {
+    blackjacks[blackjackId] = {
+      blackjackId: blackjackId,
+      players: {}, // socketId -> { id, name, seatIndex, hand: [], bets: 50, score: 0, status: 'WAITING' }
+      playerOrder: [], // array of socketIds
+      currentPlayerIndex: -1,
+      currentPlayerId: null,
+      dealer: [], // array of cards
+      dealerHiddenCard: null,
+      deck: createStandardDeck(),
+      phase: 'WAITING', // 'WAITING' | 'DEALING' | 'PLAYER_TURNS' | 'DEALER_TURN' | 'RESULT'
+      roundId: 0,
+      sequence: 0,
+      results: {}
+    };
+  }
+  return blackjacks[blackjackId];
+}
+
+function broadcastBlackjackState(blackjackId) {
+  const bj = getOrCreateBlackjackState(blackjackId);
+
+  const publicDealer = bj.dealer.map((c, idx) => {
+    if (idx === 1 && (bj.phase === 'WAITING' || bj.phase === 'DEALING' || bj.phase === 'PLAYER_TURNS')) {
+      return { s: '?', v: '?', red: false, hidden: true };
+    }
+    return c;
+  });
+
+  const payload = {
+    blackjackId: bj.blackjackId,
+    phase: bj.phase,
+    players: bj.players,
+    playerOrder: bj.playerOrder,
+    currentPlayerIndex: bj.currentPlayerIndex,
+    currentPlayerId: bj.currentPlayerId,
+    dealer: publicDealer,
+    dealerScore: (bj.phase === 'DEALER_TURN' || bj.phase === 'RESULT') ? getHandScore(bj.dealer) : getHandScore([bj.dealer[0]]),
+    roundId: bj.roundId,
+    sequence: bj.sequence,
+    results: bj.results,
+    remainingCards: bj.deck.length
+  };
+
+  io.to(`blackjack:${blackjackId}`).emit('blackjackState', payload);
+  return payload;
+}
+
+function startBlackjackDeal(blackjackId) {
+  const bj = getOrCreateBlackjackState(blackjackId);
+  if (bj.phase !== 'WAITING') return;
+
+  const seatedIds = Object.keys(bj.players);
+  if (seatedIds.length === 0) return;
+
+  bj.phase = 'DEALING';
+  bj.roundId++;
+  bj.sequence = 0;
+  bj.playerOrder = [...seatedIds];
+  bj.currentPlayerIndex = -1;
+  bj.currentPlayerId = null;
+  bj.dealer = [];
+  bj.dealerHiddenCard = null;
+  bj.results = {};
+
+  if (bj.deck.length < 15) {
+    bj.deck = createStandardDeck();
+  }
+
+  seatedIds.forEach(id => {
+    bj.players[id].hand = [];
+    bj.players[id].score = 0;
+    bj.players[id].status = 'PLAYING';
+  });
+
+  broadcastBlackjackState(blackjackId);
+
+  const dealQueue = [];
+
+  // Pass 1: Each seated player receives 1st card
+  seatedIds.forEach(id => {
+    dealQueue.push({ type: 'player', playerId: id, hidden: false });
+  });
+  // Pass 1: Dealer receives 1st card
+  dealQueue.push({ type: 'dealer', playerId: 'dealer', hidden: false });
+
+  // Pass 2: Each seated player receives 2nd card
+  seatedIds.forEach(id => {
+    dealQueue.push({ type: 'player', playerId: id, hidden: false });
+  });
+  // Pass 2: Dealer receives 2nd card (Hidden!)
+  dealQueue.push({ type: 'dealer', playerId: 'dealer', hidden: true });
+
+  let stepIdx = 0;
+  function processDealQueue() {
+    if (stepIdx >= dealQueue.length) {
+      bj.phase = 'PLAYER_TURNS';
+      bj.currentPlayerIndex = 0;
+      bj.currentPlayerId = bj.playerOrder[0];
+      broadcastBlackjackState(blackjackId);
+      io.to(`blackjack:${blackjackId}`).emit('blackjackTurnChanged', {
+        blackjackId,
+        currentPlayerId: bj.currentPlayerId,
+        playerIndex: 0
+      });
+      return;
+    }
+
+    const item = dealQueue[stepIdx];
+    stepIdx++;
+    bj.sequence++;
+
+    const card = bj.deck.pop();
+    if (!card) return;
+
+    if (item.type === 'player') {
+      const p = bj.players[item.playerId];
+      if (p) {
+        p.hand.push(card);
+        p.score = getHandScore(p.hand);
+      }
+      io.to(`blackjack:${blackjackId}`).emit('blackjackDealCard', {
+        blackjackId,
+        playerId: item.playerId,
+        target: 'player',
+        card: card,
+        hidden: false,
+        sequence: bj.sequence,
+        roundId: bj.roundId,
+        score: p ? p.score : 0
+      });
+    } else {
+      if (item.hidden) {
+        bj.dealerHiddenCard = card;
+        bj.dealer.push(card);
+        io.to(`blackjack:${blackjackId}`).emit('blackjackDealCard', {
+          blackjackId,
+          playerId: 'dealer',
+          target: 'dealer',
+          card: { s: '?', v: '?', red: false, hidden: true },
+          hidden: true,
+          sequence: bj.sequence,
+          roundId: bj.roundId,
+          score: getHandScore([bj.dealer[0]])
+        });
+      } else {
+        bj.dealer.push(card);
+        io.to(`blackjack:${blackjackId}`).emit('blackjackDealCard', {
+          blackjackId,
+          playerId: 'dealer',
+          target: 'dealer',
+          card: card,
+          hidden: false,
+          sequence: bj.sequence,
+          roundId: bj.roundId,
+          score: getHandScore(bj.dealer)
+        });
+      }
+    }
+
+    setTimeout(processDealQueue, 350);
+  }
+
+  processDealQueue();
+}
+
+function advanceBlackjackTurn(blackjackId) {
+  const bj = getOrCreateBlackjackState(blackjackId);
+  if (bj.phase !== 'PLAYER_TURNS') return;
+
+  bj.currentPlayerIndex++;
+  if (bj.currentPlayerIndex < bj.playerOrder.length) {
+    bj.currentPlayerId = bj.playerOrder[bj.currentPlayerIndex];
+    broadcastBlackjackState(blackjackId);
+    io.to(`blackjack:${blackjackId}`).emit('blackjackTurnChanged', {
+      blackjackId,
+      currentPlayerId: bj.currentPlayerId,
+      playerIndex: bj.currentPlayerIndex
+    });
+  } else {
+    startBlackjackDealerTurn(blackjackId);
+  }
+}
+
+function startBlackjackDealerTurn(blackjackId) {
+  const bj = getOrCreateBlackjackState(blackjackId);
+  bj.phase = 'DEALER_TURN';
+  bj.currentPlayerId = 'dealer';
+
+  io.to(`blackjack:${blackjackId}`).emit('blackjackRevealDealer', {
+    blackjackId,
+    dealerHand: bj.dealer,
+    dealerScore: getHandScore(bj.dealer)
+  });
+
+  broadcastBlackjackState(blackjackId);
+
+  function dealerDrawStep() {
+    let dScore = getHandScore(bj.dealer);
+    if (dScore < 17) {
+      if (bj.deck.length === 0) bj.deck = createStandardDeck();
+      const card = bj.deck.pop();
+      bj.dealer.push(card);
+      bj.sequence++;
+      dScore = getHandScore(bj.dealer);
+
+      io.to(`blackjack:${blackjackId}`).emit('blackjackDealCard', {
+        blackjackId,
+        playerId: 'dealer',
+        target: 'dealer',
+        card: card,
+        hidden: false,
+        sequence: bj.sequence,
+        roundId: bj.roundId,
+        score: dScore
+      });
+
+      setTimeout(dealerDrawStep, 600);
+    } else {
+      evaluateBlackjackRoundResults(blackjackId);
+    }
+  }
+
+  setTimeout(dealerDrawStep, 800);
+}
+
+function evaluateBlackjackRoundResults(blackjackId) {
+  const bj = getOrCreateBlackjackState(blackjackId);
+  bj.phase = 'RESULT';
+
+  const dScore = getHandScore(bj.dealer);
+  bj.results = {};
+
+  Object.keys(bj.players).forEach(id => {
+    const p = bj.players[id];
+    const pScore = p.score;
+    let outcome = 'LOSE';
+
+    if (pScore > 21) {
+      outcome = 'BUST';
+    } else if (dScore > 21) {
+      outcome = 'WIN';
+    } else if (pScore > dScore) {
+      outcome = 'WIN';
+    } else if (pScore < dScore) {
+      outcome = 'LOSE';
+    } else {
+      outcome = 'PUSH';
+    }
+
+    bj.results[id] = {
+      playerId: id,
+      result: outcome,
+      playerScore: pScore,
+      dealerScore: dScore,
+      bet: p.bets
+    };
+  });
+
+  io.to(`blackjack:${blackjackId}`).emit('blackjackResult', {
+    blackjackId,
+    results: bj.results,
+    dealerScore: dScore
+  });
+
+  broadcastBlackjackState(blackjackId);
+
+  setTimeout(() => {
+    if (blackjacks[blackjackId]) {
+      const room = blackjacks[blackjackId];
+      room.phase = 'WAITING';
+      room.dealer = [];
+      room.dealerHiddenCard = null;
+      room.results = {};
+      Object.keys(room.players).forEach(id => {
+        room.players[id].hand = [];
+        room.players[id].score = 0;
+        room.players[id].status = 'WAITING';
+      });
+      broadcastBlackjackState(blackjackId);
+    }
+  }, 4500);
 }
 
 function getSyncedTvState() {
@@ -311,6 +609,152 @@ io.on('connection', (socket) => {
     }
   });
 
+  /* ============================================================
+     AUTHORITATIVE MULTIPLAYER BLACKJACK SOCKET EVENT LISTENERS
+  ============================================================ */
+  socket.on('blackjackJoin', (data) => {
+    const bjId = (data && data.blackjackId) ? data.blackjackId : 'blackjack';
+    socket.join(`blackjack:${bjId}`);
+    socket.currentBlackjackId = bjId;
+
+    const bj = getOrCreateBlackjackState(bjId);
+    bj.players[socket.id] = {
+      id: socket.id,
+      name: players[socket.id]?.name || 'Jugador',
+      seatIndex: data.seatIndex || 0,
+      hand: [],
+      score: 0,
+      bets: data.bet || 50,
+      status: 'WAITING'
+    };
+
+    if (bj.phase === 'WAITING' && !bj.playerOrder.includes(socket.id)) {
+      bj.playerOrder.push(socket.id);
+    }
+
+    broadcastBlackjackState(bjId);
+  });
+
+  socket.on('blackjackLeave', (data) => {
+    const bjId = (data && data.blackjackId) ? data.blackjackId : socket.currentBlackjackId;
+    if (bjId && blackjacks[bjId]) {
+      socket.leave(`blackjack:${bjId}`);
+      const bj = blackjacks[bjId];
+      delete bj.players[socket.id];
+      bj.playerOrder = bj.playerOrder.filter(id => id !== socket.id);
+      delete socket.currentBlackjackId;
+
+      if (bj.playerOrder.length === 0) {
+        bj.phase = 'WAITING';
+        bj.currentPlayerIndex = -1;
+        bj.currentPlayerId = null;
+        bj.dealer = [];
+      } else if (bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id) {
+        advanceBlackjackTurn(bjId);
+      }
+
+      broadcastBlackjackState(bjId);
+    }
+  });
+
+  socket.on('blackjackStartRoundReq', (data) => {
+    const bjId = (data && data.blackjackId) ? data.blackjackId : socket.currentBlackjackId;
+    if (bjId && blackjacks[bjId]) {
+      const bj = blackjacks[bjId];
+      if (data && typeof data.bet === 'number' && bj.players[socket.id]) {
+        bj.players[socket.id].bets = data.bet;
+      }
+      if (bj.phase === 'WAITING') {
+        startBlackjackDeal(bjId);
+      }
+    }
+  });
+
+  socket.on('blackjackHit', (data) => {
+    const bjId = (data && data.blackjackId) ? data.blackjackId : socket.currentBlackjackId;
+    if (bjId && blackjacks[bjId]) {
+      const bj = blackjacks[bjId];
+      if (bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id && bj.players[socket.id]) {
+        if (bj.deck.length === 0) bj.deck = createStandardDeck();
+        const card = bj.deck.pop();
+        const p = bj.players[socket.id];
+        p.hand.push(card);
+        p.score = getHandScore(p.hand);
+        bj.sequence++;
+
+        io.to(`blackjack:${bjId}`).emit('blackjackDealCard', {
+          blackjackId: bjId,
+          playerId: socket.id,
+          target: 'player',
+          card: card,
+          hidden: false,
+          sequence: bj.sequence,
+          roundId: bj.roundId,
+          score: p.score
+        });
+
+        broadcastBlackjackState(bjId);
+
+        if (p.score > 21) {
+          p.status = 'BUST';
+          io.to(`blackjack:${bjId}`).emit('blackjackPlayerBust', {
+            blackjackId: bjId,
+            playerId: socket.id,
+            score: p.score
+          });
+          setTimeout(() => advanceBlackjackTurn(bjId), 400);
+        }
+      }
+    }
+  });
+
+  socket.on('blackjackStand', (data) => {
+    const bjId = (data && data.blackjackId) ? data.blackjackId : socket.currentBlackjackId;
+    if (bjId && blackjacks[bjId]) {
+      const bj = blackjacks[bjId];
+      if (bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id && bj.players[socket.id]) {
+        bj.players[socket.id].status = 'STAND';
+        advanceBlackjackTurn(bjId);
+      }
+    }
+  });
+
+  socket.on('blackjackDouble', (data) => {
+    const bjId = (data && data.blackjackId) ? data.blackjackId : socket.currentBlackjackId;
+    if (bjId && blackjacks[bjId]) {
+      const bj = blackjacks[bjId];
+      if (bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id && bj.players[socket.id]) {
+        const p = bj.players[socket.id];
+        if (p.hand.length === 2) {
+          p.bets *= 2;
+          if (bj.deck.length === 0) bj.deck = createStandardDeck();
+          const card = bj.deck.pop();
+          p.hand.push(card);
+          p.score = getHandScore(p.hand);
+          bj.sequence++;
+
+          io.to(`blackjack:${bjId}`).emit('blackjackDealCard', {
+            blackjackId: bjId,
+            playerId: socket.id,
+            target: 'player',
+            card: card,
+            hidden: false,
+            sequence: bj.sequence,
+            roundId: bj.roundId,
+            score: p.score
+          });
+
+          broadcastBlackjackState(bjId);
+
+          if (p.score > 21) p.status = 'BUST';
+          else p.status = 'STAND';
+
+          setTimeout(() => advanceBlackjackTurn(bjId), 500);
+        }
+      }
+    }
+  });
+
   // Handle chat messages
   socket.on('chatMessage', (msg) => {
     io.emit('chatMessage', {
@@ -344,6 +788,24 @@ io.on('connection', (socket) => {
       }
 
       broadcastRouletteState(rId);
+    }
+
+    if (socket.currentBlackjackId && blackjacks[socket.currentBlackjackId]) {
+      const bjId = socket.currentBlackjackId;
+      const bj = blackjacks[bjId];
+      delete bj.players[socket.id];
+      bj.playerOrder = bj.playerOrder.filter(id => id !== socket.id);
+
+      if (bj.playerOrder.length === 0) {
+        bj.phase = 'WAITING';
+        bj.currentPlayerIndex = -1;
+        bj.currentPlayerId = null;
+        bj.dealer = [];
+      } else if (bj.phase === 'PLAYER_TURNS' && bj.currentPlayerId === socket.id) {
+        advanceBlackjackTurn(bjId);
+      }
+
+      broadcastBlackjackState(bjId);
     }
   });
 });

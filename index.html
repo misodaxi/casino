@@ -4625,6 +4625,8 @@
           });
           if (gameId === 'roulette') {
             socket.emit('rouletteJoin', { rouletteId: 'roulette', seatIndex: seat.seatIndex });
+          } else if (gameId === 'blackjack') {
+            socket.emit('blackjackJoin', { blackjackId: 'blackjack', seatIndex: seat.seatIndex, bet: bjState.bet || 50 });
           }
         }
 
@@ -4783,9 +4785,11 @@
         document.querySelectorAll('.game-overlay').forEach(wrap => wrap.classList.remove('show'));
         state.mode = 'transition';
 
-        // Clear local seat occupancy and leave roulette room
+        // Clear local seat occupancy and leave game rooms
         if (previousMode === 'roulette' && typeof socket !== 'undefined' && socket && socket.connected) {
           socket.emit('rouletteLeave', { rouletteId: 'roulette' });
+        } else if (previousMode === 'blackjack' && typeof socket !== 'undefined' && socket && socket.connected) {
+          socket.emit('blackjackLeave', { blackjackId: 'blackjack' });
         }
         state.player.currentSeat = null;
         if (typeof socket !== 'undefined' && socket && socket.connected) {
@@ -5736,136 +5740,199 @@
         });
       }
 
-      document.getElementById('bjDealBtn').addEventListener('click', () => {
-        if (state.balance < bjState.bet) { showToast('Saldo insuficiente'); return; }
-        state.balance -= bjState.bet; updateBalanceUI();
-        playSound('chip');
+      /* ============================================================
+         3. MULTIPLAYER AUTHORITATIVE BLACKJACK ENGINE
+      ============================================================ */
+      let bjServerState = null;
+      let bjDealt3DMeshes = {};
 
-        // Clear 3D cards from previous round
-        if (window.bj3DRefs && window.bj3DRefs.cardsGroup) {
-          const grp = window.bj3DRefs.cardsGroup;
-          while (grp.children.length > 0) grp.remove(grp.children[0]);
-        }
-        update3DBJChips(bjState.bet);
+      if (typeof socket !== 'undefined' && socket) {
+        socket.on('blackjackState', (s) => {
+          if (!s || s.blackjackId !== 'blackjack') return;
+          bjServerState = s;
 
-        bjState.deck = createDeck();
-        bjState.player = [bjState.deck.pop(), bjState.deck.pop()];
-        bjState.dealer = [bjState.deck.pop(), bjState.deck.pop()];
-        bjState.player3DMeshes = [];
-        bjState.dealer3DMeshes = [];
-        bjState.active = true;
+          const isMyTurn = (s.phase === 'PLAYER_TURNS' && s.currentPlayerId === socket.id);
+          const activePlayer = (s.players && s.currentPlayerId && s.players[s.currentPlayerId]) ? s.players[s.currentPlayerId].name : 'Dealer';
 
-        // 3D Card Dealing Animation sequence with 50% overlap & physical height stacking
-        const p1Mesh = make3DCardMesh(bjState.player[0], true);
-        bjState.player3DMeshes.push(p1Mesh);
-        animateCardDeal3D(p1Mesh, new THREE.Vector3(-0.09, 0.010, 2.12), true, 0);
+          const playerScoreEl = document.getElementById('playerScore');
+          const dealerScoreEl = document.getElementById('dealerScore');
+          const dealBtn = document.getElementById('bjDealBtn');
+          const hitBtn = document.getElementById('bjHitBtn');
+          const standBtn = document.getElementById('bjStandBtn');
+          const doubleBtn = document.getElementById('bjDoubleBtn');
 
-        const d1Mesh = make3DCardMesh(bjState.dealer[0], true);
-        bjState.dealer3DMeshes.push(d1Mesh);
-        animateCardDeal3D(d1Mesh, new THREE.Vector3(-0.14, 0.010, 0.75), true, 220);
-
-        const p2Mesh = make3DCardMesh(bjState.player[1], true);
-        bjState.player3DMeshes.push(p2Mesh);
-        animateCardDeal3D(p2Mesh, new THREE.Vector3(0.09, 0.013, 2.12), true, 440);
-
-        const d2Mesh = make3DCardMesh(bjState.dealer[1], false); // Face Down!
-        bjState.dealer3DMeshes.push(d2Mesh);
-        animateCardDeal3D(d2Mesh, new THREE.Vector3(0.04, 0.013, 0.75), false, 660, () => {
-          document.getElementById('playerScore').textContent = 'Puntos: ' + getHandScore(bjState.player);
-          document.getElementById('dealerScore').textContent = 'Puntos: ?';
-
-          document.getElementById('bjDealBtn').style.display = 'none';
-          document.getElementById('bjHitBtn').style.display = 'inline-block';
-          document.getElementById('bjStandBtn').style.display = 'inline-block';
-          document.getElementById('bjDoubleBtn').style.display = 'inline-block';
-          document.getElementById('bjResultBanner').classList.remove('show');
-        });
-      });
-
-      document.getElementById('bjHitBtn').addEventListener('click', () => {
-        if (!bjState.active) return;
-        const newCard = bjState.deck.pop();
-        bjState.player.push(newCard);
-        const idx = bjState.player.length - 1;
-        const posX = -0.09 + idx * 0.18;
-        const posY = 0.010 + idx * 0.003;
-
-        const mesh = make3DCardMesh(newCard, true);
-        bjState.player3DMeshes.push(mesh);
-        animateCardDeal3D(mesh, new THREE.Vector3(posX, posY, 2.12), true, 0, () => {
-          const score = getHandScore(bjState.player);
-          document.getElementById('playerScore').textContent = 'Puntos: ' + score;
-          if (score > 21) bjEndRound('BUST! PERDISTE', false);
-        });
-      });
-
-      document.getElementById('bjStandBtn').addEventListener('click', () => {
-        if (!bjState.active) return;
-        bjState.active = false;
-        document.getElementById('bjHitBtn').style.display = 'none';
-        document.getElementById('bjStandBtn').style.display = 'none';
-        document.getElementById('bjDoubleBtn').style.display = 'none';
-
-        // Flip dealer hidden card in 3D
-        if (bjState.dealer3DMeshes[1]) {
-          flipCard3D(bjState.dealer3DMeshes[1], () => {
-            let dScore = getHandScore(bjState.dealer);
-            document.getElementById('dealerScore').textContent = 'Puntos: ' + dScore;
-
-            function dealerDrawNext() {
-              if (dScore < 17) {
-                const newCard = bjState.deck.pop();
-                bjState.dealer.push(newCard);
-                dScore = getHandScore(bjState.dealer);
-                const idx = bjState.dealer.length - 1;
-                const posX = -0.14 + idx * 0.18;
-                const posY = 0.010 + idx * 0.003;
-
-                const mesh = make3DCardMesh(newCard, true);
-                bjState.dealer3DMeshes.push(mesh);
-                animateCardDeal3D(mesh, new THREE.Vector3(posX, posY, 0.75), true, 0, () => {
-                  document.getElementById('dealerScore').textContent = 'Puntos: ' + dScore;
-                  setTimeout(dealerDrawNext, 350);
-                });
-              } else {
-                const pScore = getHandScore(bjState.player);
-                if (dScore > 21 || pScore > dScore) bjEndRound('¡GANASTE!', true);
-                else if (pScore < dScore) bjEndRound('PERDISTE', false);
-                else bjEndRound('EMPATE', null);
-              }
+          if (s.phase === 'WAITING') {
+            if (dealBtn) { dealBtn.style.display = 'inline-block'; dealBtn.textContent = 'REPARTIR 🃏'; }
+            if (hitBtn) hitBtn.style.display = 'none';
+            if (standBtn) standBtn.style.display = 'none';
+            if (doubleBtn) doubleBtn.style.display = 'none';
+          } else if (s.phase === 'PLAYER_TURNS') {
+            if (dealBtn) dealBtn.style.display = 'none';
+            if (isMyTurn) {
+              if (hitBtn) hitBtn.style.display = 'inline-block';
+              if (standBtn) standBtn.style.display = 'inline-block';
+              if (doubleBtn) doubleBtn.style.display = 'inline-block';
+              showToast('🟢 ¡Es tu turno de actuar!');
+            } else {
+              if (hitBtn) hitBtn.style.display = 'none';
+              if (standBtn) standBtn.style.display = 'none';
+              if (doubleBtn) doubleBtn.style.display = 'none';
+              if (playerScoreEl) playerScoreEl.textContent = `Turno de: ${activePlayer}`;
             }
-            dealerDrawNext();
-          });
-        }
-      });
+          } else if (s.phase === 'DEALER_TURN' || s.phase === 'RESULT') {
+            if (dealBtn) dealBtn.style.display = 'none';
+            if (hitBtn) hitBtn.style.display = 'none';
+            if (standBtn) standBtn.style.display = 'none';
+            if (doubleBtn) doubleBtn.style.display = 'none';
+          }
 
-      document.getElementById('bjDoubleBtn').addEventListener('click', () => {
-        if (!bjState.active) return;
-        if (state.balance < bjState.bet) { showToast('Saldo insuficiente para doblar'); return; }
-        state.balance -= bjState.bet;
-        bjState.bet *= 2;
-        updateBalanceUI();
-        document.getElementById('bjBetDisplay').textContent = '$' + bjState.bet;
-        update3DBJChips(bjState.bet);
-
-        const newCard = bjState.deck.pop();
-        bjState.player.push(newCard);
-        const idx = bjState.player.length - 1;
-        const posX = -0.09 + idx * 0.18;
-        const posY = 0.010 + idx * 0.003;
-
-        const mesh = make3DCardMesh(newCard, true);
-        bjState.player3DMeshes.push(mesh);
-        animateCardDeal3D(mesh, new THREE.Vector3(posX, posY, 2.12), true, 0, () => {
-          const score = getHandScore(bjState.player);
-          document.getElementById('playerScore').textContent = 'Puntos: ' + score;
-          if (score > 21) {
-            bjEndRound('BUST! PERDISTE', false);
-          } else {
-            document.getElementById('bjStandBtn').click();
+          if (s.players && s.players[socket.id]) {
+            const myData = s.players[socket.id];
+            if (playerScoreEl && (s.phase !== 'PLAYER_TURNS' || isMyTurn)) {
+              playerScoreEl.textContent = 'Tus Puntos: ' + (myData.score || 0);
+            }
+          }
+          if (dealerScoreEl) {
+            dealerScoreEl.textContent = 'Dealer: ' + (s.dealerScore !== undefined ? s.dealerScore : '?');
           }
         });
-      });
+
+        socket.on('blackjackDealCard', (data) => {
+          if (!data || data.blackjackId !== 'blackjack') return;
+
+          if (data.sequence === 1 && window.bj3DRefs && window.bj3DRefs.cardsGroup) {
+            const grp = window.bj3DRefs.cardsGroup;
+            while (grp.children.length > 0) grp.remove(grp.children[0]);
+            bjDealt3DMeshes = {};
+          }
+
+          const card = data.card;
+          const isDealer = (data.target === 'dealer');
+          const isMe = (data.playerId === socket.id);
+          const isHidden = data.hidden;
+
+          const mesh = make3DCardMesh(card, !isHidden);
+          bjDealt3DMeshes[data.sequence] = mesh;
+
+          let targetX = 0, targetZ = 0, targetY = 0.010;
+          if (isDealer) {
+            targetX = -0.14 + (data.sequence % 5) * 0.18;
+            targetZ = 0.75;
+            targetY = 0.010 + (data.sequence % 5) * 0.003;
+          } else {
+            const pCount = (bjServerState && bjServerState.players && bjServerState.players[data.playerId] && bjServerState.players[data.playerId].hand) ? bjServerState.players[data.playerId].hand.length : 1;
+            targetX = -0.09 + (pCount - 1) * 0.18;
+            targetZ = 2.12;
+            targetY = 0.010 + (pCount - 1) * 0.003;
+          }
+
+          animateCardDeal3D(mesh, new THREE.Vector3(targetX, targetY, targetZ), !isHidden, 0, () => {
+            if (isMe) {
+              const playerScoreEl = document.getElementById('playerScore');
+              if (playerScoreEl) playerScoreEl.textContent = 'Tus Puntos: ' + data.score;
+            }
+            if (isDealer) {
+              const dealerScoreEl = document.getElementById('dealerScore');
+              if (dealerScoreEl) dealerScoreEl.textContent = 'Dealer: ' + (isHidden ? '?' : data.score);
+            }
+          });
+        });
+
+        socket.on('blackjackRevealDealer', (data) => {
+          if (!data || data.blackjackId !== 'blackjack') return;
+          if (bjDealt3DMeshes[2]) {
+            flipCard3D(bjDealt3DMeshes[2], () => {
+              const dealerScoreEl = document.getElementById('dealerScore');
+              if (dealerScoreEl) dealerScoreEl.textContent = 'Dealer: ' + data.dealerScore;
+            });
+          }
+        });
+
+        socket.on('blackjackPlayerBust', (data) => {
+          if (!data || data.blackjackId !== 'blackjack') return;
+          if (data.playerId === socket.id) {
+            showToast('💥 ¡Te has pasado de 21! (BUST)');
+          }
+        });
+
+        socket.on('blackjackResult', (data) => {
+          if (!data || data.blackjackId !== 'blackjack') return;
+          const myResult = data.results && data.results[socket.id];
+          if (!myResult) return;
+
+          const banner = document.getElementById('bjResultBanner');
+          const title = document.getElementById('bjResultTitle');
+          const msg = document.getElementById('bjResultMsg');
+
+          const outcome = myResult.result;
+          const betAmt = myResult.bet || bjState.bet || 50;
+
+          if (outcome === 'WIN') {
+            state.balance += betAmt * 2; updateBalanceUI();
+            if (title) title.textContent = '¡GANASTE!';
+            if (msg) { msg.className = 'win'; msg.textContent = '+$' + betAmt; }
+            triggerConfetti(); addXP(120);
+          } else if (outcome === 'BUST') {
+            if (title) title.textContent = 'BUST! PERDISTE';
+            if (msg) { msg.className = 'lose'; msg.textContent = '-$' + betAmt; }
+            playSound('lose');
+          } else if (outcome === 'LOSE') {
+            if (title) title.textContent = 'PERDISTE';
+            if (msg) { msg.className = 'lose'; msg.textContent = '-$' + betAmt; }
+            playSound('lose');
+          } else if (outcome === 'PUSH') {
+            state.balance += betAmt; updateBalanceUI();
+            if (title) title.textContent = 'EMPATE';
+            if (msg) { msg.className = 'win'; msg.textContent = 'Reembolsado'; }
+          }
+
+          if (banner) banner.classList.add('show');
+          setTimeout(() => {
+            if (banner) banner.classList.remove('show');
+          }, 3500);
+        });
+      }
+
+      const bjDealBtnEl = document.getElementById('bjDealBtn');
+      if (bjDealBtnEl) {
+        bjDealBtnEl.addEventListener('click', () => {
+          if (state.balance < bjState.bet) { showToast('Saldo insuficiente'); return; }
+          state.balance -= bjState.bet; updateBalanceUI();
+          playSound('chip');
+          if (socket && socket.connected) {
+            socket.emit('blackjackStartRoundReq', { blackjackId: 'blackjack', bet: bjState.bet });
+          }
+        });
+      }
+
+      const bjHitBtnEl = document.getElementById('bjHitBtn');
+      if (bjHitBtnEl) {
+        bjHitBtnEl.addEventListener('click', () => {
+          if (socket && socket.connected) {
+            socket.emit('blackjackHit', { blackjackId: 'blackjack' });
+          }
+        });
+      }
+
+      const bjStandBtnEl = document.getElementById('bjStandBtn');
+      if (bjStandBtnEl) {
+        bjStandBtnEl.addEventListener('click', () => {
+          if (socket && socket.connected) {
+            socket.emit('blackjackStand', { blackjackId: 'blackjack' });
+          }
+        });
+      }
+
+      const bjDoubleBtnEl = document.getElementById('bjDoubleBtn');
+      if (bjDoubleBtnEl) {
+        bjDoubleBtnEl.addEventListener('click', () => {
+          if (state.balance < bjState.bet) { showToast('Saldo insuficiente para doblar'); return; }
+          state.balance -= bjState.bet; bjState.bet *= 2; updateBalanceUI();
+          if (socket && socket.connected) {
+            socket.emit('blackjackDouble', { blackjackId: 'blackjack' });
+          }
+        });
+      }
 
       function bjEndRound(titleMsg, won) {
         bjState.active = false;
