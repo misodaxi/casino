@@ -1,0 +1,27 @@
+{
+  "name": "midnight-casino-3d",
+  "version": "1.0.0",
+  "description": "3D WebGL Casino Arcade with Spatial Audio, YouTube 3D TV & Realtime Multiplayer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "npx http-server . -p 8000 -c-1"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "keywords": [
+    "threejs",
+    "webgl",
+    "casino",
+    "3d",
+    "multiplayer",
+    "socketio"
+  ],
+  "author": "Undfe",
+  "license": "MIT"
+}
