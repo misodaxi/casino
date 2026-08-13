@@ -927,6 +927,22 @@
       color: #f87171;
     }
 
+    /* Resultados de Dice y Mines desplazados a un lateral (derecha) para dejar
+       libre el centro de pantalla donde ocurre la acción física 3D (dados / minas) */
+    #diceResultBanner {
+      position: absolute;
+      top: auto;
+      bottom: 128px;
+      left: auto;
+      right: 26px;
+      width: 210px;
+      transform: scale(.85);
+    }
+
+    #diceResultBanner.show {
+      transform: scale(1);
+    }
+
     /* controls & chip rack */
     .chip-rack {
       display: flex;
@@ -1185,21 +1201,30 @@
 
     /* ---------- DICE DUEL OVERLAY ---------- */
     .duel-arena {
-      flex: 1;
+      /* Reubicado a un lateral (derecha) para no tapar los dados físicos 3D de la mesa */
+      position: absolute;
+      top: 96px;
+      right: 26px;
+      left: auto;
+      bottom: auto;
+      z-index: 31;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 40px;
-      padding-top: 60px;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      gap: 12px;
+      width: 210px;
+      padding-top: 0;
     }
 
     .duel-panel {
       background: var(--panel);
       border: 1px solid var(--panel-border);
       border-radius: 20px;
-      padding: 22px 30px;
+      padding: 16px 18px;
       text-align: center;
-      min-width: 230px;
+      min-width: 0;
+      width: 100%;
     }
 
     .duel-panel .who {
@@ -1219,10 +1244,8 @@
     }
 
     .dice-faces {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      margin-bottom: 10px;
+      /* La representación de los dados ahora vive únicamente en la mesa 3D */
+      display: none;
     }
 
     .die {
@@ -1385,20 +1408,25 @@
       flex: 1;
       display: flex;
       align-items: center;
-      justify-content: center;
+      /* La cuadrícula real vive en la mesa 3D (centro); el panel se empuja al lateral derecho */
+      justify-content: flex-end;
       gap: 30px;
       padding-top: 60px;
+      padding-right: 26px;
     }
 
     .mines-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 64px);
-      grid-template-rows: repeat(5, 64px);
-      gap: 8px;
-      background: var(--panel);
-      border: 1px solid var(--panel-border);
-      padding: 16px;
-      border-radius: 20px;
+      /* La cuadrícula de minas ahora es un elemento 3D interactivo sobre la mesa */
+      display: none;
+    }
+
+    .mines-container {
+      /* Deja pasar los clics hacia la mesa 3D; solo el panel lateral es clicable */
+      pointer-events: none;
+    }
+
+    .mines-side {
+      pointer-events: auto;
     }
 
     .mine-tile {
@@ -1520,19 +1548,8 @@
     }
 
     .coin-3d {
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #f59e0b, #fbbf24);
-      border: 4px solid #fef08a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 48px;
-      font-weight: 900;
-      color: #78350f;
-      box-shadow: 0 0 30px rgba(251, 191, 36, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.6);
-      transition: transform .1s;
+      /* La moneda ahora es un objeto 3D real con física sobre la mesa */
+      display: none;
     }
 
     .coin-choice {
@@ -2425,7 +2442,50 @@
       let roulette3DRefs = null;
       let plinko3DRefs = null;
       let dice3DRefs = null;
+      let coin3DRefs = null;
+      let minesTileMeshes = [];
       const zoneMeshes = {};
+
+      /* Reusable emoji sprite (used by the 3D Mines tiles to show 💎 / 💣 when revealed) */
+      function makeEmojiSprite(emoji, size) {
+        const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+        const ctx = c.getContext('2d');
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = '96px Segoe UI';
+        ctx.fillText(emoji, 64, 70);
+        const tex = new THREE.CanvasTexture(c);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true });
+        const spr = new THREE.Sprite(mat);
+        spr.scale.set(size, size, 1);
+        return spr;
+      }
+
+      /* ============================================================
+         PHYSICS COIN — real 3D coin (CARA/CRUZ) with tumble physics
+         CylinderGeometry material order = [side, top(+Y)=CARA, bottom(-Y)=CRUZ]
+      ============================================================ */
+      function makeCoinFaceTexture(label, emoji) {
+        const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+        const ctx = c.getContext('2d');
+        const grad = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
+        grad.addColorStop(0, '#fde68a'); grad.addColorStop(1, '#b45309');
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(128, 128, 122, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#78350f'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(128, 128, 118, 0, Math.PI * 2); ctx.stroke();
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = '108px Segoe UI'; ctx.fillStyle = '#78350f';
+        ctx.fillText(emoji, 128, 112);
+        ctx.font = '900 28px Segoe UI';
+        ctx.fillText(label, 128, 196);
+        return new THREE.CanvasTexture(c);
+      }
+      function makeCoinMesh(radius) {
+        const edgeMat = new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.75, roughness: 0.28 });
+        const caraMat = new THREE.MeshStandardMaterial({ map: makeCoinFaceTexture('CARA', '👑'), metalness: 0.3, roughness: 0.4 });
+        const cruzMat = new THREE.MeshStandardMaterial({ map: makeCoinFaceTexture('CRUZ', '⚡'), metalness: 0.3, roughness: 0.4 });
+        const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.09, 40), [edgeMat, caraMat, cruzMat]);
+        mesh.castShadow = true; mesh.receiveShadow = true;
+        return mesh;
+      }
 
       /* ============================================================
          PHYSICS DICE — pip textures + real 3D cube geometry
@@ -3225,6 +3285,76 @@
             pitRadius: pitR - 0.22,   // margen interior para el rebote de los dados
             floorY: 0.68,             // altura de la superficie del fieltro donde reposan los dados
           };
+        } else if (z.id === 'coin') {
+          const coinGroup = new THREE.Group();
+
+          // Pedestal / plato donde reposa y cae la moneda física
+          const padR = 0.9;
+          const pad = new THREE.Mesh(new THREE.CylinderGeometry(padR, padR, 0.1, 32),
+            new THREE.MeshStandardMaterial({ color: 0x1b1206, roughness: 0.55, metalness: 0.25 }));
+          pad.position.y = 0.75; pad.receiveShadow = true;
+          coinGroup.add(pad);
+
+          const padRim = new THREE.Mesh(new THREE.TorusGeometry(padR, 0.05, 10, 40),
+            new THREE.MeshStandardMaterial({ color: 0x78350f, emissive: 0xFBBF24, emissiveIntensity: 1.0 }));
+          padRim.rotation.x = Math.PI / 2; padRim.position.y = 0.81;
+          coinGroup.add(padRim);
+
+          // Moneda decorativa en reposo antes del primer lanzamiento
+          const restCoin = makeCoinMesh(0.55);
+          restCoin.position.set(0, 0.855, 0);
+          coinGroup.add(restCoin);
+
+          // Contenedor para la moneda física activa en cada lanzamiento
+          const coinLaunchGroup = new THREE.Group();
+          coinGroup.add(coinLaunchGroup);
+
+          centerpiece = coinGroup;
+          coin3DRefs = {
+            group: coinGroup,
+            restCoin,
+            launchGroup: coinLaunchGroup,
+            padRadius: padR - 0.15,
+            floorY: 0.855,
+          };
+        } else if (z.id === 'mines') {
+          const minesGroup = new THREE.Group();
+          const baseY = 0.78;
+
+          // Base de cristal/fieltro bajo la cuadrícula
+          const mBase = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.12, 2.05),
+            new THREE.MeshStandardMaterial({ color: 0x150a24, roughness: 0.6, metalness: 0.1 }));
+          mBase.position.y = baseY; mBase.receiveShadow = true;
+          minesGroup.add(mBase);
+
+          const neonEdge = new THREE.Mesh(new THREE.BoxGeometry(2.14, 0.03, 2.14),
+            new THREE.MeshStandardMaterial({ color: 0x7f1d1d, emissive: 0xef4444, emissiveIntensity: 1.2 }));
+          neonEdge.position.y = baseY + 0.075;
+          minesGroup.add(neonEdge);
+
+          // Cuadrícula 5x5 de fichas físicas interactuables sobre la mesa
+          const tileSize = 0.32, gap = 0.05, cols = 5;
+          const totalW = cols * tileSize + (cols - 1) * gap;
+          const start0 = -totalW / 2 + tileSize / 2;
+          minesTileMeshes = [];
+          for (let row = 0; row < 5; row++) {
+            for (let col = 0; col < 5; col++) {
+              const idx = row * 5 + col;
+              const tMat = new THREE.MeshStandardMaterial({
+                color: 0x241a3d, emissive: 0x8B5CF6, emissiveIntensity: 0.25, roughness: 0.5, metalness: 0.15
+              });
+              const tMesh = new THREE.Mesh(new THREE.BoxGeometry(tileSize, 0.1, tileSize), tMat);
+              tMesh.position.set(start0 + col * (tileSize + gap), baseY + 0.11, start0 + row * (tileSize + gap));
+              tMesh.userData.mineIdx = idx;
+              tMesh.userData.baseY = tMesh.position.y;
+              tMesh.userData.revealed = false;
+              tMesh.castShadow = true; tMesh.receiveShadow = true;
+              minesGroup.add(tMesh);
+              minesTileMeshes.push(tMesh);
+            }
+          }
+
+          centerpiece = minesGroup;
         } else if (z.id === 'blackjack') {
           const bjGroup = new THREE.Group();
           const bjR = 2.55;
@@ -3525,6 +3655,13 @@
       let targetCamPitch = Math.PI / 6;
       let targetCamDist = 17;
 
+      // Límites de inclinación de cámara: se permite pitch negativo para poder
+      // mirar mucho más hacia arriba (techo, TV, carteles) sin que la cámara
+      // atraviese el suelo — eso se garantiza aparte con CAM_FLOOR_Y más abajo.
+      const CAM_PITCH_MIN = -0.62;   // antes 0.08 → ahora permite mirar bastante más arriba
+      const CAM_PITCH_MAX = Math.PI / 2.3;
+      const CAM_FLOOR_Y = 0.35;      // altura mínima de la cámara sobre el suelo (nunca la atraviesa)
+
       window.addEventListener('mousedown', e => {
         if (e.button === 0 || e.button === 2) {
           if (e.target.tagName === 'CANVAS' || e.target.id === 'canvas-host' || e.target.classList.contains('hud')) {
@@ -3540,7 +3677,7 @@
         const deltaY = e.clientY - previousMousePos.y;
 
         targetCamYaw -= deltaX * 0.005;
-        targetCamPitch = Math.max(0.08, Math.min(Math.PI / 2.3, targetCamPitch + deltaY * 0.005));
+        targetCamPitch = Math.max(CAM_PITCH_MIN, Math.min(CAM_PITCH_MAX, targetCamPitch + deltaY * 0.005));
 
         previousMousePos = { x: e.clientX, y: e.clientY };
       });
@@ -3565,7 +3702,7 @@
         const deltaY = e.touches[0].clientY - previousMousePos.y;
 
         targetCamYaw -= deltaX * 0.005;
-        targetCamPitch = Math.max(0.08, Math.min(Math.PI / 2.3, targetCamPitch + deltaY * 0.005));
+        targetCamPitch = Math.max(CAM_PITCH_MIN, Math.min(CAM_PITCH_MAX, targetCamPitch + deltaY * 0.005));
 
         previousMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       }, { passive: true });
@@ -3641,12 +3778,20 @@
         camDist += (targetCamDist - camDist) * Math.min(1, dt * 10);
 
         const cx = state.player.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist;
-        const cy = Math.sin(camPitch) * camDist;
+        // Límite de suelo: la cámara nunca desciende por debajo de CAM_FLOOR_Y,
+        // incluso con pitch negativo (mirando muy hacia arriba)
+        const cy = Math.max(CAM_FLOOR_Y, Math.sin(camPitch) * camDist);
         const cz = state.player.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist;
 
         const desiredPos = new THREE.Vector3(cx, cy, cz);
         camera.position.lerp(desiredPos, Math.min(1, dt * 8));
-        state.camFollowLook.lerp(new THREE.Vector3(state.player.x, 1.2, state.player.z), Math.min(1, dt * 8));
+
+        // Elevación del punto de mira: cuanto más bajo/negativo el pitch, más se
+        // alza el punto al que mira la cámara, acentuando la sensación de "mirar
+        // hacia arriba" (techo, TV, carteles) en vez de solo inclinar la cabeza.
+        const lookUpFactor = Math.max(0, 0.35 - camPitch);
+        const lookTargetY = 1.2 + lookUpFactor * 6.5;
+        state.camFollowLook.lerp(new THREE.Vector3(state.player.x, lookTargetY, state.player.z), Math.min(1, dt * 8));
         camera.lookAt(state.camFollowLook);
 
         /* proximity */
@@ -3661,6 +3806,31 @@
           document.getElementById('promptText').textContent = 'Sentarse en ' + nearest.name;
           prompt.classList.add('show');
         } else { prompt.classList.remove('show'); }
+      }
+
+      /* ============================================================
+         CÁMARA ORBITAL EN EL CINE — permite mover/rotar la cámara con
+         el ratón (o el dedo) mientras estás sentado viendo la TV 3D,
+         reutilizando el mismo arrastre/zoom global de la cámara del mundo.
+      ============================================================ */
+      function updateCinemaCamera(dt) {
+        if (!state.cinemaPivot) return;
+
+        camYaw += (targetCamYaw - camYaw) * Math.min(1, dt * 10);
+        camPitch += (targetCamPitch - camPitch) * Math.min(1, dt * 10);
+        camDist += (targetCamDist - camDist) * Math.min(1, dt * 10);
+
+        const pivot = state.cinemaPivot;
+        const cx = pivot.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist;
+        const cy = Math.max(CAM_FLOOR_Y, pivot.y + Math.sin(camPitch) * camDist);
+        const cz = pivot.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist;
+
+        camera.position.lerp(new THREE.Vector3(cx, cy, cz), Math.min(1, dt * 8));
+
+        const lookUpFactor = Math.max(0, 0.35 - camPitch);
+        const lookY = pivot.y + 3.5 + lookUpFactor * 6.5;
+        state.camFollowLook.lerp(new THREE.Vector3(pivot.x, lookY, pivot.z - 6), Math.min(1, dt * 8));
+        camera.lookAt(state.camFollowLook);
       }
 
       function tryInteract() {
@@ -3744,9 +3914,20 @@
         } else if (gameId === 'dice') {
           toPos = new THREE.Vector3(z.x + 0.3, 3.4, z.z + 3.4);
           toLook = new THREE.Vector3(z.x, 0.68, z.z);
+        } else if (gameId === 'coin') {
+          toPos = new THREE.Vector3(z.x + 0.2, 2.6, z.z + 2.6);
+          toLook = new THREE.Vector3(z.x, 0.85, z.z);
+        } else if (gameId === 'mines') {
+          toPos = new THREE.Vector3(z.x, 4.4, z.z + 3.1);
+          toLook = new THREE.Vector3(z.x, 0.78, z.z);
         } else if (gameId === 'blackjack') {
           toPos = new THREE.Vector3(z.x, 4.0, z.z + 4.6);
           toLook = new THREE.Vector3(z.x, 0.8, z.z - 0.5);
+        } else if (gameId === 'cinema') {
+          toPos = new THREE.Vector3(z.x, 3.0, z.z + 4.0);
+          toLook = new THREE.Vector3(z.x, 6.0, z.z - 10);
+          // Punto de pivote para poder orbitar la cámara con el ratón mientras se está sentado
+          state.cinemaPivot = new THREE.Vector3(z.x, 2.0, z.z);
         }
 
         const start = performance.now();
@@ -3759,6 +3940,19 @@
             state.mode = gameId;
             const wrap = document.getElementById(gameId + 'Wrap');
             if (wrap) wrap.classList.add('show');
+
+            if (gameId === 'cinema' && state.cinemaPivot) {
+              // Sincroniza el orbit-cam con el encuadre en el que terminó la transición,
+              // para que al empezar a mover el ratón no haya ningún salto de cámara.
+              const dx = toPos.x - state.cinemaPivot.x;
+              const dz = toPos.z - state.cinemaPivot.z;
+              const horiz = Math.max(0.001, Math.hypot(dx, dz));
+              const dy = toPos.y - state.cinemaPivot.y;
+              camDist = Math.hypot(horiz, dy);
+              camPitch = Math.atan2(dy, horiz);
+              camYaw = Math.atan2(dx, dz);
+              targetCamDist = camDist; targetCamPitch = camPitch; targetCamYaw = camYaw;
+            }
           }
         }
         requestAnimationFrame(step);
@@ -3769,13 +3963,23 @@
       const tableMouse = new THREE.Vector2();
 
       window.addEventListener('click', e => {
-        if (state.mode !== 'roulette') return;
+        if (state.mode !== 'roulette' && state.mode !== 'mines') return;
         if (e.target.tagName !== 'CANVAS') return;
 
         tableMouse.x = (e.clientX / window.innerWidth) * 2 - 1;
         tableMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
         tableRaycaster.setFromCamera(tableMouse, camera);
 
+        // Cuadrícula de Mines: cada ficha física en la mesa 3D es clicable
+        if (state.mode === 'mines') {
+          const mineHits = tableRaycaster.intersectObjects(minesTileMeshes, false);
+          if (mineHits.length > 0) {
+            clickMineTile(mineHits[0].object.userData.mineIdx);
+          }
+          return;
+        }
+
+        if (state.mode !== 'roulette') return;
         if (!roulette3DRefs) return;
 
         // 1. Raycast on 3D Chip Stacks (Selecting $10, $50, $100, $500, $1K directly from 3D table!)
@@ -3869,7 +4073,21 @@
           state.camFollowLook.lerpVectors(fromLook, targetLook, t);
           camera.lookAt(state.camFollowLook);
           if (t < 1) requestAnimationFrame(step);
-          else { state.mode = 'casino'; }
+          else {
+            state.mode = 'casino';
+            state.cinemaPivot = null;
+            // Resincroniza yaw/pitch/distancia del orbit-cam del mundo con el encuadre
+            // final de la transición, para que no salte al reanudar el control WASD
+            // (por ejemplo si el ratón se movió mientras se orbitaba el cine o una mesa).
+            const dx = targetPos.x - state.player.x;
+            const dz = targetPos.z - state.player.z;
+            const horiz = Math.max(0.001, Math.hypot(dx, dz));
+            const dy = targetPos.y;
+            camDist = Math.max(7, Math.min(35, Math.hypot(horiz, dy)));
+            camPitch = Math.max(CAM_PITCH_MIN, Math.min(CAM_PITCH_MAX, Math.atan2(dy, horiz)));
+            camYaw = Math.atan2(dx, dz);
+            targetCamDist = camDist; targetCamPitch = camPitch; targetCamYaw = camYaw;
+          }
         }
         requestAnimationFrame(step);
       }
@@ -3982,40 +4200,87 @@
         const startH = 0.70; // outer track height
         const finalH = 0.44; // inner pocket floor height
 
+        // --- Bola con física real (gravedad + rebote con restitución) ---
+        // El resultado (ángulo/casilla final) sigue siendo determinista para que
+        // siempre caiga en winNum, pero la altura/posición vertical ya NO es una
+        // curva puramente cosmética: se integra con gravedad y rebotes que pierden
+        // energía en cada impacto, como una bola real cayendo contra los deflectores
+        // y el borde de las casillas hasta asentarse.
+        const GRAVITY = 9.2;
+        const RESTITUTION = 0.42; // energía conservada tras cada rebote
+        let bounceVel = 0;
+        let bounceHeight = 0; // altura añadida por encima de la curva base (>=0)
+        let settleBounces = 0; // rebotes ya hechos dentro de la casilla ganadora
+        let lastNow = performance.now();
+        let nextImpactAt = 0.30 + Math.random() * 0.08; // primer rebote contra un deflector
+
         const start = performance.now();
+        lastNow = start;
 
         function step(now) {
+          const frameDt = Math.min(0.05, (now - lastNow) / 1000);
+          lastNow = now;
+
           const t = Math.min(1, (now - start) / duration);
           const eRotor = 1 - Math.pow(1 - t, 3); // ease out
           const currentRotorAngle = startRotorRot + (targetRotorRot - startRotorRot) * eRotor;
           rotor.rotation.y = currentRotorAngle;
 
           if (t < 0.78) {
-            // Phase 1: Ball orbits fast on outer rim and gradually spirals down
+            // Fase 1: la bola orbita rápido por el aro exterior y va perdiendo
+            // velocidad/radio (fricción), rebotando contra los deflectores dorados
             const tb = t / 0.78;
             const eBall = 1 - Math.pow(1 - tb, 2);
             const currentBallAngle = startBallAngle + (targetBallAngle - startBallAngle) * eBall;
 
-            const currentR = startR - (startR - finalR) * Math.pow(tb, 2);
-            const currentH = startH - (startH - finalH) * Math.pow(tb, 2);
+            const baseR = startR - (startR - finalR) * Math.pow(tb, 2);
+            const baseH = startH - (startH - finalH) * Math.pow(tb, 2);
 
-            ball.position.x = Math.sin(currentBallAngle) * currentR;
-            ball.position.z = Math.cos(currentBallAngle) * currentR;
-            ball.position.y = currentH;
-            if (Math.random() < 0.3) playSound('tick');
+            // Impactos contra los deflectores: cada cierto intervalo (que se acorta a
+            // medida que la bola pierde velocidad y golpea más seguido) se le da un
+            // impulso vertical que luego cae por gravedad, con pérdida de energía.
+            if (tb >= nextImpactAt) {
+              bounceVel = 0.55 + Math.random() * 0.35 * (1 - tb * 0.5);
+              nextImpactAt = tb + (0.10 + Math.random() * 0.07) * (0.5 + tb * 0.6);
+              if (Math.random() < 0.6) playSound('tick');
+            }
+            bounceVel -= GRAVITY * frameDt;
+            bounceHeight += bounceVel * frameDt;
+            if (bounceHeight < 0) { bounceHeight = 0; bounceVel = Math.abs(bounceVel) * RESTITUTION; }
+
+            ball.position.x = Math.sin(currentBallAngle) * baseR;
+            ball.position.z = Math.cos(currentBallAngle) * baseR;
+            ball.position.y = baseH + bounceHeight * 0.16;
+            ball.rotation.x += frameDt * 14 * (1 - tb * 0.6);
           } else {
-            // Phase 2: Ball lands and settles inside the winning pocket of the turning rotor
+            // Fase 2: la bola cae dentro de la casilla ganadora del rotor y da un par
+            // de rebotes reales (gravedad + restitución) antes de quedarse quieta.
             const currentR = finalR;
-            const currentH = finalH;
             const pocketAbsAngle = currentRotorAngle + pocketAngle;
+
+            if (settleBounces < 3 && bounceHeight <= 0.0005 && bounceVel <= 0) {
+              // Arranca cada rebote con energía decreciente
+              bounceVel = 0.85 * Math.pow(RESTITUTION, settleBounces);
+              settleBounces++;
+            }
+            bounceVel -= GRAVITY * frameDt;
+            bounceHeight += bounceVel * frameDt;
+            if (bounceHeight < 0) {
+              bounceHeight = 0;
+              bounceVel = settleBounces < 3 ? Math.abs(bounceVel) * RESTITUTION : 0;
+              if (settleBounces <= 3) playSound('tick');
+            }
 
             ball.position.x = Math.sin(pocketAbsAngle) * currentR;
             ball.position.z = Math.cos(pocketAbsAngle) * currentR;
-            ball.position.y = currentH;
+            ball.position.y = finalH + Math.max(0, bounceHeight) * 0.9;
           }
 
           if (t < 1) requestAnimationFrame(step);
-          else { onDone && onDone(); }
+          else {
+            ball.position.y = finalH;
+            onDone && onDone();
+          }
         }
 
         requestAnimationFrame(step);
@@ -4362,19 +4627,45 @@
       /* ============================================================
          4. MINES GAME LOGIC
       ============================================================ */
-      const mState = { bet: 50, mines: 3, grid: [], active: false, gemsFound: 0 };
-      const minesGridEl = document.getElementById('minesGrid');
+      const mState = { bet: 50, mines: 3, grid: [], revealed: [], active: false, gemsFound: 0 };
 
-      function initMinesGrid() {
-        minesGridEl.innerHTML = '';
-        for (let i = 0; i < 25; i++) {
-          const tile = document.createElement('div');
-          tile.className = 'mine-tile'; tile.dataset.idx = i;
-          tile.addEventListener('click', () => clickMineTile(i));
-          minesGridEl.appendChild(tile);
-        }
+      /* Restaura el aspecto neutro de las 25 fichas físicas de la mesa 3D */
+      function resetMinesTiles3D() {
+        minesTileMeshes.forEach(t => {
+          t.material.color.set(0x241a3d);
+          t.material.emissive.set(0x8B5CF6);
+          t.material.emissiveIntensity = 0.25;
+          t.position.y = t.userData.baseY;
+          if (t.userData.icon) {
+            t.remove(t.userData.icon);
+            t.userData.icon.material.map.dispose();
+            t.userData.icon.material.dispose();
+            t.userData.icon = null;
+          }
+          t.userData.revealed = false;
+        });
       }
-      initMinesGrid();
+
+      /* Revela físicamente una ficha en la mesa 3D (gema o mina) */
+      function reveal3DMinesTile(idx, type) {
+        const t = minesTileMeshes[idx];
+        if (!t || t.userData.revealed) return;
+        t.userData.revealed = true;
+        t.position.y = t.userData.baseY - 0.045; // se hunde ligeramente al ser pulsada
+        if (type === 'bomb') {
+          t.material.color.set(0x450a0a);
+          t.material.emissive.set(0xef4444);
+          t.material.emissiveIntensity = 1.5;
+        } else {
+          t.material.color.set(0x052e16);
+          t.material.emissive.set(0x22c55e);
+          t.material.emissiveIntensity = 1.3;
+        }
+        const spr = makeEmojiSprite(type === 'bomb' ? '💣' : '💎', 0.28);
+        spr.position.set(0, 0.24, 0);
+        t.add(spr);
+        t.userData.icon = spr;
+      }
 
       document.getElementById('minesStartBtn').addEventListener('click', () => {
         mState.bet = parseInt(document.getElementById('minesBetInput').value, 10);
@@ -4384,6 +4675,7 @@
         state.balance -= mState.bet; updateBalanceUI();
         mState.active = true; mState.gemsFound = 0;
         mState.grid = Array(25).fill('gem');
+        mState.revealed = Array(25).fill(false);
 
         let placed = 0;
         while (placed < mState.mines) {
@@ -4391,7 +4683,7 @@
           if (mState.grid[r] !== 'bomb') { mState.grid[r] = 'bomb'; placed++; }
         }
 
-        initMinesGrid();
+        resetMinesTiles3D();
         document.getElementById('minesStartBtn').style.display = 'none';
         document.getElementById('minesCashoutBtn').style.display = 'inline-block';
         document.getElementById('minesMultDisplay').textContent = '1.00x';
@@ -4400,19 +4692,19 @@
 
       function clickMineTile(idx) {
         if (!mState.active) return;
-        const tiles = minesGridEl.children;
-        if (tiles[idx].classList.contains('revealed')) return;
+        if (mState.revealed[idx]) return;
+        mState.revealed[idx] = true;
 
         if (mState.grid[idx] === 'bomb') {
           playSound('explosion');
-          tiles[idx].classList.add('revealed', 'bomb'); tiles[idx].textContent = '💣';
+          reveal3DMinesTile(idx, 'bomb');
           mState.active = false;
           showToast('¡BOMBA! Perdiste $' + mState.bet);
           document.getElementById('minesStartBtn').style.display = 'inline-block';
           document.getElementById('minesCashoutBtn').style.display = 'none';
         } else {
           playSound('chip');
-          tiles[idx].classList.add('revealed', 'gem'); tiles[idx].textContent = '💎';
+          reveal3DMinesTile(idx, 'gem');
           mState.gemsFound++;
           const mult = (1 + (mState.gemsFound * 0.25 * mState.mines)).toFixed(2);
           const winVal = Math.floor(mState.bet * mult);
@@ -4665,34 +4957,130 @@
         });
       });
 
+      /* Lanza la moneda física 3D: velocidad vertical + rotación en un eje horizontal aleatorio */
+      let activeCoinRoll = null;
+      function spawnPhysicsCoin() {
+        const mesh = makeCoinMesh(0.5);
+        mesh.position.set(0, 1.6, 0);
+        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        const tiltAngle = Math.random() * Math.PI * 2;
+        const tiltAxis = new THREE.Vector3(Math.cos(tiltAngle), 0.12 * (Math.random() - 0.5), Math.sin(tiltAngle)).normalize();
+        coin3DRefs.launchGroup.add(mesh);
+        return {
+          mesh,
+          vel: new THREE.Vector3((Math.random() - 0.5) * 0.6, 5.4 + Math.random() * 1.2, (Math.random() - 0.5) * 0.6),
+          angVel: tiltAxis.multiplyScalar(22 + Math.random() * 8),
+          bounces: 0,
+          settled: false,
+          resolved: false,
+          groundedTimer: 0,
+          snapT: -1, snapFrom: null, snapTo: null,
+          face: 'cara',
+        };
+      }
+
+      function rollCoinFlip3D() {
+        if (!coin3DRefs) return;
+        coin3DRefs.restCoin.visible = false;
+        while (coin3DRefs.launchGroup.children.length) {
+          coin3DRefs.launchGroup.remove(coin3DRefs.launchGroup.children[0]);
+        }
+        activeCoinRoll = spawnPhysicsCoin();
+      }
+
+      function updateCoinPhysics(dt) {
+        if (!coin3DRefs || !activeCoinRoll) return;
+        const d = activeCoinRoll;
+
+        if (d.settled) {
+          if (d.snapT >= 0 && d.snapT < 1) {
+            d.snapT = Math.min(1, d.snapT + dt * 3.2);
+            d.mesh.quaternion.slerpQuaternions(d.snapFrom, d.snapTo, d.snapT);
+          }
+          if (!d.resolved) { d.resolved = true; resolveCoinFlip3D(d.face); }
+          return;
+        }
+
+        const gravity = 14;
+        const floorY = coin3DRefs.floorY;
+        const halfH = 0.05;
+        const boundR = coin3DRefs.padRadius;
+
+        d.vel.y -= gravity * dt;
+        d.mesh.position.x += d.vel.x * dt;
+        d.mesh.position.y += d.vel.y * dt;
+        d.mesh.position.z += d.vel.z * dt;
+
+        const angMag = d.angVel.length();
+        if (angMag > 0.0001) {
+          const axis = d.angVel.clone().normalize();
+          const dq = new THREE.Quaternion().setFromAxisAngle(axis, angMag * dt);
+          d.mesh.quaternion.premultiply(dq);
+        }
+
+        if (d.mesh.position.y <= floorY + halfH) {
+          d.mesh.position.y = floorY + halfH;
+          if (Math.abs(d.vel.y) > 0.35 && d.bounces < 5) {
+            d.vel.y = -d.vel.y * 0.4;
+            d.vel.x *= 0.6; d.vel.z *= 0.6;
+            d.angVel.multiplyScalar(0.65);
+            d.groundedTimer = 0; d.bounces++;
+          } else {
+            d.vel.y = 0;
+            d.vel.x *= 0.8; d.vel.z *= 0.8;
+            d.angVel.multiplyScalar(0.75);
+            d.groundedTimer += dt;
+          }
+        }
+
+        const dist = Math.hypot(d.mesh.position.x, d.mesh.position.z);
+        if (dist > boundR) {
+          const nx = d.mesh.position.x / dist, nz = d.mesh.position.z / dist;
+          d.mesh.position.x = nx * boundR; d.mesh.position.z = nz * boundR;
+          const vDotN = d.vel.x * nx + d.vel.z * nz;
+          d.vel.x -= 2 * vDotN * nx; d.vel.z -= 2 * vDotN * nz;
+          d.vel.x *= 0.5; d.vel.z *= 0.5;
+        }
+
+        const settledEnough = d.vel.length() < 0.16 && d.angVel.length() < 0.6 && d.groundedTimer > 0.16;
+        if (settledEnough) {
+          d.settled = true;
+          // La cara CARA es la normal local +Y (arriba del cilindro); CRUZ es -Y
+          const upN = new THREE.Vector3(0, 1, 0).applyQuaternion(d.mesh.quaternion);
+          d.face = upN.y > 0 ? 'cara' : 'cruz';
+          const targetLocal = d.face === 'cara' ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, -1, 0);
+          const worldN = targetLocal.clone().applyQuaternion(d.mesh.quaternion).normalize();
+          const correction = new THREE.Quaternion().setFromUnitVectors(worldN, new THREE.Vector3(0, 1, 0));
+          d.snapFrom = d.mesh.quaternion.clone();
+          d.snapTo = correction.multiply(d.mesh.quaternion.clone());
+          d.snapT = 0;
+        }
+      }
+
+      function resolveCoinFlip3D(face) {
+        const isCara = face === 'cara';
+        const result = isCara ? 'cara' : 'cruz';
+
+        const banner = document.getElementById('coinResultBanner');
+        document.getElementById('coinResultTitle').textContent = isCara ? '¡CARA!' : '¡CRUZ!';
+        const msg = document.getElementById('coinResultMsg');
+
+        if (coinChoice === result) {
+          state.balance += 100; updateBalanceUI();
+          msg.className = 'win'; msg.textContent = '+$50'; triggerConfetti(); addXP(60);
+        } else {
+          msg.className = 'lose'; msg.textContent = '-$50'; playSound('lose');
+        }
+        banner.classList.add('show');
+      }
+
       document.getElementById('coinFlipBtn').addEventListener('click', () => {
+        if (activeCoinRoll && !activeCoinRoll.settled) return; // ya está en el aire
         if (state.balance < 50) { showToast('Saldo insuficiente'); return; }
         state.balance -= 50; updateBalanceUI();
-        const coin = document.getElementById('coin3D');
         playSound('chip');
-
-        let rot = 0;
-        const anim = setInterval(() => {
-          rot += 45; coin.style.transform = 'rotateY(' + rot + 'deg)';
-          if (rot >= 1440) {
-            clearInterval(anim);
-            const isCara = Math.random() > 0.5;
-            const result = isCara ? 'cara' : 'cruz';
-            coin.textContent = isCara ? '👑' : '⚡';
-
-            const banner = document.getElementById('coinResultBanner');
-            document.getElementById('coinResultTitle').textContent = isCara ? '¡CARA!' : '¡CRUZ!';
-            const msg = document.getElementById('coinResultMsg');
-
-            if (coinChoice === result) {
-              state.balance += 100; updateBalanceUI();
-              msg.className = 'win'; msg.textContent = '+$50'; triggerConfetti(); addXP(60);
-            } else {
-              msg.className = 'lose'; msg.textContent = '-$50'; playSound('lose');
-            }
-            banner.classList.add('show');
-          }
-        }, 30);
+        document.getElementById('coinResultBanner').classList.remove('show');
+        rollCoinFlip3D();
       });
 
       /* ============================================================
@@ -4823,6 +5211,68 @@
         return tvGroup;
       }
       const tvGroupRef = create3DCasinoTV();
+
+      /* ============================================================
+         OCLUSIÓN DE LA TV 3D — los objetos de la sala tapan la TV
+         cuando quedan entre la cámara y la pantalla (iframe CSS3D)
+      ============================================================ */
+      const tvOcclusionRaycaster = new THREE.Raycaster();
+      let tvOcclusionTimer = 0;
+      let tvOccludedSmoothed = false;
+      const TV_SCALE_REF = 4;
+      const TV_SCREEN_W_REF = 7.0 * TV_SCALE_REF;
+      const TV_SCREEN_H_REF = 4.0 * TV_SCALE_REF;
+      // 5 puntos de muestreo (centro + 4 esquinas, con un pequeño margen hacia dentro)
+      // para que un objeto de la sala que tape sólo una parte de la pantalla la oculte igualmente
+      const TV_SAMPLE_OFFSETS = [
+        [0, 0],
+        [-0.42, 0.42], [0.42, 0.42],
+        [-0.42, -0.42], [0.42, -0.42],
+      ];
+      const TV_SCREEN_SAMPLE_POINTS = TV_SAMPLE_OFFSETS.map(([ox, oy]) => new THREE.Vector3(
+        tvGroupRef.position.x + ox * TV_SCREEN_W_REF,
+        tvGroupRef.position.y + oy * TV_SCREEN_H_REF,
+        tvGroupRef.position.z + 0.16 * TV_SCALE_REF
+      ));
+      const TV_SCREEN_WORLD_POS = TV_SCREEN_SAMPLE_POINTS[0];
+      function updateTvOcclusion(dt) {
+        const overlayEl = document.getElementById('tvIframeOverlay');
+        if (!overlayEl || overlayEl.style.display === 'none') return;
+
+        tvOcclusionTimer += dt;
+        if (tvOcclusionTimer < 0.1) return; // ~10 comprobaciones/seg, suficiente y barato
+        tvOcclusionTimer = 0;
+
+        const camPos = camera.position;
+        const distCenter = TV_SCREEN_WORLD_POS.clone().sub(camPos).length();
+        if (distCenter < 0.6) { overlayEl.style.visibility = 'visible'; tvOccludedSmoothed = false; return; }
+
+        let occludedSamples = 0;
+        for (let i = 0; i < TV_SCREEN_SAMPLE_POINTS.length; i++) {
+          const toScreen = TV_SCREEN_SAMPLE_POINTS[i].clone().sub(camPos);
+          const dist = toScreen.length();
+          toScreen.normalize();
+
+          tvOcclusionRaycaster.set(camPos, toScreen);
+          tvOcclusionRaycaster.near = 0.1;
+          tvOcclusionRaycaster.far = dist - 0.5; // se detiene justo antes de llegar a la pantalla
+
+          const hits = tvOcclusionRaycaster.intersectObjects(scene.children, true);
+          const hit = hits.some(h => {
+            if (!h.object.isMesh || h.object.visible === false) return false;
+            let o = h.object;
+            while (o) { if (o === tvGroupRef) return false; o = o.parent; }
+            return true;
+          });
+          if (hit) occludedSamples++;
+        }
+
+        // Mayoría simple: si al menos 3 de los 5 rayos (incluye el centro con doble peso) chocan
+        // con algo de la sala, la pantalla se considera tapada por ese objeto físico.
+        const occluded = occludedSamples >= 3;
+        tvOccludedSmoothed = occluded;
+        overlayEl.style.visibility = tvOccludedSmoothed ? 'hidden' : 'visible';
+      }
 
       function extractYoutubeId(input) {
         if (!input || typeof input !== 'string') return null;
@@ -5038,12 +5488,15 @@
         lastTime = now;
 
         updatePlayer(dt);
+        if (state.mode === 'cinema') updateCinemaCamera(dt);
         updateBots(dt);
         updateParticles();
         updateAvatarTag();
         updateTVSpatialAudioAndProjection();
         try { updatePlinko3DBalls(dt); } catch (e) { }
         try { updateDicePhysics(dt); } catch (e) { }
+        try { updateCoinPhysics(dt); } catch (e) { }
+        try { updateTvOcclusion(dt); } catch (e) { }
 
         /* rotate fountain & zone rings */
         fountainPillar.rotation.y += dt * 0.5;
