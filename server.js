@@ -531,6 +531,159 @@ function evaluateBlackjackRoundResults(blackjackId) {
   }, resetDelay);
 }
 
+/* ============================================================
+   AUTHORITATIVE MULTIPLAYER DICE VERSUS 1v1 ENGINE
+============================================================ */
+const diceVersusMatches = {}; // matchId -> match state object
+
+function getOrCreateDiceVersusState(matchId) {
+  if (!diceVersusMatches[matchId]) {
+    diceVersusMatches[matchId] = {
+      matchId: matchId,
+      player1: null, // { id, name, seatIndex: 0, bet: 50, accepted: false, balance: 1000 }
+      player2: null, // { id, name, seatIndex: 1, bet: 50, accepted: false, balance: 1000 }
+      status: 'WAITING_FOR_PLAYER', // 'WAITING_FOR_PLAYER' | 'PLAYER_2_JOINED' | 'BET_PROPOSED' | 'WAITING_FOR_ACCEPTANCE' | 'BET_LOCKED' | 'ROLLING' | 'RESULT' | 'SETTLED' | 'CANCELLED'
+      finalBet: 50,
+      roundId: 0,
+      rollId: null,
+      lastResult: null,
+      settled: false,
+      statusMsg: 'Esperando rival...'
+    };
+  }
+  return diceVersusMatches[matchId];
+}
+
+function broadcastDiceVersusState(matchId) {
+  const m = getOrCreateDiceVersusState(matchId);
+  const payload = {
+    matchId: m.matchId,
+    status: m.status,
+    player1: m.player1,
+    player2: m.player2,
+    finalBet: m.finalBet,
+    roundId: m.roundId,
+    rollId: m.rollId,
+    lastResult: m.lastResult,
+    settled: m.settled,
+    statusMsg: m.statusMsg
+  };
+
+  io.to(`dice:${matchId}`).emit('diceVersusState', payload);
+  return payload;
+}
+
+function startDiceVersusRoll(matchId) {
+  const m = getOrCreateDiceVersusState(matchId);
+  if (m.status !== 'BET_LOCKED' || m.settled || !m.player1 || !m.player2) return;
+
+  m.status = 'ROLLING';
+  m.roundId++;
+  m.rollId = `${matchId}_r${m.roundId}_${Date.now()}`;
+  m.statusMsg = '¡LANZANDO DADOS...!';
+
+  // Server generates random dice rolls for both players
+  const p1d1 = Math.floor(Math.random() * 6) + 1;
+  const p1d2 = Math.floor(Math.random() * 6) + 1;
+  const p1Total = p1d1 + p1d2;
+
+  const p2d1 = Math.floor(Math.random() * 6) + 1;
+  const p2d2 = Math.floor(Math.random() * 6) + 1;
+  const p2Total = p2d1 + p2d2;
+
+  let winnerId = null;
+  let winnerName = null;
+  if (p1Total > p2Total) {
+    winnerId = m.player1.id;
+    winnerName = m.player1.name;
+  } else if (p2Total > p1Total) {
+    winnerId = m.player2.id;
+    winnerName = m.player2.name;
+  }
+
+  m.lastResult = {
+    matchId: m.matchId,
+    rollId: m.rollId,
+    finalBet: m.finalBet,
+    player1Id: m.player1.id,
+    player1Name: m.player1.name,
+    player1Dice: [p1d1, p1d2],
+    player1Total: p1Total,
+    player2Id: m.player2.id,
+    player2Name: m.player2.name,
+    player2Dice: [p2d1, p2d2],
+    player2Total: p2Total,
+    winnerId: winnerId,
+    winnerName: winnerName
+  };
+
+  io.to(`dice:${matchId}`).emit('diceVersusRollStart', { matchId: m.matchId, rollId: m.rollId });
+  io.to(`dice:${matchId}`).emit('diceVersusRollResult', m.lastResult);
+
+  broadcastDiceVersusState(matchId);
+
+  setTimeout(() => {
+    settleDiceVersusMatch(matchId);
+  }, 14000);
+}
+
+function settleDiceVersusMatch(matchId) {
+  const m = getOrCreateDiceVersusState(matchId);
+  if (m.settled || !m.lastResult) return;
+
+  m.settled = true;
+  m.status = 'SETTLED';
+
+  const res = m.lastResult;
+  let msg = '';
+  if (res.winnerId === m.player1.id) {
+    msg = `¡GANADOR: ${m.player1.name}!`;
+  } else if (res.winnerId === m.player2.id) {
+    msg = `¡GANADOR: ${m.player2.name}!`;
+  } else {
+    msg = '¡EMPATE!';
+  }
+  m.statusMsg = msg;
+
+  io.to(`dice:${matchId}`).emit('diceVersusSettled', {
+    matchId: m.matchId,
+    rollId: m.rollId,
+    winnerId: res.winnerId,
+    finalBet: m.finalBet,
+    player1Id: m.player1.id,
+    player2Id: m.player2.id
+  });
+
+  broadcastDiceVersusState(matchId);
+
+  setTimeout(() => {
+    if (diceVersusMatches[matchId]) {
+      const match = diceVersusMatches[matchId];
+      if (match.player1 && match.player2) {
+        match.status = 'PLAYER_2_JOINED';
+        match.player1.accepted = false;
+        match.player2.accepted = false;
+        match.settled = false;
+        match.rollId = null;
+        match.lastResult = null;
+        match.statusMsg = 'Rival encontrado. Estableced la apuesta.';
+      } else if (match.player1 || match.player2) {
+        match.status = 'WAITING_FOR_PLAYER';
+        if (match.player1) match.player1.accepted = false;
+        if (match.player2) match.player2.accepted = false;
+        match.settled = false;
+        match.rollId = null;
+        match.lastResult = null;
+        match.statusMsg = 'Esperando rival...';
+      } else {
+        delete diceVersusMatches[matchId];
+        return;
+      }
+      broadcastDiceVersusState(matchId);
+    }
+  }, 4500);
+}
+
 function getSyncedTvState() {
   const now = Date.now();
   let current = tvState.currentTime;
@@ -905,6 +1058,175 @@ io.on('connection', (socket) => {
     }
   });
 
+  /* ============================================================
+     AUTHORITATIVE MULTIPLAYER DICE VERSUS 1v1 SOCKET EVENTS
+  ============================================================ */
+  socket.on('diceVersusJoin', (data) => {
+    const matchId = (data && data.matchId) ? data.matchId : 'dice-versus-1';
+    socket.join(`dice:${matchId}`);
+    socket.currentDiceMatchId = matchId;
+
+    const m = getOrCreateDiceVersusState(matchId);
+    const pName = (players[socket.id] && players[socket.id].name) || 'Jugador';
+    const pBalance = (data && typeof data.balance === 'number') ? data.balance : 1000;
+
+    if (m.player1 && m.player1.id === socket.id) {
+      m.player1.name = pName;
+      m.player1.balance = pBalance;
+    } else if (m.player2 && m.player2.id === socket.id) {
+      m.player2.name = pName;
+      m.player2.balance = pBalance;
+    } else if (!m.player1) {
+      m.player1 = { id: socket.id, name: pName, seatIndex: 0, bet: 50, accepted: false, balance: pBalance };
+    } else if (!m.player2) {
+      m.player2 = { id: socket.id, name: pName, seatIndex: 1, bet: 50, accepted: false, balance: pBalance };
+    } else {
+      socket.emit('diceVersusError', { message: 'La mesa de dados 1v1 está llena.' });
+      return;
+    }
+
+    if (m.player1 && m.player2) {
+      if (m.status === 'WAITING_FOR_PLAYER' || m.status === 'CANCELLED') {
+        m.status = 'PLAYER_2_JOINED';
+        m.statusMsg = 'Rival encontrado';
+        m.player1.accepted = false;
+        m.player2.accepted = false;
+      }
+    } else {
+      m.status = 'WAITING_FOR_PLAYER';
+      m.statusMsg = 'Esperando rival...';
+    }
+
+    broadcastDiceVersusState(matchId);
+  });
+
+  socket.on('diceVersusLeave', (data) => {
+    const matchId = (data && data.matchId) ? data.matchId : socket.currentDiceMatchId;
+    if (matchId && diceVersusMatches[matchId]) {
+      const m = diceVersusMatches[matchId];
+      socket.leave(`dice:${matchId}`);
+      delete socket.currentDiceMatchId;
+
+      if (m.player1 && m.player1.id === socket.id) m.player1 = null;
+      if (m.player2 && m.player2.id === socket.id) m.player2 = null;
+
+      if (!m.player1 && !m.player2) {
+        delete diceVersusMatches[matchId];
+      } else {
+        if (m.status !== 'SETTLED' && m.status !== 'ROLLING') {
+          m.status = 'WAITING_FOR_PLAYER';
+          m.statusMsg = 'Esperando rival...';
+          if (m.player1) m.player1.accepted = false;
+          if (m.player2) m.player2.accepted = false;
+        }
+        broadcastDiceVersusState(matchId);
+      }
+    }
+  });
+
+  socket.on('diceVersusBet', (data) => {
+    const matchId = (data && data.matchId) ? data.matchId : socket.currentDiceMatchId;
+    if (!matchId || !diceVersusMatches[matchId]) return;
+
+    const m = diceVersusMatches[matchId];
+    if (m.status === 'BET_LOCKED' || m.status === 'ROLLING' || m.status === 'SETTLED') return;
+    if (!m.player1 || !m.player2) return;
+
+    const betVal = Math.max(10, parseInt(data.bet, 10) || 50);
+
+    if (m.player1.id === socket.id) {
+      m.player1.bet = betVal;
+      m.player1.accepted = false;
+    } else if (m.player2.id === socket.id) {
+      m.player2.bet = betVal;
+      m.player2.accepted = false;
+    } else {
+      return;
+    }
+
+    // Rule 5: Highest Bet Rule: finalBet = max(player1Bet, player2Bet)
+    m.finalBet = Math.max(m.player1.bet, m.player2.bet);
+    m.status = 'BET_PROPOSED';
+
+    if (m.player1.bet === m.player2.bet) {
+      m.statusMsg = `Apuesta propuesta: $${m.finalBet}. Esperando confirmación.`;
+    } else {
+      const higherPlayer = (m.player1.bet > m.player2.bet) ? m.player1.name : m.player2.name;
+      m.statusMsg = `${higherPlayer} ha establecido una apuesta de $${m.finalBet}`;
+    }
+
+    broadcastDiceVersusState(matchId);
+  });
+
+  socket.on('diceVersusAcceptBet', (data) => {
+    const matchId = (data && data.matchId) ? data.matchId : socket.currentDiceMatchId;
+    if (!matchId || !diceVersusMatches[matchId]) return;
+
+    const m = diceVersusMatches[matchId];
+    if (m.status === 'BET_LOCKED' || m.status === 'ROLLING' || m.status === 'SETTLED') return;
+    if (!m.player1 || !m.player2) return;
+
+    if (m.player1.id === socket.id) {
+      m.player1.accepted = true;
+      if (data && typeof data.balance === 'number') m.player1.balance = data.balance;
+    } else if (m.player2.id === socket.id) {
+      m.player2.accepted = true;
+      if (data && typeof data.balance === 'number') m.player2.balance = data.balance;
+    } else {
+      return;
+    }
+
+    // Confirmation from both players required
+    if (m.player1.accepted && m.player2.accepted) {
+      // Server-side balance verification
+      if (m.player1.balance < m.finalBet || m.player2.balance < m.finalBet) {
+        m.status = 'CANCELLED';
+        m.player1.accepted = false;
+        m.player2.accepted = false;
+        m.statusMsg = 'Saldo insuficiente para uno de los jugadores';
+        broadcastDiceVersusState(matchId);
+        return;
+      }
+
+      m.status = 'BET_LOCKED';
+      m.statusMsg = `¡Apuesta fijada en $${m.finalBet}! Preparados...`;
+      broadcastDiceVersusState(matchId);
+
+      setTimeout(() => {
+        startDiceVersusRoll(matchId);
+      }, 1200);
+    } else {
+      m.statusMsg = 'Esperando confirmación del rival...';
+      broadcastDiceVersusState(matchId);
+    }
+  });
+
+  socket.on('diceVersusRejectBet', (data) => {
+    const matchId = (data && data.matchId) ? data.matchId : socket.currentDiceMatchId;
+    if (!matchId || !diceVersusMatches[matchId]) return;
+
+    const m = diceVersusMatches[matchId];
+    if (m.status === 'BET_LOCKED' || m.status === 'ROLLING' || m.status === 'SETTLED') return;
+
+    m.status = 'CANCELLED';
+    if (m.player1) m.player1.accepted = false;
+    if (m.player2) m.player2.accepted = false;
+    m.statusMsg = 'Partida cancelada';
+
+    broadcastDiceVersusState(matchId);
+
+    setTimeout(() => {
+      if (diceVersusMatches[matchId]) {
+        const match = diceVersusMatches[matchId];
+        if (match.status === 'CANCELLED' && match.player1 && match.player2) {
+          match.status = 'PLAYER_2_JOINED';
+          match.statusMsg = 'Rival encontrado. Propón una nueva apuesta.';
+          broadcastDiceVersusState(matchId);
+        }
+      }
+    }, 3000);
+  });
+
   // Handle chat messages
   socket.on('chatMessage', (msg) => {
     io.emit('chatMessage', {
@@ -919,6 +1241,25 @@ io.on('connection', (socket) => {
     console.log(`🔴 Jugador desconectado: ${socket.id}`);
     delete players[socket.id];
     io.emit('playerLeft', socket.id);
+
+    if (socket.currentDiceMatchId && diceVersusMatches[socket.currentDiceMatchId]) {
+      const mId = socket.currentDiceMatchId;
+      const m = diceVersusMatches[mId];
+      if (m.player1 && m.player1.id === socket.id) m.player1 = null;
+      if (m.player2 && m.player2.id === socket.id) m.player2 = null;
+
+      if (!m.player1 && !m.player2) {
+        delete diceVersusMatches[mId];
+      } else {
+        if (m.status !== 'SETTLED' && m.status !== 'ROLLING') {
+          m.status = 'WAITING_FOR_PLAYER';
+          m.statusMsg = 'Rival desconectado. Esperando rival...';
+          if (m.player1) m.player1.accepted = false;
+          if (m.player2) m.player2.accepted = false;
+        }
+        broadcastDiceVersusState(mId);
+      }
+    }
 
     if (socket.currentRouletteId && roulettes[socket.currentRouletteId]) {
       const rId = socket.currentRouletteId;

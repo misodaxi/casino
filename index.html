@@ -1724,7 +1724,8 @@
     </div>
 
     <!-- top left -->
-    <div class="top-left panel" id="profilePanel" style="cursor:pointer;" title="Haz clic para cambiar tu nombre de jugador">
+    <div class="top-left panel" id="profilePanel" style="cursor:pointer;"
+      title="Haz clic para cambiar tu nombre de jugador">
       <div class="avatar-badge" id="avatarBadge">🙂</div>
       <div class="player-info">
         <div class="player-name" id="playerNameDisplay">Axel ✏️ <span class="crown">👑</span></div>
@@ -1812,8 +1813,11 @@
           <button class="mini-btn" id="clearBtn">🗑 Limpiar</button>
         </div>
         <div class="total-bet-pill">APUESTA TOTAL<span class="v" id="totalBetDisplay">$0</span></div>
-        <div id="rouletteStatusBadge" style="font-size:13px; font-weight:800; color:var(--amber); padding:6px 12px; background:rgba(0,0,0,0.4); border-radius:8px; border:1px solid rgba(255,255,255,0.1);">⏳ 0/0 Listos</div>
-        <button class="action-btn" id="rouletteReadyBtn" style="background:linear-gradient(135deg, #10b981, #059669); font-weight:900;">LISTO 👍</button>
+        <div id="rouletteStatusBadge"
+          style="font-size:13px; font-weight:800; color:var(--amber); padding:6px 12px; background:rgba(0,0,0,0.4); border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+          ⏳ 0/0 Listos</div>
+        <button class="action-btn" id="rouletteReadyBtn"
+          style="background:linear-gradient(135deg, #10b981, #059669); font-weight:900;">LISTO 👍</button>
       </div>
     </div>
   </div>
@@ -1822,12 +1826,23 @@
   <div class="game-overlay" id="diceWrap">
     <button class="exit-game-btn" onclick="exitActiveGame()">🚪 LEVANTARSE DE LA MESA [ESC]</button>
     <div class="table-title">
-      <h2>DICE DUEL</h2><span>TÚ VS LA CASA · GANA MÁS ALTO</span>
+      <h2 id="diceTitle">DICE DUEL</h2><span id="diceSubTitle">TÚ VS LA CASA · GANA MÁS ALTO</span>
+    </div>
+
+    <!-- Mode Selector: Solo vs Versus 1v1 -->
+    <div class="dice-mode-bar" style="display:flex; justify-content:center; gap:12px; margin: 8px 0 14px 0;">
+      <button class="mini-btn active-mode" id="diceModeSoloBtn" style="padding:6px 18px; border-radius:20px; font-weight:800; background:#3b82f6; color:#fff;">👤 SOLO (VS CASA)</button>
+      <button class="mini-btn" id="diceModeVersusBtn" style="padding:6px 18px; border-radius:20px; font-weight:800; background:#374151; color:#9ca3af;">⚔️ DADOS VERSUS 1v1</button>
+    </div>
+
+    <!-- Versus Status Banner -->
+    <div id="diceVersusStatusBox" style="display:none; text-align:center; background:rgba(0,0,0,0.6); padding:8px 16px; border-radius:12px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.15);">
+      <div id="diceVersusStatusMsg" style="font-size:1.05rem; font-weight:800; color:#fbdf24;">Esperando rival...</div>
     </div>
 
     <div class="duel-arena">
       <div class="duel-panel me">
-        <div class="who">🙂 TÚ</div>
+        <div class="who" id="diceP1Who">🙂 TÚ</div>
         <div class="dice-faces" id="myDice">
           <div class="die">🎲</div>
           <div class="die">🎲</div>
@@ -1836,7 +1851,7 @@
       </div>
       <div class="vs-badge">VS</div>
       <div class="duel-panel house">
-        <div class="who">🤖 LA CASA</div>
+        <div class="who" id="diceP2Who">🤖 LA CASA</div>
         <div class="dice-faces" id="houseDice">
           <div class="die">🎲</div>
           <div class="die">🎲</div>
@@ -1862,7 +1877,14 @@
           <div class="chip" data-v="1000">1K</div>
         </div>
         <div class="total-bet-pill">APUESTA<span class="v" id="diceBetDisplay">$0</span></div>
+
+        <!-- Solo Action Button -->
         <button class="action-btn" id="diceRollBtn">TIRAR 🎲</button>
+
+        <!-- Versus Action Buttons -->
+        <button class="action-btn" id="diceVersusBetBtn" style="display:none; background:linear-gradient(135deg, #ec4899, #8b5cf6);">PROPONER APUESTA 🎲</button>
+        <button class="action-btn" id="diceVersusAcceptBtn" style="display:none; background:linear-gradient(135deg, #10b981, #059669);">ACEPTAR 👍</button>
+        <button class="action-btn" id="diceVersusRejectBtn" style="display:none; background:linear-gradient(135deg, #ef4444, #dc2626);">RECHAZAR ❌</button>
       </div>
     </div>
   </div>
@@ -1902,7 +1924,8 @@
           <div class="chip" data-v="1000">1K</div>
         </div>
         <div class="total-bet-pill" id="bjBetPill">APUESTA<span class="v" id="bjBetDisplay">$50</span></div>
-        <button class="action-btn" id="bjClearBetBtn" style="background:rgba(239,68,68,0.25); border:1px solid #ef4444; color:#fca5a5;">BORRAR 🗑️</button>
+        <button class="action-btn" id="bjClearBetBtn"
+          style="background:rgba(239,68,68,0.25); border:1px solid #ef4444; color:#fca5a5;">BORRAR 🗑️</button>
         <button class="action-btn" id="bjDealBtn">REPARTIR 🃏</button>
         <button class="action-btn" id="bjHitBtn"
           style="display:none; background:linear-gradient(135deg,#2563eb,#1d4ed8);">PEDIR ➕</button>
@@ -2151,9 +2174,7 @@
   <div id="tvIframeOverlay"
     style="position:absolute; width:3840px; height:2160px; z-index:1; pointer-events:auto; display:block; transform-origin:50% 50%; border-radius:12px; overflow:hidden;">
     <div id="tvYoutubePlayerContainer" style="width:3840px; height:2160px; pointer-events:auto;">
-      <iframe id="tvIframeElement" width="100%" height="100%"
-        src="about:blank"
-        frameborder="0"
+      <iframe id="tvIframeElement" width="100%" height="100%" src="about:blank" frameborder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowfullscreen referrerpolicy="strict-origin-when-cross-origin"
         style="width:100%; height:100%; border:none; pointer-events:auto;">
@@ -2338,7 +2359,7 @@
             const cleanName = newName.trim().substring(0, 16);
             state.player.name = cleanName;
             localStorage.setItem('casino_player_name', cleanName);
-            
+
             // Update Top Left HUD UI
             const nameEl = document.getElementById('playerNameDisplay') || document.querySelector('.player-name');
             if (nameEl) nameEl.innerHTML = `${cleanName} ✏️ <span class="crown">👑</span>`;
@@ -2366,21 +2387,25 @@
       const rState = { selectedChip: 50, bets: {}, totalBet: 0, spinning: false };
 
       const ZONES = [
-        { id: 'roulette', name: 'ROULETTE 3D', icon: '🎰', x: -14, z: -4, radius: 7.2, color: 0x8B5CF6, seats: [
-          { x: -18.4, z: -0.8, r: Math.PI - 0.5 },
-          { x: -16.2, z: 0.3, r: Math.PI - 0.25 },
-          { x: -14.0, z: 0.8, r: Math.PI },
-          { x: -11.8, z: 0.3, r: Math.PI + 0.25 },
-          { x: -9.6, z: -0.8, r: Math.PI + 0.5 }
-        ] },
+        {
+          id: 'roulette', name: 'ROULETTE 3D', icon: '🎰', x: -14, z: -4, radius: 7.2, color: 0x8B5CF6, seats: [
+            { x: -18.4, z: -0.8, r: Math.PI - 0.5 },
+            { x: -16.2, z: 0.3, r: Math.PI - 0.25 },
+            { x: -14.0, z: 0.8, r: Math.PI },
+            { x: -11.8, z: 0.3, r: Math.PI + 0.25 },
+            { x: -9.6, z: -0.8, r: Math.PI + 0.5 }
+          ]
+        },
         { id: 'cinema', name: 'CINE & MUSIC 3D', icon: '📺', x: 0, z: -26, radius: 5.2, color: 0x8B5CF6, seats: [] },
         { id: 'wheel', name: 'FORTUNE WHEEL', icon: '🎡', x: 0, z: -15, radius: 3.4, color: 0xFB923C, seats: [{ x: -1.2, z: -13.6, r: Math.PI }, { x: 1.2, z: -13.6, r: Math.PI }] },
         { id: 'dice', name: 'DICE DUEL', icon: '🎲', x: 14, z: -4, radius: 3.4, color: 0xE11FD1, seats: [{ x: 14.0, z: -2.2, r: Math.PI }, { x: 12.6, z: -2.6, r: Math.PI - 0.25 }, { x: 15.4, z: -2.6, r: Math.PI + 0.25 }] },
-        { id: 'blackjack', name: 'BLACKJACK 21', icon: '🃏', x: 18, z: 7, radius: 3.4, color: 0x22c55e, seats: [
-          { x: 15.85, z: 8.75, r: Math.PI - 0.78 },
-          { x: 18.00, z: 9.40, r: Math.PI },
-          { x: 20.15, z: 8.75, r: Math.PI + 0.78 }
-        ] },
+        {
+          id: 'blackjack', name: 'BLACKJACK 21', icon: '🃏', x: 18, z: 7, radius: 3.4, color: 0x22c55e, seats: [
+            { x: 15.60, z: 8.70, r: Math.PI - 0.78 },
+            { x: 18.00, z: 9.55, r: Math.PI },
+            { x: 20.40, z: 8.75, r: Math.PI + 0.78 }
+          ]
+        },
         { id: 'mines', name: 'MINES', icon: '💣', x: 11, z: 15, radius: 3.2, color: 0xef4444, seats: [{ x: 11, z: 17.0, r: Math.PI }] },
         { id: 'plinko', name: 'PLINKO', icon: '🎯', x: 0, z: 14, radius: 3.2, color: 0x38bdf8, seats: [{ x: 0, z: 18.2, r: Math.PI }] },
         { id: 'coin', name: 'COIN FLIP', icon: '🪙', x: -11, z: 15, radius: 3.2, color: 0xFBBF24, seats: [{ x: -11, z: 17.0, r: Math.PI }] },
@@ -3102,7 +3127,7 @@
           const hLines = [
             { cy: 240, xStart: 240, xEnd: 1920 }, // Row 0 / Row 1 boundary (starts at 240 to leave 0 cell clean)
             { cy: 450, xStart: 240, xEnd: 1920 }, // Row 1 / Row 2 boundary (starts at 240 to leave 0 cell clean)
-            { cy: 660, xStart: 50,  xEnd: 1920 }, // Row 2 / Dozens boundary (bottom of 0 cell)
+            { cy: 660, xStart: 50, xEnd: 1920 }, // Row 2 / Dozens boundary (bottom of 0 cell)
             { cy: 810, xStart: 240, xEnd: 1752 }, // Dozens / Outside bets boundary (ends at 1752 right edge of 3RD 12)
           ];
 
@@ -3606,7 +3631,7 @@
 
           // 1. Wooden H-Legs Understructure (Rich Warm Mahogany Wood)
           const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a2211, roughness: 0.42, metalness: 0.08 });
-          
+
           // Left Leg Assembly (x = -1.65)
           const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.68, 0.36), woodMat);
           leftPillar.position.set(-1.65, 0.35, 0); leftPillar.castShadow = true;
@@ -3660,7 +3685,7 @@
           // 4. Emerald Green Felt Surface with Perfect Semicircle & Undistorted 3 White Card Spaces
           const bjFeltCanvas = document.createElement('canvas'); bjFeltCanvas.width = 1024; bjFeltCanvas.height = 512;
           const bjCtx = bjFeltCanvas.getContext('2d');
-          
+
           // Rich Casino Emerald Green Felt Background
           const bgGrad = bjCtx.createRadialGradient(512, 0, 20, 512, 250, 500);
           bgGrad.addColorStop(0, '#00b454');
@@ -3739,14 +3764,14 @@
 
           const bjFeltTex = new THREE.CanvasTexture(bjFeltCanvas);
           bjFeltTex.anisotropy = 16;
-          
+
           // Extruded D-shaped geometry for 100% exact alignment with leather frame
           const bjFeltShape = new THREE.Shape();
           bjFeltShape.absarc(0, 0, bjR - 0.04, 0, Math.PI, false);
           bjFeltShape.lineTo(-bjR + 0.04, 0);
 
           const bjFeltGeo = new THREE.ShapeGeometry(bjFeltShape, 64);
-          
+
           // Custom UVs for ShapeGeometry to align Canvas 1-to-1 seamlessly
           const posAttr = bjFeltGeo.attributes.position;
           const uvAttr = bjFeltGeo.attributes.uv;
@@ -3867,7 +3892,7 @@
         const canvas = document.createElement('canvas');
         canvas.width = 512; canvas.height = 128;
         const ctx = canvas.getContext('2d');
-        
+
         ctx.clearRect(0, 0, 512, 128);
         const hex = typeof colorHex === 'number' ? '#' + colorHex.toString(16).padStart(6, '0') : '#8B5CF6';
         ctx.fillStyle = 'rgba(15, 10, 26, 0.85)';
@@ -3943,7 +3968,7 @@
 
       const playerAvatar = createAvatarMesh(state.player.color);
       playerAvatar.position.set(state.player.x, 0, state.player.z);
-      
+
       // Attach 3D floating nametag above local player avatar head
       const localNameTag = createPlayerNameTag(state.player.name || 'Axel', state.player.color);
       playerAvatar.add(localNameTag);
@@ -4663,6 +4688,10 @@
             socket.emit('rouletteJoin', { rouletteId: 'roulette', seatIndex: seat.seatIndex });
           } else if (gameId === 'blackjack') {
             socket.emit('blackjackJoin', { blackjackId: 'blackjack', seatIndex: seat.seatIndex, bet: bjState.bet || 50 });
+          } else if (gameId === 'dice') {
+            if (typeof diceCurrentMode !== 'undefined' && diceCurrentMode === 'versus') {
+              socket.emit('diceVersusJoin', { matchId: 'dice-versus-1', balance: state.balance });
+            }
           }
         }
 
@@ -4834,6 +4863,8 @@
         // Clear local seat occupancy and leave game rooms
         if (previousMode === 'roulette' && typeof socket !== 'undefined' && socket && socket.connected) {
           socket.emit('rouletteLeave', { rouletteId: 'roulette' });
+        } else if (previousMode === 'dice' && typeof socket !== 'undefined' && socket && socket.connected) {
+          socket.emit('diceVersusLeave', { matchId: 'dice-versus-1' });
         } else if (previousMode === 'blackjack') {
           if ((typeof socket === 'undefined' || !socket || !socket.connected) && bjState.active) {
             bjState.active = false;
@@ -5312,21 +5343,42 @@
 
       function spawnPhysicsDie(localX, localZ, accentHex) {
         const mesh = makeDieMesh(0.42, accentHex);
-        mesh.position.set(localX, 2.4 + Math.random() * 0.6, localZ);
-        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        // Caída desde gran altura (8.0m - 9.5m) para una caída y vuelo ultra espectaculares
+        const spawnY = 8.2 + Math.random() * 1.4;
+        mesh.position.set(
+          localX + (Math.random() - 0.5) * 0.25,
+          spawnY,
+          localZ + (Math.random() - 0.5) * 0.25
+        );
+        mesh.rotation.set(
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2
+        );
         dice3DRefs.rollGroup.add(mesh);
         return {
           mesh,
-          vel: new THREE.Vector3((Math.random() - 0.5) * 2.6, -1, (Math.random() - 0.5) * 2.6),
-          angVel: new THREE.Vector3(
-            (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14
+          // Impulso inicial ascendente y lateral enérgico para un vuelo largo con caída libre
+          vel: new THREE.Vector3(
+            (Math.random() - 0.5) * 2.8,
+            3.8 + Math.random() * 1.2,
+            (Math.random() - 0.5) * 2.8
           ),
+          // Rotaciones 3D dinámicas muy vivas
+          angVel: new THREE.Vector3(
+            (Math.random() - 0.5) * 38,
+            (Math.random() - 0.5) * 40,
+            (Math.random() - 0.5) * 38
+          ),
+          restitution: 0.95, // Rebotes extremadamente elásticos y altos
+          bounceCount: 0,
           settled: false,
           groundedTimer: 0,
           snapT: -1,
           snapFrom: null,
           snapTo: null,
           value: 1,
+          targetVal: null
         };
       }
 
@@ -5337,42 +5389,49 @@
           dice3DRefs.rollGroup.remove(dice3DRefs.rollGroup.children[0]);
         }
         const playerDice = [
-          spawnPhysicsDie(-0.55, 0.35, 0x8B5CF6),
-          spawnPhysicsDie(-0.3, -0.35, 0x8B5CF6),
+          spawnPhysicsDie(-0.55, 0.30, 0x8B5CF6),
+          spawnPhysicsDie(-0.25, -0.30, 0x8B5CF6),
         ];
         const houseDice = [
-          spawnPhysicsDie(0.55, 0.35, 0xFB923C),
-          spawnPhysicsDie(0.3, -0.35, 0xFB923C),
+          spawnPhysicsDie(0.55, 0.30, 0xFB923C),
+          spawnPhysicsDie(0.25, -0.30, 0xFB923C),
         ];
         activeDiceRoll = { player: playerDice, house: houseDice, resolved: false };
       }
 
       function updateDicePhysics(dt) {
         if (!dice3DRefs || !activeDiceRoll) return;
-        const gravity = 16;
+        // Gravedad suave calibrada a 7.8 para lograr botes muy altos y flotantes
+        const gravity = 7.8;
         const floorY = dice3DRefs.floorY;
         const halfSize = 0.21;
-        const boundR = dice3DRefs.pitRadius;
+        const boundR = dice3DRefs.pitRadius - 0.08;
         const all = activeDiceRoll.player.concat(activeDiceRoll.house);
         let allSettled = true;
 
         all.forEach(d => {
           if (d.settled) {
-            // snap suave hacia la orientación final una vez asentado
+            // Suave slerp cúbico hacia la orientación final una vez estabilizado
             if (d.snapT >= 0 && d.snapT < 1) {
-              d.snapT = Math.min(1, d.snapT + dt * 3.2);
-              d.mesh.quaternion.slerpQuaternions(d.snapFrom, d.snapTo, d.snapT);
+              d.snapT = Math.min(1, d.snapT + dt * 1.6);
+              const easeT = 1 - Math.pow(1 - d.snapT, 3);
+              d.mesh.quaternion.slerpQuaternions(d.snapFrom, d.snapTo, easeT);
             }
             return;
           }
           allSettled = false;
 
+          // Integración de gravedad y posición
           d.vel.y -= gravity * dt;
           d.mesh.position.x += d.vel.x * dt;
           d.mesh.position.y += d.vel.y * dt;
           d.mesh.position.z += d.vel.z * dt;
 
-          // integración de rotación a partir de la velocidad angular
+          // Fricción aerodinámica ultra suave para preservar la inercia
+          d.vel.x *= Math.pow(0.995, dt * 60);
+          d.vel.z *= Math.pow(0.995, dt * 60);
+
+          // Integración de rotación 3D a partir de la velocidad angular
           const angMag = d.angVel.length();
           if (angMag > 0.0001) {
             const axis = d.angVel.clone().normalize();
@@ -5380,36 +5439,62 @@
             d.mesh.quaternion.premultiply(dq);
           }
 
-          // colisión con el suelo del cuenco
+          // Colisión con el suelo (cadena prolongada de rebotes altos con gran elasticidad)
           if (d.mesh.position.y <= floorY + halfSize) {
             d.mesh.position.y = floorY + halfSize;
-            if (Math.abs(d.vel.y) > 0.4) {
-              d.vel.y = -d.vel.y * 0.42;
-              d.vel.x *= 0.7; d.vel.z *= 0.7;
-              d.angVel.multiplyScalar(0.6);
+            if (Math.abs(d.vel.y) > 0.12) {
+              d.bounceCount++;
+              // Rebote elástico súper enérgico
+              d.vel.y = -d.vel.y * d.restitution;
+              // Pérdida de energía gradual (96.5% de conservación de energía en cada bote)
+              d.restitution = Math.max(0.38, d.restitution * 0.965);
+              d.vel.x *= 0.94;
+              d.vel.z *= 0.94;
+
+              // Fuertes impulsos de torsión y rotación tras cada impacto en el tapiz
+              d.angVel.x += (Math.random() - 0.5) * Math.abs(d.vel.y) * 14.0;
+              d.angVel.z += (Math.random() - 0.5) * Math.abs(d.vel.y) * 14.0;
+              d.angVel.multiplyScalar(0.93);
+
+              if (Math.abs(d.vel.y) > 0.20) {
+                playSound('tick');
+              }
               d.groundedTimer = 0;
             } else {
-              d.vel.y = 0;
-              d.vel.x *= 0.82; d.vel.z *= 0.82;
-              d.angVel.multiplyScalar(0.8);
+              // Micro-rebotes sucesivos antes de detenerse
+              if (d.restitution > 0.32) {
+                d.bounceCount++;
+                d.vel.y = -d.vel.y * d.restitution;
+                d.restitution *= 0.85;
+              } else {
+                d.vel.y = 0;
+              }
+              d.vel.x *= Math.pow(0.88, dt * 60);
+              d.vel.z *= Math.pow(0.88, dt * 60);
+              d.angVel.multiplyScalar(Math.pow(0.89, dt * 60));
               d.groundedTimer += dt;
             }
           }
 
-          // colisión con la pared circular del cuenco
+          // Colisión con la pared circular del cuenco (rebota enérgicamente hacia el centro y hacia arriba)
           const dist = Math.hypot(d.mesh.position.x, d.mesh.position.z);
           if (dist > boundR) {
             const nx = d.mesh.position.x / dist, nz = d.mesh.position.z / dist;
-            d.mesh.position.x = nx * boundR; d.mesh.position.z = nz * boundR;
+            d.mesh.position.x = nx * boundR;
+            d.mesh.position.z = nz * boundR;
             const vDotN = d.vel.x * nx + d.vel.z * nz;
-            d.vel.x -= 2 * vDotN * nx; d.vel.z -= 2 * vDotN * nz;
-            d.vel.x *= 0.55; d.vel.z *= 0.55;
-            d.angVel.multiplyScalar(0.7);
+            if (vDotN > 0) {
+              d.vel.x -= 1.85 * vDotN * nx;
+              d.vel.z -= 1.85 * vDotN * nz;
+              d.vel.y += Math.abs(vDotN) * 0.45; // Impulso vertical al golpear la pared curvada
+              d.angVel.y += (Math.random() - 0.5) * 16;
+              playSound('tick');
+            }
           }
         });
 
-        // Colisión física entre dados (Evita que se solapen o atraviesen entre sí)
-        const minDist = 0.42; // Diámetro de colisión del dado
+        // Colisión física entre dados
+        const minDist = 0.42;
         for (let i = 0; i < all.length; i++) {
           for (let j = i + 1; j < all.length; j++) {
             const d1 = all[i];
@@ -5424,12 +5509,10 @@
               const dist = Math.sqrt(distSq);
               const overlap = (minDist - dist);
 
-              // Vector normal de impacto entre d1 y d2
               const nx = dx / dist;
               const ny = dy / dist;
               const nz = dz / dist;
 
-              // Corrección de posición física inmediata (Separa los dados para eliminar el clipping)
               const pushX = nx * overlap * 0.5;
               const pushY = ny * overlap * 0.5;
               const pushZ = nz * overlap * 0.5;
@@ -5445,14 +5528,13 @@
                 d2.mesh.position.z += pushZ;
               }
 
-              // Impulso de colisión elástica y transferencia de momento
               const rvx = d2.vel.x - d1.vel.x;
               const rvy = d2.vel.y - d1.vel.y;
               const rvz = d2.vel.z - d1.vel.z;
               const velAlongNormal = rvx * nx + rvy * ny + rvz * nz;
 
               if (velAlongNormal < 0) {
-                const restitution = 0.65; // Coeficiente de restitución (rebote elástico)
+                const restitution = 0.85; // Colisión elástica viva entre dados
                 const impulse = -(1 + restitution) * velAlongNormal * 0.5;
 
                 const impX = nx * impulse;
@@ -5463,16 +5545,16 @@
                   d1.vel.x -= impX;
                   d1.vel.y -= impY;
                   d1.vel.z -= impZ;
-                  d1.angVel.x += (Math.random() - 0.5) * impulse * 4;
-                  d1.angVel.z += (Math.random() - 0.5) * impulse * 4;
+                  d1.angVel.x += (Math.random() - 0.5) * impulse * 10;
+                  d1.angVel.z += (Math.random() - 0.5) * impulse * 10;
                   d1.groundedTimer = 0;
                 }
                 if (!d2.settled) {
                   d2.vel.x += impX;
                   d2.vel.y += impY;
                   d2.vel.z += impZ;
-                  d2.angVel.x += (Math.random() - 0.5) * impulse * 4;
-                  d2.angVel.z += (Math.random() - 0.5) * impulse * 4;
+                  d2.angVel.x += (Math.random() - 0.5) * impulse * 10;
+                  d2.angVel.z += (Math.random() - 0.5) * impulse * 10;
                   d2.groundedTimer = 0;
                 }
                 playSound('tick');
@@ -5481,18 +5563,20 @@
           }
         }
 
+        // Criterio de estabilización extendido (requiere al menos 16 rebotes y calma total)
         all.forEach(d => {
-          const settledEnough = d.vel.length() < 0.18 && d.angVel.length() < 0.6 && d.groundedTimer > 0.18;
-          if (settledEnough) {
+          const settledEnough = d.vel.length() < 0.04 && d.angVel.length() < 0.10 && d.groundedTimer > 0.70 && d.bounceCount >= 16;
+          if (settledEnough && !d.settled) {
             d.settled = true;
-            d.value = readDieFaceUp(d.mesh);
-            // snap a la orientación exacta de esa cara para que se vea perfectamente asentado
-            let bestI = 2, bestDot = -Infinity;
+            d.value = (typeof d.targetVal === 'number') ? d.targetVal : readDieFaceUp(d.mesh);
+
+            // Orientación suave y exacta de la cara determinada por el servidor
+            const targetVal = d.value;
+            let targetFaceIdx = 2;
             for (let i = 0; i < 6; i++) {
-              const n = DIE_FACE_NORMALS[i].clone().applyQuaternion(d.mesh.quaternion);
-              if (n.y > bestDot) { bestDot = n.y; bestI = i; }
+              if (DIE_FACE_VALUES[i] === targetVal) { targetFaceIdx = i; break; }
             }
-            const n = DIE_FACE_NORMALS[bestI].clone().applyQuaternion(d.mesh.quaternion).normalize();
+            const n = DIE_FACE_NORMALS[targetFaceIdx].clone().applyQuaternion(d.mesh.quaternion).normalize();
             const correction = new THREE.Quaternion().setFromUnitVectors(n, new THREE.Vector3(0, 1, 0));
             d.snapFrom = d.mesh.quaternion.clone();
             d.snapTo = correction.multiply(d.mesh.quaternion.clone());
@@ -5502,7 +5586,11 @@
 
         if (allSettled && !activeDiceRoll.resolved) {
           activeDiceRoll.resolved = true;
-          resolveDiceDuel(activeDiceRoll);
+          if (activeDiceRoll.versusData) {
+            resolveDiceVersusDuel(activeDiceRoll.versusData);
+          } else {
+            resolveDiceDuel(activeDiceRoll);
+          }
         }
       }
 
@@ -5540,6 +5628,205 @@
         banner.classList.add('show');
         dState.rolling = false;
       }
+
+      function resolveDiceVersusDuel(res) {
+        document.getElementById('myDice').innerHTML =
+          '<div class="die">' + DICE_FACE_EMOJI[res.player1Dice[0]] + '</div><div class="die">' + DICE_FACE_EMOJI[res.player1Dice[1]] + '</div>';
+        document.getElementById('houseDice').innerHTML =
+          '<div class="die">' + DICE_FACE_EMOJI[res.player2Dice[0]] + '</div><div class="die">' + DICE_FACE_EMOJI[res.player2Dice[1]] + '</div>';
+        document.getElementById('mySum').textContent = res.player1Total;
+        document.getElementById('houseSum').textContent = res.player2Total;
+
+        const banner = document.getElementById('diceResultBanner');
+        const title = document.getElementById('diceResultTitle');
+        const msg = document.getElementById('diceResultMsg');
+
+        if (typeof socket !== 'undefined' && socket && res.winnerId === socket.id) {
+          title.textContent = '¡GANASTE!'; title.style.color = '#4ade80';
+          msg.className = 'win'; msg.textContent = '+$' + res.finalBet;
+          triggerConfetti(); addXP(100);
+          playSound('win');
+        } else if (res.winnerId) {
+          title.textContent = 'PERDISTE'; title.style.color = '#f87171';
+          msg.className = 'lose'; msg.textContent = '-$' + res.finalBet;
+          playSound('lose');
+        } else {
+          title.textContent = 'EMPATE'; title.style.color = '#d4d4d8';
+          msg.className = 'win'; msg.textContent = 'Reembolsado';
+        }
+        banner.classList.add('show');
+        dState.rolling = false;
+      }
+
+      /* ============================================================
+         3. DADOS VERSUS 1v1 MULTIPLAYER CLIENT LOGIC
+      ============================================================ */
+      let diceCurrentMode = 'solo'; // 'solo' | 'versus'
+      let diceVersusState = null;
+      const diceProcessedRolls = new Set();
+
+      function switchDiceMode(mode) {
+        diceCurrentMode = mode;
+        const soloBtn = document.getElementById('diceModeSoloBtn');
+        const versusBtn = document.getElementById('diceModeVersusBtn');
+        const statusBox = document.getElementById('diceVersusStatusBox');
+        const rollBtn = document.getElementById('diceRollBtn');
+        const betBtn = document.getElementById('diceVersusBetBtn');
+        const acceptBtn = document.getElementById('diceVersusAcceptBtn');
+        const rejectBtn = document.getElementById('diceVersusRejectBtn');
+        const p1Who = document.getElementById('diceP1Who');
+        const p2Who = document.getElementById('diceP2Who');
+        const subTitle = document.getElementById('diceSubTitle');
+
+        if (mode === 'solo') {
+          soloBtn.style.background = '#3b82f6'; soloBtn.style.color = '#fff';
+          versusBtn.style.background = '#374151'; versusBtn.style.color = '#9ca3af';
+          if (statusBox) statusBox.style.display = 'none';
+          if (rollBtn) rollBtn.style.display = 'inline-block';
+          if (betBtn) betBtn.style.display = 'none';
+          if (acceptBtn) acceptBtn.style.display = 'none';
+          if (rejectBtn) rejectBtn.style.display = 'none';
+          if (p1Who) p1Who.textContent = '🙂 TÚ';
+          if (p2Who) p2Who.textContent = '🤖 LA CASA';
+          if (subTitle) subTitle.textContent = 'TÚ VS LA CASA · GANA MÁS ALTO';
+        } else {
+          versusBtn.style.background = 'linear-gradient(135deg, #ec4899, #8b5cf6)'; versusBtn.style.color = '#fff';
+          soloBtn.style.background = '#374151'; soloBtn.style.color = '#9ca3af';
+          if (statusBox) statusBox.style.display = 'block';
+          if (rollBtn) rollBtn.style.display = 'none';
+          if (subTitle) subTitle.textContent = 'DADOS VERSUS 1v1 · MULTIJUGADOR';
+
+          if (typeof socket !== 'undefined' && socket && socket.connected) {
+            socket.emit('diceVersusJoin', { matchId: 'dice-versus-1', balance: state.balance });
+          }
+        }
+      }
+
+      document.getElementById('diceModeSoloBtn').addEventListener('click', () => switchDiceMode('solo'));
+      document.getElementById('diceModeVersusBtn').addEventListener('click', () => switchDiceMode('versus'));
+
+      if (typeof socket !== 'undefined' && socket) {
+        socket.on('diceVersusState', (vsData) => {
+          if (!vsData) return;
+          diceVersusState = vsData;
+          if (diceCurrentMode !== 'versus') return;
+
+          const statusMsgEl = document.getElementById('diceVersusStatusMsg');
+          const p1Who = document.getElementById('diceP1Who');
+          const p2Who = document.getElementById('diceP2Who');
+          const betBtn = document.getElementById('diceVersusBetBtn');
+          const acceptBtn = document.getElementById('diceVersusAcceptBtn');
+          const rejectBtn = document.getElementById('diceVersusRejectBtn');
+
+          if (statusMsgEl) statusMsgEl.textContent = vsData.statusMsg || 'DADOS VERSUS 1v1';
+
+          const isLocalP1 = vsData.player1 && vsData.player1.id === socket.id;
+          const isLocalP2 = vsData.player2 && vsData.player2.id === socket.id;
+
+          if (p1Who) p1Who.textContent = vsData.player1 ? `👤 ${vsData.player1.name}` : '👤 Esperando...';
+          if (p2Who) p2Who.textContent = vsData.player2 ? `👤 ${vsData.player2.name}` : '👤 Esperando...';
+
+          if (vsData.status === 'WAITING_FOR_PLAYER') {
+            if (betBtn) betBtn.style.display = 'none';
+            if (acceptBtn) acceptBtn.style.display = 'none';
+            if (rejectBtn) rejectBtn.style.display = 'none';
+          } else if (vsData.status === 'PLAYER_2_JOINED' || vsData.status === 'BET_PROPOSED') {
+            const localUser = isLocalP1 ? vsData.player1 : (isLocalP2 ? vsData.player2 : null);
+            const otherUser = isLocalP1 ? vsData.player2 : (isLocalP2 ? vsData.player1 : null);
+
+            if (localUser && localUser.accepted) {
+              if (betBtn) betBtn.style.display = 'none';
+              if (acceptBtn) acceptBtn.style.display = 'none';
+              if (rejectBtn) rejectBtn.style.display = 'none';
+            } else if (otherUser && (vsData.status === 'BET_PROPOSED' || otherUser.bet > localUser.bet)) {
+              if (betBtn) betBtn.style.display = 'none';
+              if (acceptBtn) acceptBtn.style.display = 'inline-block';
+              if (rejectBtn) rejectBtn.style.display = 'inline-block';
+            } else {
+              if (betBtn) betBtn.style.display = 'inline-block';
+              if (acceptBtn) acceptBtn.style.display = 'none';
+              if (rejectBtn) rejectBtn.style.display = 'none';
+            }
+          } else if (vsData.status === 'BET_LOCKED' || vsData.status === 'ROLLING' || vsData.status === 'SETTLED') {
+            if (betBtn) betBtn.style.display = 'none';
+            if (acceptBtn) acceptBtn.style.display = 'none';
+            if (rejectBtn) rejectBtn.style.display = 'none';
+          }
+        });
+
+        socket.on('diceVersusRollStart', (data) => {
+          playSound('dice');
+          document.getElementById('diceResultBanner').classList.remove('show');
+          const statusMsgEl = document.getElementById('diceVersusStatusMsg');
+          if (statusMsgEl) statusMsgEl.textContent = '¡Preparados! ¡Lanzando dados...!';
+        });
+
+        socket.on('diceVersusRollResult', (resData) => {
+          if (!resData || !resData.rollId) return;
+          if (diceProcessedRolls.has(resData.rollId)) return;
+          diceProcessedRolls.add(resData.rollId);
+
+          rollDiceVersus3D(resData);
+        });
+
+        socket.on('diceVersusSettled', (settledData) => {
+          if (!settledData) return;
+          if (socket.id === settledData.winnerId) {
+            state.balance += settledData.finalBet;
+            updateBalanceUI();
+          } else if (settledData.winnerId && (socket.id === settledData.player1Id || socket.id === settledData.player2Id)) {
+            state.balance -= settledData.finalBet;
+            updateBalanceUI();
+          }
+        });
+      }
+
+      function rollDiceVersus3D(resData) {
+        if (!dice3DRefs) return;
+        dice3DRefs.restDice.forEach(d => d.visible = false);
+        while (dice3DRefs.rollGroup.children.length) {
+          dice3DRefs.rollGroup.remove(dice3DRefs.rollGroup.children[0]);
+        }
+
+        const p1Dice = [
+          spawnPhysicsDie(-0.55, 0.35, 0x8B5CF6),
+          spawnPhysicsDie(-0.3, -0.35, 0x8B5CF6)
+        ];
+        const p2Dice = [
+          spawnPhysicsDie(0.55, 0.35, 0xEC4899),
+          spawnPhysicsDie(0.3, -0.35, 0xEC4899)
+        ];
+
+        p1Dice[0].targetVal = resData.player1Dice[0];
+        p1Dice[1].targetVal = resData.player1Dice[1];
+        p2Dice[0].targetVal = resData.player2Dice[0];
+        p2Dice[1].targetVal = resData.player2Dice[1];
+
+        activeDiceRoll = {
+          player: p1Dice,
+          house: p2Dice,
+          resolved: false,
+          versusData: resData
+        };
+      }
+
+      document.getElementById('diceVersusBetBtn').addEventListener('click', () => {
+        if (typeof socket !== 'undefined' && socket && socket.connected) {
+          socket.emit('diceVersusBet', { matchId: 'dice-versus-1', bet: dState.bet });
+        }
+      });
+
+      document.getElementById('diceVersusAcceptBtn').addEventListener('click', () => {
+        if (typeof socket !== 'undefined' && socket && socket.connected) {
+          socket.emit('diceVersusAcceptBet', { matchId: 'dice-versus-1', balance: state.balance });
+        }
+      });
+
+      document.getElementById('diceVersusRejectBtn').addEventListener('click', () => {
+        if (typeof socket !== 'undefined' && socket && socket.connected) {
+          socket.emit('diceVersusRejectBet', { matchId: 'dice-versus-1' });
+        }
+      });
 
       document.getElementById('diceRollBtn').addEventListener('click', () => {
         if (dState.rolling) return;
@@ -5731,8 +6018,8 @@
         // Seat 2 (Asiento derecho):   X = +1.345, Z = 1.625, rotY = +0.691 rad (+39.6°)
         const spots = [
           { x: -1.345, z: 1.625, rotY: -0.691 },
-          { x:  0.000, z: 2.110, rotY:  0.000 },
-          { x:  1.345, z: 1.625, rotY:  0.691 }
+          { x: 0.000, z: 2.110, rotY: 0.000 },
+          { x: 1.345, z: 1.625, rotY: 0.691 }
         ];
 
         const spot = spots[Math.min(2, Math.max(0, seatIndex))] || spots[1];
@@ -5762,14 +6049,14 @@
 
         const seatIdx = (state.player.currentSeat && typeof state.player.currentSeat.seatIndex === 'number') ? state.player.currentSeat.seatIndex : 1;
 
-        // Coordenadas calibradas con exactitud milimétrica sobre el centro del círculo amarillo:
-        // Seat 0 (Asiento izquierdo): X = -0.880, Z = 1.995
-        // Seat 1 (Asiento central):   X = +0.520, Z = 2.172
-        // Seat 2 (Asiento derecho):   X = +1.800, Z = 1.365
+        // Coordenadas con micro-ajuste de precisión absoluta sobre el centro del círculo amarillo:
+        // Seat 0 (Asiento izquierdo): X = -1.275, Z = 1.455
+        // Seat 1 (Asiento central):   X = +0.210, Z = 2.070
+        // Seat 2 (Asiento derecho):   X = +1.275, Z = 1.455
         const circleSpots = [
-          { x: -0.880, z: 1.995 },
-          { x:  0.520, z: 2.172 },
-          { x:  1.800, z: 1.365 }
+          { x: -1.275, z: 1.455 },
+          { x: 0.210, z: 2.070 },
+          { x: 1.275, z: 1.455 }
         ];
         const circleSpot = circleSpots[Math.min(2, Math.max(0, seatIdx))] || circleSpots[1];
         const posX = circleSpot.x;
@@ -7242,4 +7529,4 @@
   </script>
 </body>
 
-</html>
+</html>mueve la ficha izquierda hacia arriba izquierda hasta
