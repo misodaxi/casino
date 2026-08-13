@@ -21,6 +21,9 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Multiplayer player tracking
+const players = {};
+
 // Global TV 3D Synchronized State
 const tvState = {
   videoId: 'dQw4w9WgXcQ',
