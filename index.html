@@ -2137,6 +2137,18 @@
       las frecuencias agudas se amortiguan simulando la acústica real de la sala.
     </div>
 
+    <!-- Continuar Viendo / Historial de Reproducción Guardado -->
+    <div id="tvResumeCard" style="display:none; background:linear-gradient(135deg, rgba(139,92,246,0.22), rgba(225,31,209,0.14)); border:1px solid rgba(139,92,246,0.45); border-radius:14px; padding:12px 16px; align-items:center; justify-content:space-between; gap:12px;">
+      <div style="display:flex; flex-direction:column; gap:2px; overflow:hidden; min-width:0;">
+        <span style="font-size:10px; font-weight:900; color:#fbdf24; letter-spacing:0.8px;">⏳ CONTINUAR VIENDO</span>
+        <span id="tvResumeTitle" style="font-size:12px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Vídeo anterior</span>
+        <span id="tvResumeTime" style="font-size:11px; color:#c4b5fd; font-weight:700;">Minuto 00:00</span>
+      </div>
+      <button id="tvResumeBtn" class="action-btn" style="padding:8px 18px; font-size:11px; font-weight:900; background:linear-gradient(135deg, #8b5cf6, #ec4899); flex-shrink:0; box-shadow:0 4px 14px rgba(139,92,246,0.4);">
+        REANUDAR ▶️
+      </button>
+    </div>
+
     <div class="tv-presets">
       <span style="font-size:11px; font-weight:800; color:var(--dim); width:100%;">CANALES Y CANCIONES DE SALA:</span>
       <button class="tv-preset-btn" data-yt="jfKfPfyJRdk">🎵 Lofi Chill Lounge</button>
@@ -4117,13 +4129,6 @@
         socket.on('tvStateUpdate', (s) => {
           applyTvServerState(s);
         });
-
-        // Light periodic TV sync request every 4 seconds to correct drift
-        setInterval(() => {
-          if (socket && socket.connected) {
-            socket.emit('tvSyncReq');
-          }
-        }, 4000);
       }
 
       function addRemotePlayer(pData) {
@@ -7212,6 +7217,10 @@
       function updateTvOcclusion(dt) {
         const overlayEl = document.getElementById('tvIframeOverlay');
         if (!overlayEl || overlayEl.style.display === 'none') return;
+        if (state.mode === 'cinema') {
+          overlayEl.style.visibility = 'visible';
+          return;
+        }
 
         const camPos = camera.position;
         const centerWorldPos = new THREE.Vector3();
@@ -7289,6 +7298,85 @@
         }
       }
 
+      let tvCurrentPlaybackSeconds = 0;
+
+      function formatTimestamp(sec) {
+        sec = Math.max(0, Math.floor(sec || 0));
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        if (m >= 60) {
+          const h = Math.floor(m / 60);
+          const remM = m % 60;
+          return `${h}:${remM.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      }
+
+      function saveTvLastWatched(id, url, seconds) {
+        if (!id || seconds < 2) return;
+        try {
+          const data = {
+            id: id,
+            url: url || ('https://www.youtube.com/watch?v=' + id),
+            time: Math.floor(seconds),
+            savedAt: Date.now()
+          };
+          localStorage.setItem('casino_tv_last_watch', JSON.stringify(data));
+          updateTvResumeCardUI();
+        } catch (e) { }
+      }
+
+      function updateTvResumeCardUI() {
+        const resumeCard = document.getElementById('tvResumeCard');
+        const resumeTitle = document.getElementById('tvResumeTitle');
+        const resumeTime = document.getElementById('tvResumeTime');
+        if (!resumeCard) return;
+
+        try {
+          const raw = localStorage.getItem('casino_tv_last_watch');
+          if (!raw) {
+            resumeCard.style.display = 'none';
+            return;
+          }
+          const data = JSON.parse(raw);
+          if (!data || !data.id || data.time < 2) {
+            resumeCard.style.display = 'none';
+            return;
+          }
+
+          resumeCard.style.display = 'flex';
+          if (resumeTitle) {
+            resumeTitle.textContent = data.url || `YouTube: ${data.id}`;
+          }
+          if (resumeTime) {
+            resumeTime.textContent = `Minuto ${formatTimestamp(data.time)}`;
+          }
+        } catch (e) {
+          resumeCard.style.display = 'none';
+        }
+      }
+
+      setInterval(() => {
+        if (tvVideoId && !tvIsPaused) {
+          tvCurrentPlaybackSeconds += 1;
+          if (tvCurrentPlaybackSeconds >= 3) {
+            saveTvLastWatched(tvVideoId, tvVideoUrl, tvCurrentPlaybackSeconds);
+          }
+        }
+      }, 1000);
+
+      window.addEventListener('message', (event) => {
+        try {
+          if (typeof event.data === 'string') {
+            const data = JSON.parse(event.data);
+            if (data && data.info && typeof data.info.currentTime === 'number') {
+              tvCurrentPlaybackSeconds = data.info.currentTime;
+              saveTvLastWatched(tvVideoId, tvVideoUrl, tvCurrentPlaybackSeconds);
+            }
+          }
+        } catch (e) { }
+      });
+
       function getValidOriginParam() {
         if (window.location.protocol.startsWith('http') && window.location.origin && window.location.origin !== 'null') {
           return '&origin=' + encodeURIComponent(window.location.origin);
@@ -7296,7 +7384,7 @@
         return '';
       }
 
-      function loadYoutubeVideo(idOrUrl, emitToServer = true) {
+      function loadYoutubeVideo(idOrUrl, emitToServer = true, startTime = 0) {
         const id = extractYoutubeId(idOrUrl);
         const stateEl = document.getElementById('tvStatusState');
 
@@ -7308,31 +7396,40 @@
 
         tvVideoId = id;
         tvVideoUrl = 'https://www.youtube.com/watch?v=' + tvVideoId;
+        tvCurrentPlaybackSeconds = Math.max(0, Math.floor(startTime));
+        tvIsPaused = false;
 
         const iframe = document.getElementById('tvIframeElement');
         if (iframe) {
           if (stateEl) stateEl.textContent = '🔄 Cargando...';
-          showToast('📺 Cargando vídeo en TV 3D...');
+          showToast(startTime > 0 ? `📺 Reanudando en ${formatTimestamp(startTime)}...` : '📺 Cargando vídeo en TV 3D...');
 
-          const muteParam = (!userHasInteracted || tvIsMuted) ? 1 : 0;
+          const muteParam = tvIsMuted ? 1 : 0;
           const originParam = getValidOriginParam();
-          const embedUrl = `https://www.youtube-nocookie.com/embed/${tvVideoId}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=1&playsinline=1&rel=0&vq=hd2160&hd=1${originParam}`;
+          const startParam = startTime > 0 ? `&start=${Math.floor(startTime)}` : '';
+          const embedUrl = `https://www.youtube-nocookie.com/embed/${tvVideoId}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=1&playsinline=1&rel=0&vq=hd2160&hd=1${startParam}${originParam}`;
 
-          try { sendYtCommand('pauseVideo'); } catch (e) { }
           iframe.src = embedUrl;
 
           setTimeout(() => {
             sendYtCommand('setPlaybackQuality', ['hd2160']);
             sendYtCommand('setPlaybackQuality', ['highres']);
-            if (stateEl) stateEl.textContent = tvIsPaused ? '⏸️ En Pausa' : '🟢 Reproduciendo (4K Ultra HD)';
-          }, 1200);
+            if (startTime > 0) {
+              sendYtCommand('seekTo', [startTime, true]);
+            }
+            if (tvVolumeSliderEl) {
+              const currentVol = parseInt(tvVolumeSliderEl.value, 10) || 100;
+              sendYtCommand('setVolume', [currentVol]);
+            }
+            if (stateEl) stateEl.textContent = '🟢 Reproduciendo';
+          }, 1000);
         }
 
         if (emitToServer && socket && !isApplyingTvServerState) {
           socket.emit('tvChangeVideo', {
             videoId: id,
-            currentTime: 0,
-            playing: !tvIsPaused
+            currentTime: startTime,
+            playing: true
           });
         }
         return true;
@@ -7343,36 +7440,32 @@
         isApplyingTvServerState = true;
 
         const targetId = serverState.videoId;
-        const playing = serverState.playing;
+        const playing = serverState.playing !== undefined ? !!serverState.playing : true;
         const targetTime = Math.max(0, serverState.currentTime || 0);
 
-        // Sincronizar vídeo de YouTube si es distinto
+        // Sincronizar vídeo de YouTube solo si es diferente
         if (tvVideoId !== targetId) {
-          loadYoutubeVideo(targetId, false);
-        }
-
-        // Sincronizar estado Play / Pause
-        tvIsPaused = !playing;
-        const btn = document.getElementById('tvPlayPauseBtn');
-        if (btn) btn.textContent = tvIsPaused ? 'REPRODUCIR ▶️' : 'PAUSAR ⏸️';
-
-        const stateEl = document.getElementById('tvStatusState');
-        if (stateEl) stateEl.textContent = tvIsPaused ? '⏸️ En Pausa' : '🟢 Reproduciendo';
-
-        if (playing) {
-          sendYtCommand('playVideo');
+          loadYoutubeVideo(targetId, false, targetTime);
         } else {
-          sendYtCommand('pauseVideo');
-        }
+          // Si es el mismo vídeo, solo actualizar si el estado play/pause cambió
+          if (tvIsPaused === playing) {
+            tvIsPaused = !playing;
+            const btn = document.getElementById('tvPlayPauseBtn');
+            if (btn) btn.textContent = tvIsPaused ? 'REPRODUCIR ▶️' : 'PAUSAR ⏸️';
+            const stateEl = document.getElementById('tvStatusState');
+            if (stateEl) stateEl.textContent = tvIsPaused ? '⏸️ En Pausa' : '🟢 Reproduciendo';
 
-        // Sincronizar segundo exacto del vídeo
-        if (targetTime > 0) {
-          sendYtCommand('seekTo', [targetTime, true]);
+            if (playing) {
+              sendYtCommand('playVideo');
+            } else {
+              sendYtCommand('pauseVideo');
+            }
+          }
         }
 
         setTimeout(() => {
           isApplyingTvServerState = false;
-        }, 400);
+        }, 500);
       }
 
       function onFirstUserGesture() {
@@ -7386,86 +7479,145 @@
       window.addEventListener('click', onFirstUserGesture, { once: true });
       window.addEventListener('keydown', onFirstUserGesture, { once: true });
 
-      // Update Spatial Audio & 3D Rigid Scale Perspective Projection in Animation Loop
+      // Update Spatial Audio & 3D Projection in Animation Loop
       function updateTVSpatialAudioAndProjection() {
-        if (state.mode !== 'casino') {
+        if (state.mode !== 'casino' && state.mode !== 'cinema') {
           const iframeOverlay = document.getElementById('tvIframeOverlay');
           if (iframeOverlay) iframeOverlay.style.display = 'none';
           return;
         }
 
-        const tvX = tvGroupRef ? tvGroupRef.position.x : 0;
-        const tvZ = tvGroupRef ? tvGroupRef.position.z : -52;
-        const dx = state.player.x - tvX;
-        const dz = state.player.z - tvZ;
-        const dist = Math.hypot(dx, dz);
-
-        // Distancias recalibradas para la pantalla 4x más grande y más alejada
-        const minDist = 20;
-        const maxDist = 90;
-        let volRatio = 1.0;
-
-        if (dist > minDist) {
-          volRatio = Math.max(0, 1 - (dist - minDist) / (maxDist - minDist));
-          volRatio = Math.pow(volRatio, 1.6);
-        }
-
-        // Sistema de audio 2 (distancia): reduce el volumen manual (sistema 1) según te alejas,
-        // usando SIEMPRE `masterVolume` como techo — nunca puede sonar por encima de ese máximo.
-        let volPercent = Math.round(volRatio * masterVolume);
-
-        const nowVolTime = performance.now();
-        if (Math.abs(volPercent - lastTvVolPercent) >= 2 && (nowVolTime - lastTvVolTime) > 250) {
-          lastTvVolPercent = volPercent;
-          lastTvVolTime = nowVolTime;
-          if (!tvIsMuted) sendYtCommand('setVolume', [volPercent]);
-        }
-
         const iframeOverlay = document.getElementById('tvIframeOverlay');
         if (iframeOverlay) {
-          if (dist > maxDist) {
-            iframeOverlay.style.display = 'none';
-          } else {
-            iframeOverlay.style.display = 'block';
-            iframeOverlay.style.opacity = Math.min(1, volRatio * 1.6).toFixed(2);
-          }
+          iframeOverlay.style.display = 'block';
+          iframeOverlay.style.opacity = '1';
         }
 
-        // Refrescar indicadores de estado del modal de TV
-        const distEl = document.getElementById('tvStatusDist');
-        const volEl = document.getElementById('tvStatusVol');
-        const filterEl = document.getElementById('tvStatusFilter');
-        if (distEl) distEl.textContent = 'Distancia: ' + Math.round(dist) + 'm';
-        if (volEl) volEl.textContent = 'Volumen 3D: ' + volPercent + '% (máx ' + masterVolume + '%)';
-        if (filterEl) {
-          if (volRatio > 0.66) filterEl.textContent = 'Filtro Acústico: Transparente (20kHz)';
-          else if (volRatio > 0.3) filterEl.textContent = 'Filtro Acústico: Amortiguado (8kHz)';
-          else if (volRatio > 0.05) filterEl.textContent = 'Filtro Acústico: Muy amortiguado (2kHz)';
-          else filterEl.textContent = 'Filtro Acústico: Inaudible';
+        let volPercent = masterVolume;
+
+        if (state.mode !== 'cinema') {
+          const tvX = tvGroupRef ? tvGroupRef.position.x : 0;
+          const tvZ = tvGroupRef ? tvGroupRef.position.z : -52;
+          const dx = state.player.x - tvX;
+          const dz = state.player.z - tvZ;
+          const dist = Math.hypot(dx, dz);
+
+          // Distancias recalibradas para la pantalla 4x más grande y más alejada
+          const minDist = 20;
+          const maxDist = 90;
+          let volRatio = 1.0;
+
+          if (dist > minDist) {
+            volRatio = Math.max(0, 1 - (dist - minDist) / (maxDist - minDist));
+            volRatio = Math.pow(volRatio, 1.6);
+          }
+
+          volPercent = Math.round(volRatio * masterVolume);
+
+          const nowVolTime = performance.now();
+          if (Math.abs(volPercent - lastTvVolPercent) >= 2 && (nowVolTime - lastTvVolTime) > 200) {
+            lastTvVolPercent = volPercent;
+            lastTvVolTime = nowVolTime;
+            if (!tvIsMuted) sendYtCommand('setVolume', [volPercent]);
+          }
+
+          // Refrescar indicadores de estado del modal de TV
+          const distEl = document.getElementById('tvStatusDist');
+          const volEl = document.getElementById('tvStatusVol');
+          const filterEl = document.getElementById('tvStatusFilter');
+          if (distEl) distEl.textContent = 'Distancia: ' + Math.round(dist) + 'm';
+          if (volEl) volEl.textContent = 'Volumen 3D: ' + volPercent + '% (máx ' + masterVolume + '%)';
+          if (filterEl) {
+            if (volRatio > 0.66) filterEl.textContent = 'Filtro Acústico: Transparente (20kHz)';
+            else if (volRatio > 0.3) filterEl.textContent = 'Filtro Acústico: Amortiguado (8kHz)';
+            else if (volRatio > 0.05) filterEl.textContent = 'Filtro Acústico: Muy amortiguado (2kHz)';
+            else filterEl.textContent = 'Filtro Acústico: Inaudible';
+          }
+        } else {
+          // MODO CINE: sentado en las butacas frente a la pantalla (100% de volumen y calidad acústica)
+          const nowVolTime = performance.now();
+          if (Math.abs(volPercent - lastTvVolPercent) >= 1 && (nowVolTime - lastTvVolTime) > 100) {
+            lastTvVolPercent = volPercent;
+            lastTvVolTime = nowVolTime;
+            if (!tvIsMuted) sendYtCommand('setVolume', [volPercent]);
+          }
+
+          const distEl = document.getElementById('tvStatusDist');
+          const volEl = document.getElementById('tvStatusVol');
+          const filterEl = document.getElementById('tvStatusFilter');
+          if (distEl) distEl.textContent = 'Distancia: Butaca VIP Cine (0m)';
+          if (volEl) volEl.textContent = 'Volumen Cine: ' + volPercent + '%';
+          if (filterEl) filterEl.textContent = 'Acústica: Dolby Atmos Cine 3D';
         }
       }
 
-      // Sistema de audio 1: barra de volumen manual — fija el volumen MÁXIMO de referencia
+      // Sistema de audio 1: barra de volumen manual — actualiza en tiempo real
       const tvVolumeSliderEl = document.getElementById('tvVolumeSlider');
       const tvVolumeSliderPctEl = document.getElementById('tvVolumeSliderPct');
+
+      function applyTvVolumeRealTime() {
+        if (!tvVolumeSliderEl) return;
+        masterVolume = parseInt(tvVolumeSliderEl.value, 10);
+        tvVolumeSliderEl.style.setProperty('--fillpct', masterVolume + '%');
+        if (tvVolumeSliderPctEl) tvVolumeSliderPctEl.textContent = masterVolume + '%';
+
+        let effectiveVol = masterVolume;
+        if (state.mode !== 'cinema') {
+          const tvX = tvGroupRef ? tvGroupRef.position.x : 0;
+          const tvZ = tvGroupRef ? tvGroupRef.position.z : -52;
+          const dx = state.player.x - tvX;
+          const dz = state.player.z - tvZ;
+          const dist = Math.hypot(dx, dz);
+          const minDist = 20;
+          const maxDist = 90;
+          let volRatio = 1.0;
+          if (dist > minDist) {
+            volRatio = Math.max(0, 1 - (dist - minDist) / (maxDist - minDist));
+            volRatio = Math.pow(volRatio, 1.6);
+          }
+          effectiveVol = Math.round(volRatio * masterVolume);
+        }
+
+        lastTvVolPercent = effectiveVol;
+        lastTvVolTime = performance.now();
+
+        if (!tvIsMuted) {
+          sendYtCommand('setVolume', [effectiveVol]);
+        }
+      }
+
       if (tvVolumeSliderEl) {
-        tvVolumeSliderEl.addEventListener('input', function () {
-          masterVolume = parseInt(this.value, 10);
-          this.style.setProperty('--fillpct', masterVolume + '%');
-          if (tvVolumeSliderPctEl) tvVolumeSliderPctEl.textContent = masterVolume + '%';
-          lastTvVolTime = 0; // fuerza actualización inmediata del volumen 3D en el próximo frame
-        });
+        tvVolumeSliderEl.addEventListener('input', applyTvVolumeRealTime);
+        tvVolumeSliderEl.addEventListener('change', applyTvVolumeRealTime);
       }
 
       // TV Modal Event Listeners
       const tvModal = document.getElementById('tvModal');
-      function openTVModal() { tvModal.classList.add('show'); }
+      function openTVModal() {
+        updateTvResumeCardUI();
+        tvModal.classList.add('show');
+      }
       function closeTVModal() { tvModal.classList.remove('show'); }
 
       document.getElementById('tvBtn').addEventListener('click', openTVModal);
       const tvChangeBtnEl = document.getElementById('tvChangeBtn');
       if (tvChangeBtnEl) tvChangeBtnEl.addEventListener('click', openTVModal);
       document.getElementById('closeTvModalBtn').addEventListener('click', closeTVModal);
+
+      const tvResumeBtnEl = document.getElementById('tvResumeBtn');
+      if (tvResumeBtnEl) {
+        tvResumeBtnEl.addEventListener('click', () => {
+          try {
+            const raw = localStorage.getItem('casino_tv_last_watch');
+            if (!raw) return;
+            const data = JSON.parse(raw);
+            if (data && data.id) {
+              loadYoutubeVideo(data.id, true, data.time || 0);
+              closeTVModal();
+            }
+          } catch (e) { }
+        });
+      }
 
       document.getElementById('loadYoutubeBtn').addEventListener('click', () => {
         const val = document.getElementById('youtubeUrlInput').value;

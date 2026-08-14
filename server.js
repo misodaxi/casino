@@ -729,7 +729,7 @@ io.on('connection', (socket) => {
     tvState.playing = data.playing !== undefined ? !!data.playing : true;
     tvState.currentTime = Math.max(0, data.currentTime || 0);
     tvState.updatedAt = Date.now();
-    io.emit('tvStateUpdate', getSyncedTvState());
+    socket.broadcast.emit('tvStateUpdate', getSyncedTvState());
   });
 
   socket.on('tvPlay', (data) => {
@@ -738,7 +738,7 @@ io.on('connection', (socket) => {
       tvState.currentTime = Math.max(0, data.currentTime);
     }
     tvState.updatedAt = Date.now();
-    io.emit('tvStateUpdate', getSyncedTvState());
+    socket.broadcast.emit('tvStateUpdate', getSyncedTvState());
   });
 
   socket.on('tvPause', (data) => {
@@ -747,14 +747,14 @@ io.on('connection', (socket) => {
       tvState.currentTime = Math.max(0, data.currentTime);
     }
     tvState.updatedAt = Date.now();
-    io.emit('tvStateUpdate', getSyncedTvState());
+    socket.broadcast.emit('tvStateUpdate', getSyncedTvState());
   });
 
   socket.on('tvSeek', (data) => {
     if (!data || typeof data.currentTime !== 'number') return;
     tvState.currentTime = Math.max(0, data.currentTime);
     tvState.updatedAt = Date.now();
-    io.emit('tvStateUpdate', getSyncedTvState());
+    socket.broadcast.emit('tvStateUpdate', getSyncedTvState());
   });
 
   socket.on('tvSyncReq', () => {
