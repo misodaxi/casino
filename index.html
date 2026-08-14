@@ -1900,17 +1900,11 @@
 
     <div class="duel-bottom">
       <div class="duel-history" id="diceHistory"></div>
-      <div class="duel-controls" style="display:flex; align-items:center; gap:14px;">
-        <button class="mini-btn" id="diceUndoBtn">↩ Deshacer</button>
-        <div class="chip-rack" id="chipRackDice">
-          <div class="chip" data-v="10">10</div>
-          <div class="chip selected" data-v="50">50</div>
-          <div class="chip" data-v="100">100</div>
-          <div class="chip" data-v="500">500</div>
-          <div class="chip" data-v="1000">1K</div>
-        </div>
-        <div class="total-bet-pill">APUESTA<span class="v" id="diceBetDisplay">$0</span></div>
-
+      <div class="duel-controls"
+        style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;">
+        <div class="total-bet-pill" id="diceBetPill">APUESTA<span class="v" id="diceBetDisplay">$50</span></div>
+        <button class="action-btn" id="diceClearBetBtn"
+          style="background:rgba(239,68,68,0.25); border:1px solid #ef4444; color:#fca5a5;">BORRAR 🗑️</button>
         <!-- Solo Action Button -->
         <button class="action-btn" id="diceRollBtn">TIRAR 🎲</button>
 
@@ -2910,14 +2904,14 @@
         // --- EJE CENTRAL PRINCIPAL ---
         {
           id: 'roulette', name: 'ROULETTE 3D', icon: '🎡', x: 0, z: -11, radius: 5.5, color: 0xf97316, seats: [
-            { x: -2.90, z: -13.90, r: 0.79 },
-            { x: -4.08, z: -11.43, r: 1.47 },
-            { x: -3.55, z: -8.95, r: 2.09 },
-            { x: -1.54, z: -7.20, r: 2.76 },
-            { x: 1.54, z: -7.20, r: 3.53 },
-            { x: 3.55, z: -8.95, r: 4.19 },
-            { x: 4.08, z: -11.43, r: 4.81 },
-            { x: 2.90, z: -13.90, r: 5.49 }
+            { x: -4.20, z: -14.20, r: Math.PI / 4 },
+            { x: -4.40, z: -11.00, r: Math.PI / 2 },
+            { x: -3.60, z: -7.60,  r: (3 * Math.PI) / 4 },
+            { x: -1.40, z: -6.80,  r: Math.PI },
+            { x: 1.40,  z: -6.80,  r: Math.PI },
+            { x: 3.60,  z: -7.60,  r: -(3 * Math.PI) / 4 },
+            { x: 4.40,  z: -11.00, r: -Math.PI / 2 },
+            { x: 4.20,  z: -14.20, r: -Math.PI / 4 }
           ]
         },
         {
@@ -2955,14 +2949,10 @@
         },
         {
           id: 'plinko', name: 'PLINKO 3D', icon: '🎯', x: 16.0, z: 0.0, radius: 4.8, color: 0xec4899, seats: [
-            { x: 14.2, z: 1.5, r: Math.PI },
-            { x: 15.4, z: 1.5, r: Math.PI },
-            { x: 16.6, z: 1.5, r: Math.PI },
-            { x: 17.8, z: 1.5, r: Math.PI },
-            { x: 13.6, z: -0.5, r: Math.PI / 2 },
-            { x: 13.6, z: 0.5, r: Math.PI / 2 },
-            { x: 18.4, z: -0.5, r: -Math.PI / 2 },
-            { x: 18.4, z: 0.5, r: -Math.PI / 2 }
+            { x: 13.9, z: 3.35, r: Math.PI },
+            { x: 15.3, z: 3.35, r: Math.PI },
+            { x: 16.7, z: 3.35, r: Math.PI },
+            { x: 18.1, z: 3.35, r: Math.PI }
           ]
         },
         {
@@ -2980,11 +2970,9 @@
           ]
         },
         {
-          id: 'dice', name: 'DICE DUEL', icon: '🎲', x: 16.0, z: 11.0, radius: 4.6, color: 0x06b6d4, seats: [
-            { x: 13.8, z: 12.8, r: Math.PI },
-            { x: 14.8, z: 12.8, r: Math.PI },
-            { x: 17.2, z: 12.8, r: Math.PI },
-            { x: 18.2, z: 12.8, r: Math.PI }
+          id: 'dice', name: 'DICE DUEL', icon: '🎲', x: 16.0, z: 11.0, radius: 5.0, color: 0x06b6d4, seats: [
+            { x: 14.35, z: 13.55, r: Math.PI },
+            { x: 17.65, z: 13.55, r: Math.PI }
           ]
         },
         {
@@ -3668,47 +3656,387 @@
         return g;
       }
 
-      // 10. Jackpot Area (Circular Ring of 8 Slot Cabinets + Center Trophy 🏆)
+      // 10. Jackpot Area (Circular Ring of 8 Royal Thrones + Center Grand Championship Trophy 🏆)
       function createJackpotDais() {
         const g = new THREE.Group();
+
+        // 1. Dais Platform with Golden Neon Glowing Edge & Inlaid Floor Trim
         const dais = new THREE.Mesh(new THREE.CylinderGeometry(4.8, 5.2, 0.40, 36),
           new THREE.MeshStandardMaterial({ color: 0x140a22, roughness: 0.4 }));
         dais.position.y = 0.20;
+
         const daisGoldRim = new THREE.Mesh(new THREE.TorusGeometry(4.85, 0.09, 12, 48),
           new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 2.8 }));
         daisGoldRim.rotation.x = Math.PI / 2; daisGoldRim.position.y = 0.40;
-        g.add(dais, daisGoldRim);
 
-        // Ring of 8 Golden Jackpot Arcade Cabinets facing radially
-        for (let i = 0; i < 8; i++) {
-          const ang = (i / 8) * Math.PI * 2;
+        const floorInlay = new THREE.Mesh(new THREE.RingGeometry(3.6, 3.68, 48),
+          new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15, side: THREE.DoubleSide }));
+        floorInlay.rotation.x = -Math.PI / 2; floorInlay.position.y = 0.402;
+
+        g.add(dais, daisGoldRim, floorInlay);
+
+        // Common Luxury Materials for Royal Thrones & Grand Trophy
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
+        const darkGoldMat = new THREE.MeshStandardMaterial({ color: 0x9a7b1c, metalness: 0.85, roughness: 0.25 });
+        const shinyGoldMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.98, roughness: 0.08 });
+        const velvetMat = new THREE.MeshStandardMaterial({ color: 0x581c87, roughness: 0.8, emissive: 0x3b0764, emissiveIntensity: 0.25 });
+        const rubyMat = new THREE.MeshStandardMaterial({ color: 0xe11fd1, metalness: 0.3, roughness: 0.1, emissive: 0xe11fd1, emissiveIntensity: 0.6 });
+        const darkMarbleMat = new THREE.MeshStandardMaterial({ color: 0x0c0717, roughness: 0.25, metalness: 0.8 });
+
+        // Helper: Build a 3D Royal Luxury Throne inspired by the reference image
+        function createRoyalThroneMesh(ang) {
+          const throne = new THREE.Group();
           const cx = Math.sin(ang) * 3.8;
           const cz = Math.cos(ang) * 3.8;
-          const cab = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.8, 0.8),
-            new THREE.MeshStandardMaterial({ color: 0x1e1238, emissive: 0xfbbf24, emissiveIntensity: 0.35, metalness: 0.6 }));
-          cab.position.set(cx, 0.9, cz);
-          cab.rotation.y = ang + Math.PI;
-          g.add(cab);
+          throne.position.set(cx, 0.40, cz);
+          throne.rotation.y = ang + Math.PI; // Face towards the center trophy
+
+          // Luxury Materials matching the reference artwork
+          const crimsonVelvetMat = new THREE.MeshStandardMaterial({
+            color: 0x8b1124, // Deep Imperial Crimson Velvet
+            roughness: 0.85,
+            metalness: 0.08,
+            emissive: 0x450a0a,
+            emissiveIntensity: 0.15
+          });
+          const tuftButtonMat = new THREE.MeshStandardMaterial({
+            color: 0x5a0815,
+            roughness: 0.90,
+            metalness: 0.05
+          });
+          const antiqueGoldMat = new THREE.MeshStandardMaterial({
+            color: 0xd4af37, // Rich Baroque Antique Gold
+            metalness: 0.94,
+            roughness: 0.18
+          });
+          const carvedGoldMat = new THREE.MeshStandardMaterial({
+            color: 0x9a7b1c, // Shadowed carving gold
+            metalness: 0.90,
+            roughness: 0.28
+          });
+          const rubyGemMat = new THREE.MeshStandardMaterial({
+            color: 0xbe123c, // Royal Ruby Gem
+            metalness: 0.3,
+            roughness: 0.1,
+            emissive: 0xe11d48,
+            emissiveIntensity: 0.6
+          });
+
+          // 1. Four Baroque Cabriole Legs with Scrolled Feet
+          const frontLegCoords = [[-0.54, 0.44], [0.54, 0.44]];
+          frontLegCoords.forEach(([lx, lz]) => {
+            // Front curved cabriole leg
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.045, 0.42, 12), antiqueGoldMat);
+            leg.position.set(lx, 0.21, lz);
+            leg.castShadow = true;
+
+            const foot = new THREE.Mesh(new THREE.SphereGeometry(0.065, 12, 12), carvedGoldMat);
+            foot.position.set(lx, 0.04, lz);
+
+            const kneeNode = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 12), antiqueGoldMat);
+            kneeNode.position.set(lx, 0.38, lz);
+
+            throne.add(leg, foot, kneeNode);
+          });
+
+          const rearLegCoords = [[-0.50, -0.46], [0.50, -0.46]];
+          rearLegCoords.forEach(([lx, lz]) => {
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.045, 0.42, 12), antiqueGoldMat);
+            leg.position.set(lx, 0.21, lz);
+            leg.rotation.x = -0.15; // Angled back for stability
+            leg.castShadow = true;
+
+            const foot = new THREE.Mesh(new THREE.SphereGeometry(0.060, 12, 12), carvedGoldMat);
+            foot.position.set(lx, 0.04, lz - 0.03);
+
+            throne.add(leg, foot);
+          });
+
+          // 2. Sculpted Gold Seat Frame Base & Carved Front Apron
+          const seatBaseFrame = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.08, 1.10), antiqueGoldMat);
+          seatBaseFrame.position.set(0, 0.34, 0);
+          seatBaseFrame.castShadow = true;
+
+          const baseBevelTrim = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.04, 1.14), carvedGoldMat);
+          baseBevelTrim.position.set(0, 0.30, 0);
+
+          // Carved Baroque Front Apron (Faldón esculpido con rosetón central)
+          const apronPlaque = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.04, 16), antiqueGoldMat);
+          apronPlaque.rotation.x = Math.PI / 2;
+          apronPlaque.position.set(0, 0.27, 0.56);
+
+          const apronGem = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 12), rubyGemMat);
+          apronGem.position.set(0, 0.27, 0.585);
+
+          const apronWingL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.06, 0.03), carvedGoldMat);
+          apronWingL.position.set(-0.28, 0.27, 0.55);
+          const apronWingR = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.06, 0.03), carvedGoldMat);
+          apronWingR.position.set(0.28, 0.27, 0.55);
+
+          throne.add(seatBaseFrame, baseBevelTrim, apronPlaque, apronGem, apronWingL, apronWingR);
+
+          // 3. Plush Crimson Velvet Seat Cushion (Wide & contoured, avatar sits without clipping)
+          const cushion = new THREE.Mesh(new THREE.BoxGeometry(1.14, 0.14, 1.02), crimsonVelvetMat);
+          cushion.position.set(0, 0.43, 0.02);
+          cushion.castShadow = true;
+
+          // Contoured rounded front waterfall cushion edge
+          const cushionFrontRoll = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.14, 16), crimsonVelvetMat);
+          cushionFrontRoll.rotation.z = Math.PI / 2;
+          cushionFrontRoll.position.set(0, 0.43, 0.53);
+
+          // Golden perimeter piping trim around cushion
+          const goldCushionTrim = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.018, 8, 32), antiqueGoldMat);
+          goldCushionTrim.scale.set(1.18, 1.05, 1);
+          goldCushionTrim.rotation.x = Math.PI / 2;
+          goldCushionTrim.position.set(0, 0.49, 0.02);
+
+          throne.add(cushion, cushionFrontRoll, goldCushionTrim);
+
+          // 4. Baroque Sculpted Armrests with Rolled Crimson Velvet Armpads (Width: 1.28m between rests)
+          [-0.64, 0.64].forEach(ax => {
+            const dir = ax > 0 ? 1 : -1;
+
+            // Front Carved Baroque Golden Pillar
+            const postF = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.070, 0.38, 12), antiqueGoldMat);
+            postF.position.set(ax, 0.52, 0.42);
+            postF.castShadow = true;
+
+            const postR = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.060, 0.38, 12), antiqueGoldMat);
+            postR.position.set(ax, 0.52, -0.32);
+
+            // Golden Baroque Scrolled Arm Rail
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.85), antiqueGoldMat);
+            rail.position.set(ax, 0.70, 0.04);
+
+            // Front Gold Baroque Volute / Scroll Finial
+            const frontVolute = new THREE.Mesh(new THREE.TorusGeometry(0.10, 0.035, 12, 24), carvedGoldMat);
+            frontVolute.rotation.y = Math.PI / 2;
+            frontVolute.position.set(ax, 0.70, 0.48);
+
+            // Rolled Crimson Velvet Armpad (curved gracefully like in the image)
+            const armPad = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.78, 16), crimsonVelvetMat);
+            armPad.rotation.x = Math.PI / 2;
+            armPad.position.set(ax, 0.75, 0.02);
+            armPad.castShadow = true;
+
+            // Downward velvet waterfall roll at front
+            const armPadFront = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), crimsonVelvetMat);
+            armPadFront.position.set(ax, 0.72, 0.42);
+
+            // Outer carved baroque gold wing trim
+            const outerWing = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.70), carvedGoldMat);
+            outerWing.position.set(ax + dir * 0.06, 0.58, 0.04);
+
+            throne.add(postF, postR, rail, frontVolute, armPad, armPadFront, outerWing);
+          });
+
+          // 5. Grand High Baroque Tufted Backrest (Capitoné with contoured hourglass shape)
+          // Positioned at z = -0.54, completely behind avatar's back (no clipping)
+          const backGroup = new THREE.Group();
+          backGroup.position.set(0, 0, -0.54);
+
+          // A. Outer Sculpted Golden Baroque Frame
+          const backFrameLower = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.75, 0.12), antiqueGoldMat);
+          backFrameLower.position.set(0, 0.88, 0);
+          backFrameLower.castShadow = true;
+
+          const backFrameShoulder = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.95, 0.12), antiqueGoldMat);
+          backFrameShoulder.position.set(0, 1.62, 0);
+          backFrameShoulder.castShadow = true;
+
+          const backFrameArch = new THREE.Mesh(new THREE.CylinderGeometry(0.71, 0.71, 0.12, 32), antiqueGoldMat);
+          backFrameArch.rotation.x = Math.PI / 2;
+          backFrameArch.position.set(0, 2.05, 0);
+
+          // B. Inner Plush Crimson Velvet Backrest (Violin / Hourglass contour)
+          const velvetLower = new THREE.Mesh(new THREE.BoxGeometry(1.00, 0.70, 0.10), crimsonVelvetMat);
+          velvetLower.position.set(0, 0.88, 0.04);
+
+          const velvetShoulder = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.88, 0.10), crimsonVelvetMat);
+          velvetShoulder.position.set(0, 1.60, 0.04);
+
+          const velvetArch = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.10, 32), crimsonVelvetMat);
+          velvetArch.rotation.x = Math.PI / 2;
+          velvetArch.position.set(0, 2.00, 0.04);
+
+          // Golden perimeter bezel enclosing the velvet backrest
+          const goldBackBezel = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.025, 12, 32), antiqueGoldMat);
+          goldBackBezel.position.set(0, 2.00, 0.09);
+
+          backGroup.add(backFrameLower, backFrameShoulder, backFrameArch, velvetLower, velvetShoulder, velvetArch, goldBackBezel);
+
+          // C. Diamond Button Tufting (Capitoné) across the Velvet Backrest
+          const tuftPattern = [
+            // [x, y]
+            [-0.24, 0.72], [0.24, 0.72],
+            [-0.36, 0.98], [0.00, 0.98], [0.36, 0.98],
+            [-0.42, 1.25], [-0.14, 1.25], [0.14, 1.25], [0.42, 1.25],
+            [-0.36, 1.52], [0.00, 1.52], [0.36, 1.52],
+            [-0.28, 1.78], [0.28, 1.78],
+            [0.00, 1.98]
+          ];
+          tuftPattern.forEach(([tx, ty]) => {
+            const button = new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 8), tuftButtonMat);
+            button.position.set(tx, ty, 0.095);
+            const buttonRim = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.006, 6, 12), antiqueGoldMat);
+            buttonRim.position.set(tx, ty, 0.094);
+            backGroup.add(button, buttonRim);
+          });
+
+          // D. Grand Baroque Royal Crown / Crest at Peak (matching top of reference image)
+          // Central Baroque Golden Shield Medallion
+          const crestMedallion = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.06, 20), antiqueGoldMat);
+          crestMedallion.rotation.x = Math.PI / 2;
+          crestMedallion.position.set(0, 2.38, 0.08);
+
+          const crestBorder = new THREE.Mesh(new THREE.TorusGeometry(0.20, 0.035, 12, 24), carvedGoldMat);
+          crestBorder.position.set(0, 2.38, 0.09);
+
+          const crestRuby = new THREE.Mesh(new THREE.OctahedronGeometry(0.08, 0), rubyGemMat);
+          crestRuby.position.set(0, 2.38, 0.13);
+
+          // Imperial Crown Finials (3 Peaks)
+          const crownPeakCenter = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.32, 16), antiqueGoldMat);
+          crownPeakCenter.position.set(0, 2.68, 0.04);
+          const crownRubyTop = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 12), rubyGemMat);
+          crownRubyTop.position.set(0, 2.84, 0.04);
+
+          const crownPeakL = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.24, 12), antiqueGoldMat);
+          crownPeakL.rotation.z = 0.25;
+          crownPeakL.position.set(-0.25, 2.60, 0.04);
+
+          const crownPeakR = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.24, 12), antiqueGoldMat);
+          crownPeakR.rotation.z = -0.25;
+          crownPeakR.position.set(0.25, 2.60, 0.04);
+
+          // Left & Right Baroque Scrolled Acanthus Wings (Volutas laterales)
+          [-1, 1].forEach(dir => {
+            const wingScroll = new THREE.Mesh(
+              new THREE.TorusGeometry(0.30, 0.055, 12, 24, Math.PI * 1.25),
+              carvedGoldMat
+            );
+            wingScroll.rotation.z = dir * 0.75;
+            wingScroll.position.set(dir * 0.58, 2.25, 0.03);
+
+            const scrollFinial = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 12), antiqueGoldMat);
+            scrollFinial.position.set(dir * 0.82, 2.05, 0.03);
+
+            backGroup.add(wingScroll, scrollFinial);
+          });
+
+          backGroup.add(crestMedallion, crestBorder, crestRuby, crownPeakCenter, crownRubyTop, crownPeakL, crownPeakR);
+          throne.add(backGroup);
+
+          return throne;
         }
 
-        // Giant Glowing Golden Trophy 🏆 in Center
+        // 2. Ring of 8 Royal Luxury Thrones
+        for (let i = 0; i < 8; i++) {
+          const ang = (i / 8) * Math.PI * 2;
+          const throne = createRoyalThroneMesh(ang);
+          g.add(throne);
+        }
+
+        // 3. Grand Championship 3D Trophy in Center 🏆
         const trophyGroup = new THREE.Group();
         trophyGroup.position.set(0, 0.40, 0);
-        const tMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.95, roughness: 0.1, emissive: 0xf59e0b, emissiveIntensity: 0.5 });
-        const tBase = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.95, 0.60, 20), tMat);
-        tBase.position.y = 0.30;
-        const tStem = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.35, 0.95, 16), tMat);
-        tStem.position.y = 1.05;
-        const tCup = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 0.38, 1.35, 24), tMat);
-        tCup.position.y = 2.15;
-        trophyGroup.add(tBase, tStem, tCup);
+
+        // A. Tiered Marble & Gold Pedestal Base
+        const base1 = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.18, 0.28, 8), darkMarbleMat);
+        base1.position.y = 0.14;
+        base1.castShadow = true; base1.receiveShadow = true;
+
+        const baseTrim1 = new THREE.Mesh(new THREE.CylinderGeometry(1.06, 1.06, 0.06, 8), goldMat);
+        baseTrim1.position.y = 0.29;
+
+        const base2 = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.94, 0.28, 8), darkMarbleMat);
+        base2.position.y = 0.44;
+        base2.castShadow = true;
+
+        const baseTrim2 = new THREE.Mesh(new THREE.CylinderGeometry(0.83, 0.83, 0.06, 8), goldMat);
+        baseTrim2.position.y = 0.59;
+
+        // Engraved Gold Plaque on Front
+        const plaque = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.16, 0.05), shinyGoldMat);
+        plaque.position.set(0, 0.44, 0.84);
+        trophyGroup.add(base1, baseTrim1, base2, baseTrim2, plaque);
+
+        // B. Sculpted Fluted Golden Column Stem with Rings
+        const stemBase = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.68, 0.22, 24), goldMat);
+        stemBase.position.y = 0.72;
+
+        const stemRing1 = new THREE.Mesh(new THREE.TorusGeometry(0.40, 0.045, 12, 24), shinyGoldMat);
+        stemRing1.rotation.x = Math.PI / 2; stemRing1.position.y = 0.84;
+
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.38, 0.85, 24), goldMat);
+        stem.position.y = 1.28;
+
+        const stemRing2 = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.05, 12, 24), shinyGoldMat);
+        stemRing2.rotation.x = Math.PI / 2; stemRing2.position.y = 1.72;
+
+        const cupBaseNode = new THREE.Mesh(new THREE.SphereGeometry(0.36, 20, 20), goldMat);
+        cupBaseNode.scale.set(1, 0.65, 1);
+        cupBaseNode.position.y = 1.84;
+
+        trophyGroup.add(stemBase, stemRing1, stem, stemRing2, cupBaseNode);
+
+        // C. Grand Golden Cup / Chalice Body
+        const cupLower = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.32, 1.05, 32), shinyGoldMat);
+        cupLower.position.y = 2.38;
+        cupLower.castShadow = true;
+
+        const cupUpper = new THREE.Mesh(new THREE.CylinderGeometry(1.08, 0.95, 0.55, 32), shinyGoldMat);
+        cupUpper.position.y = 3.00;
+
+        const cupRim = new THREE.Mesh(new THREE.TorusGeometry(1.08, 0.08, 16, 32), shinyGoldMat);
+        cupRim.rotation.x = Math.PI / 2; cupRim.position.y = 3.28;
+
+        // Gold Embossed Medallion & Ruby Gem
+        const starMedallion = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.05, 16), shinyGoldMat);
+        starMedallion.rotation.x = Math.PI / 2; starMedallion.position.set(0, 2.50, 0.72);
+        const rubyCenter = new THREE.Mesh(new THREE.SphereGeometry(0.10, 12, 12), rubyMat);
+        rubyCenter.position.set(0, 2.50, 0.76);
+
+        // Molten glowing gold treasure inside cup
+        const insideGold = new THREE.Mesh(new THREE.CircleGeometry(0.96, 32), shinyGoldMat);
+        insideGold.rotation.x = -Math.PI / 2; insideGold.position.y = 3.02;
+
+        trophyGroup.add(cupLower, cupUpper, cupRim, starMedallion, rubyCenter, insideGold);
+
+        // D. Sweeping Dual Sculpted Trophy Handles
+        [-1, 1].forEach(dir => {
+          const handle = new THREE.Mesh(
+            new THREE.TorusGeometry(0.58, 0.075, 16, 32, Math.PI * 1.35),
+            shinyGoldMat
+          );
+          handle.rotation.z = dir * (Math.PI * 0.45);
+          handle.position.set(dir * 1.05, 2.50, 0);
+          handle.castShadow = true;
+
+          const handleFinial = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), shinyGoldMat);
+          handleFinial.position.set(dir * 1.52, 2.86, 0);
+
+          trophyGroup.add(handle, handleFinial);
+        });
+
+        // E. Floating Radiant Crown / Diamond Gem atop Trophy
+        const crownGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), rubyMat);
+        crownGem.position.y = 3.62;
+        const crownRing = new THREE.Mesh(new THREE.TorusGeometry(0.40, 0.04, 12, 24), shinyGoldMat);
+        crownRing.rotation.x = Math.PI / 2; crownRing.position.y = 3.50;
+
+        trophyGroup.add(crownGem, crownRing);
+        window.jackpotTrophyGem = crownGem;
+
         g.add(trophyGroup);
 
-        const jLight = new THREE.PointLight(0xffd700, 2.8, 18);
-        jLight.position.set(0, 4.0, 0);
+        // 4. Radiant Golden Light
+        const jLight = new THREE.PointLight(0xffd700, 3.2, 18);
+        jLight.position.set(0, 4.2, 0);
         g.add(jLight);
 
-        // 4 Corner Palms
+        // 5. Four Corner Palms
         [[-5.2, -5.2], [5.2, -5.2], [-5.2, 5.2], [5.2, 5.2]].forEach(([px, pz]) => {
           const p = createCasinoPalmTree(); p.position.set(px, 0, pz);
           g.add(p);
@@ -3755,46 +4083,321 @@
         return g;
       }
 
-      // 12. Dice Duel Pit (Two 1v1 Velvet Craps Tables + "VS" Badge + Couches)
+      // 12. Grand Luxury Craps & Dice Duel Table (Expanded felt tabletop with padded perimeter rails)
       function createDiceDuelPit() {
         const g = new THREE.Group();
-        const woodMat = new THREE.MeshStandardMaterial({ color: 0x1a0f28, roughness: 0.4 });
-        const feltMat = new THREE.MeshStandardMaterial({ color: 0x065f46, roughness: 0.7 });
+        const woodMat = new THREE.MeshStandardMaterial({ color: 0x1a0f28, roughness: 0.35, metalness: 0.2 });
+        const mahoganyMat = new THREE.MeshStandardMaterial({ color: 0x14081c, roughness: 0.4 });
         const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
+        const leatherMat = new THREE.MeshStandardMaterial({ color: 0x0e0618, roughness: 0.6 });
+        const bumperMat = new THREE.MeshStandardMaterial({ color: 0x1e1532, roughness: 0.8 });
 
-        // Left & Right 1v1 Dice Tables
-        [-2.0, 2.0].forEach(tx => {
-          const table = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.85, 2.4), woodMat);
-          table.position.set(tx, 0.425, 0);
-          const felt = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.05, 2.2), feltMat);
-          felt.position.set(tx, 0.86, 0);
-          const rail = new THREE.Mesh(new THREE.BoxGeometry(1.88, 0.12, 2.48), goldMat);
-          rail.position.set(tx, 0.88, 0);
-          g.add(table, felt, rail);
-
-          // Couches behind each table
-          const couch = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.55, 0.8),
-            new THREE.MeshStandardMaterial({ color: 0x140d24, emissive: 0x06b6d4, emissiveIntensity: 0.2 }));
-          couch.position.set(tx, 0.275, 1.8);
-          g.add(couch);
-
-          // 3D Chip Stack on Table Corner
-          const cStack = create3DChipStackMesh(tx < 0 ? 100 : 250, 0.075, 0.020);
-          cStack.position.set(tx + (tx < 0 ? 0.6 : -0.6), 0.885, -0.8);
-          g.add(cStack);
+        // 1. Table Legs (4 Carved Fluted Legs with Brass Feet)
+        const legCoords = [[-2.15, -1.15], [2.15, -1.15], [-2.15, 1.15], [2.15, 1.15]];
+        legCoords.forEach(([lx, lz]) => {
+          const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.82, 16), woodMat);
+          leg.position.set(lx, 0.41, lz);
+          leg.castShadow = true;
+          const brassFoot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.08, 16), goldMat);
+          brassFoot.position.set(lx, 0.04, lz);
+          const goldRing = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.018, 8, 20), goldMat);
+          goldRing.rotation.x = Math.PI / 2; goldRing.position.set(lx, 0.72, lz);
+          g.add(leg, brassFoot, goldRing);
         });
 
-        // Center Glowing "VS" Sign Badge
-        const vsCanvas = document.createElement('canvas'); vsCanvas.width = 256; vsCanvas.height = 256;
-        const vCtx = vsCanvas.getContext('2d');
-        vCtx.fillStyle = '#0f081d'; vCtx.fillRect(0, 0, 256, 256);
-        vCtx.strokeStyle = '#06b6d4'; vCtx.lineWidth = 10; vCtx.strokeRect(12, 12, 232, 232);
-        vCtx.font = '900 96px Segoe UI'; vCtx.fillStyle = '#38bdf8'; vCtx.textAlign = 'center';
-        vCtx.fillText('VS', 128, 160);
-        const vsTex = new THREE.CanvasTexture(vsCanvas);
-        const vsSign = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.0), new THREE.MeshBasicMaterial({ map: vsTex }));
-        vsSign.position.set(0, 1.5, 0);
-        g.add(vsSign);
+        // 2. Heavy Solid Table Base Chassis
+        const baseBox = new THREE.Mesh(new THREE.BoxGeometry(4.70, 0.14, 2.70), woodMat);
+        baseBox.position.set(0, 0.85, 0);
+        baseBox.castShadow = true;
+        const baseTrim = new THREE.Mesh(new THREE.BoxGeometry(4.76, 0.05, 2.76), goldMat);
+        baseTrim.position.set(0, 0.80, 0);
+        g.add(baseBox, baseTrim);
+
+        // 3. Canvas Texture for Craps Velvet Felt (Betting grids, PASS LINE, FIELD, numbers)
+        const feltCanvas = document.createElement('canvas');
+        feltCanvas.width = 1024; feltCanvas.height = 512;
+        const fCtx = feltCanvas.getContext('2d');
+        fCtx.fillStyle = '#064e3b';
+        fCtx.fillRect(0, 0, 1024, 512);
+
+        // Grid / Inlay borders
+        fCtx.strokeStyle = 'rgba(212, 175, 55, 0.75)';
+        fCtx.lineWidth = 6;
+        fCtx.strokeRect(20, 20, 984, 472);
+        fCtx.strokeStyle = 'rgba(212, 175, 55, 0.40)';
+        fCtx.lineWidth = 3;
+        fCtx.strokeRect(32, 32, 960, 448);
+
+        // Center line & VS Badge on felt
+        fCtx.beginPath();
+        fCtx.moveTo(512, 32); fCtx.lineTo(512, 480);
+        fCtx.stroke();
+
+        fCtx.fillStyle = 'rgba(212, 175, 55, 0.12)';
+        fCtx.beginPath(); fCtx.arc(512, 256, 96, 0, Math.PI * 2); fCtx.fill();
+        fCtx.strokeStyle = 'rgba(212, 175, 55, 0.6)'; fCtx.stroke();
+
+        fCtx.fillStyle = '#fde047';
+        fCtx.font = '900 40px Segoe UI'; fCtx.textAlign = 'center'; fCtx.textBaseline = 'middle';
+        fCtx.fillText('⚔️ DICE DUEL ⚔️', 512, 256);
+
+        // Left Player Area Markings
+        fCtx.fillStyle = '#a7f3d0';
+        fCtx.font = '700 26px Segoe UI';
+        fCtx.fillText('JUGADOR 1', 256, 75);
+        fCtx.strokeStyle = 'rgba(167, 243, 208, 0.4)';
+        fCtx.strokeRect(50, 110, 410, 290);
+        fCtx.font = '900 52px Segoe UI'; fCtx.fillStyle = 'rgba(167, 243, 208, 0.25)';
+        fCtx.fillText('FIELD 🎲', 256, 256);
+
+        // Right Player Area Markings
+        fCtx.fillStyle = '#fed7aa';
+        fCtx.font = '700 26px Segoe UI';
+        fCtx.fillText('JUGADOR 2 / BANCA', 768, 75);
+        fCtx.strokeStyle = 'rgba(254, 215, 170, 0.4)';
+        fCtx.strokeRect(564, 110, 410, 290);
+        fCtx.font = '900 52px Segoe UI'; fCtx.fillStyle = 'rgba(254, 215, 170, 0.25)';
+        fCtx.fillText('FIELD 🎲', 768, 256);
+
+        const feltTex = new THREE.CanvasTexture(feltCanvas);
+        const feltMat = new THREE.MeshStandardMaterial({ map: feltTex, roughness: 0.8 });
+        const tableFelt = new THREE.Mesh(new THREE.BoxGeometry(4.30, 0.02, 2.30), feltMat);
+        tableFelt.position.set(0, 0.92, 0);
+        tableFelt.receiveShadow = true;
+        g.add(tableFelt);
+
+        // 4. Raised Wide Outer Perimeter Wood Walls & Cushioned Leather Armrests
+        const wallH = 0.32;
+        const wallThickness = 0.32; // Borde exterior notablemente más ancho y robusto
+
+        // Long Walls (Front and Back at z = +-1.34)
+        [-1.34, 1.34].forEach(wz => {
+          const w = new THREE.Mesh(new THREE.BoxGeometry(4.96, wallH, wallThickness), mahoganyMat);
+          w.position.set(0, 0.92 + wallH / 2, wz);
+          const leatherArm = new THREE.Mesh(new THREE.BoxGeometry(5.02, 0.08, wallThickness + 0.12), leatherMat);
+          leatherArm.position.set(0, 0.92 + wallH + 0.04, wz);
+          const goldTrim = new THREE.Mesh(new THREE.BoxGeometry(5.04, 0.02, wallThickness + 0.14), goldMat);
+          goldTrim.position.set(0, 0.92 + wallH, wz);
+          g.add(w, leatherArm, goldTrim);
+        });
+
+        // Short Walls (Left and Right at x = +-2.36)
+        [-2.36, 2.36].forEach(wx => {
+          const w = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallH, 2.96), mahoganyMat);
+          w.position.set(wx, 0.92 + wallH / 2, 0);
+          const leatherArm = new THREE.Mesh(new THREE.BoxGeometry(wallThickness + 0.12, 0.08, 3.02), leatherMat);
+          leatherArm.position.set(wx, 0.92 + wallH + 0.04, 0);
+          const goldTrim = new THREE.Mesh(new THREE.BoxGeometry(wallThickness + 0.14, 0.02, 3.04), goldMat);
+          goldTrim.position.set(wx, 0.92 + wallH, 0);
+          g.add(w, leatherArm, goldTrim);
+        });
+
+        // 5. Pyramid Rubber Bumpers on Interior Walls (Craps dice bounce backstops)
+        [-2.17, 2.17].forEach(bx => {
+          for (let py = 0; py < 3; py++) {
+            const bumper = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, 2.20), bumperMat);
+            bumper.position.set(bx + (bx > 0 ? -0.02 : 0.02), 0.96 + py * 0.09, 0);
+            g.add(bumper);
+          }
+        });
+
+        // 6. Luxury 2-Tiered Mahogany & Gold 3D Dealer Chip Box mounted ON TOP of the wide outer back rail
+        const trayBase = new THREE.Mesh(
+          new THREE.BoxGeometry(1.72, 0.035, 0.44),
+          new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 })
+        );
+        trayBase.position.set(0, 1.285, -1.34);
+
+        const trayGoldBorder = new THREE.Mesh(
+          new THREE.BoxGeometry(1.76, 0.025, 0.48),
+          new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 })
+        );
+        trayGoldBorder.position.set(0, 1.275, -1.34);
+
+        const trayGroup = new THREE.Group();
+        trayGroup.add(trayBase, trayGoldBorder);
+
+        const diceChipStacks = [];
+
+        // Row 1 (Back row, z = -1.43): Low stakes $0.1, $0.2, $0.5, $1, $2, $5, $10, $20
+        // Row 2 (Front row, z = -1.25): High stakes $50, $100, $200, $500, $1K, $2K, $5K, $10K
+        CASINO_CHIPS.forEach((cDef, cIdx) => {
+          const isHighRow = cIdx >= 8;
+          const col = isHighRow ? (cIdx - 8) : cIdx;
+          const posX = -0.66 + col * 0.190;
+          const posZ = isHighRow ? -1.25 : -1.43;
+
+          const stack = new THREE.Group();
+          stack.position.set(posX, 1.295, posZ);
+          stack.userData = { chipVal: cDef.v };
+          stack.name = 'diceChipStack_' + cDef.v;
+
+          for (let h = 0; h < 4; h++) {
+            const chipM = create3DChipSingleMesh(cDef, 0.060, 0.014);
+            chipM.position.y = h * 0.015 + 0.007;
+            chipM.rotation.y = (h * 0.35) % (Math.PI * 2);
+            stack.add(chipM);
+          }
+
+          // Floating 3D Value Label with gold border
+          const labelCanvas = document.createElement('canvas');
+          labelCanvas.width = 128; labelCanvas.height = 64;
+          const lCtx = labelCanvas.getContext('2d');
+          lCtx.fillStyle = '#0f081d';
+          if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
+          lCtx.fill();
+          lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
+          lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
+          lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
+          lCtx.fillText(cDef.str, 64, 32);
+
+          const labelTex = new THREE.CanvasTexture(labelCanvas);
+          const labelSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex, depthTest: false }));
+          labelSpr.scale.set(0.16, 0.08, 1);
+          labelSpr.position.set(0, 0.125, 0);
+          stack.add(labelSpr);
+
+          trayGroup.add(stack);
+          diceChipStacks.push(stack);
+        });
+        g.add(trayGroup);
+
+        // 7. Dedicated Betting Trays for Both Player Seats Built Directly on the Table's Front Border Rail
+        const diceBetSpots = [];
+        const betTrayPlates = [
+          { x: -1.65, z: 1.34, label: 'APUESTAS J1 💰', pIdx: 0 },
+          { x: 1.65, z: 1.34, label: 'APUESTAS J2 💰', pIdx: 1 }
+        ];
+
+        betTrayPlates.forEach(tray => {
+          const trayGroup = new THREE.Group();
+          trayGroup.position.set(tray.x, 1.325, tray.z);
+
+          // Recessed wooden tray plate
+          const plate = new THREE.Mesh(
+            new THREE.BoxGeometry(0.72, 0.040, 0.38),
+            mahoganyMat
+          );
+          // Golden raised lip trim
+          const lip = new THREE.Mesh(
+            new THREE.BoxGeometry(0.76, 0.050, 0.42),
+            goldMat
+          );
+          lip.position.y = -0.002;
+          // Emerald velvet inlay bed
+          const velvetBed = new THREE.Mesh(
+            new THREE.BoxGeometry(0.66, 0.012, 0.32),
+            new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.75 })
+          );
+          velvetBed.position.y = 0.022;
+
+          // 3D Torus Solid Raised Gold / Neon Betting Ring (elevated cleanly above the velvet bed)
+          const ringMesh = new THREE.Mesh(
+            new THREE.TorusGeometry(0.17, 0.012, 12, 40),
+            new THREE.MeshStandardMaterial({
+              color: 0xfbbf24,
+              emissive: 0xfbbf24,
+              emissiveIntensity: 1.4,
+              metalness: 0.95,
+              roughness: 0.15
+            })
+          );
+          ringMesh.rotation.x = Math.PI / 2;
+          ringMesh.position.set(0, 0.035, 0);
+
+          // Outer Gold Trim Ring
+          const outerRing = new THREE.Mesh(
+            new THREE.TorusGeometry(0.22, 0.007, 10, 40),
+            new THREE.MeshStandardMaterial({
+              color: 0xd4af37,
+              emissive: 0xd4af37,
+              emissiveIntensity: 0.6,
+              metalness: 0.95,
+              roughness: 0.15
+            })
+          );
+          outerRing.rotation.x = Math.PI / 2;
+          outerRing.position.set(0, 0.035, 0);
+
+          // Floating 3D Label Tag with gold border
+          const tagCanvas = document.createElement('canvas');
+          tagCanvas.width = 256; tagCanvas.height = 64;
+          const tCtx = tagCanvas.getContext('2d');
+          tCtx.fillStyle = '#0f081d';
+          if (tCtx.roundRect) tCtx.roundRect(4, 4, 248, 56, 12); else tCtx.rect(4, 4, 248, 56);
+          tCtx.fill();
+          tCtx.strokeStyle = '#f59e0b'; tCtx.lineWidth = 4; tCtx.stroke();
+          tCtx.font = '900 24px "Segoe UI", Arial, sans-serif';
+          tCtx.fillStyle = '#fde047'; tCtx.textAlign = 'center'; tCtx.textBaseline = 'middle';
+          tCtx.fillText(tray.label, 128, 32);
+
+          const tagTex = new THREE.CanvasTexture(tagCanvas);
+          const tagSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tagTex, depthTest: false }));
+          tagSpr.scale.set(0.32, 0.08, 1);
+          tagSpr.position.set(0, 0.14, 0);
+
+          trayGroup.add(lip, plate, velvetBed, ringMesh, outerRing, tagSpr);
+          g.add(trayGroup);
+
+          // Raycastable sensor disc directly over the tray on the rail
+          const spotHitMesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.40, 0.40, 0.12, 16),
+            new THREE.MeshBasicMaterial({ visible: false })
+          );
+          spotHitMesh.position.set(tray.x, 1.34, tray.z);
+          spotHitMesh.userData = { isDiceBetSpot: true, playerIndex: tray.pIdx };
+          g.add(spotHitMesh);
+          diceBetSpots.push(spotHitMesh);
+        });
+
+        // 8. 3D Active Bet Chips Group (Mounted at rail height)
+        const diceChipsGroup = new THREE.Group();
+        g.add(diceChipsGroup);
+
+        // Function to visually highlight the selected 3D chip stack in the dealer tray atop the rail
+        function update3DDiceChipRackSelection() {
+          if (!diceChipStacks) return;
+          const curVal = (typeof dState !== 'undefined' && dState && typeof dState.selectedChip === 'number') ? dState.selectedChip : 50;
+          diceChipStacks.forEach(stack => {
+            const val = stack.userData.chipVal;
+            const isSelected = (val === curVal);
+            stack.position.y = isSelected ? 1.325 : 1.295;
+            stack.scale.set(isSelected ? 1.20 : 1.0, isSelected ? 1.20 : 1.0, isSelected ? 1.20 : 1.0);
+          });
+        }
+
+        // 9. Two Decorative Resting Dice on the Table (20% smaller: size 0.336)
+        const restDie1 = makeDieMesh(0.336, 0x8B5CF6);
+        restDie1.position.set(-0.85, 0.92 + 0.17, 0.20);
+        restDie1.rotation.set(0.1, 0.5, 0.05);
+        const restDie2 = makeDieMesh(0.336, 0xFB923C);
+        restDie2.position.set(0.85, 0.92 + 0.17, -0.20);
+        restDie2.rotation.set(-0.08, -0.3, 0.12);
+        g.add(restDie1, restDie2);
+
+        // 10. Container for Live Physics Dice
+        const diceRollGroup = new THREE.Group();
+        g.add(diceRollGroup);
+
+        // 11. Overhead Warm Casino Table Light
+        const tableLight = new THREE.PointLight(0x38bdf8, 2.0, 10);
+        tableLight.position.set(0, 2.8, 0);
+        g.add(tableLight);
+
+        // Save reference for physics engine & 3D raycasting
+        dice3DRefs = {
+          group: g,
+          rollGroup: diceRollGroup,
+          chipsGroup: diceChipsGroup,
+          chipStacks: diceChipStacks,
+          betSpots: diceBetSpots,
+          felt: tableFelt,
+          restDice: [restDie1, restDie2],
+          boundX: 2.05,    // límite interior X ampliado de la mesa de dados
+          boundZ: 1.05,    // límite interior Z ampliado de la mesa de dados
+          floorY: 0.92,    // altura exacta del fieltro sobre la mesa
+          update3DDiceChipRackSelection
+        };
 
         return g;
       }
@@ -4176,7 +4779,8 @@
         }
 
         /* 3D seats around table / zone (Clean unified luxury casino stools resting directly on platform) */
-        z.seats.forEach(seat => {
+        if (z.id !== 'jackpot') {
+          z.seats.forEach(seat => {
           const stoolGroup = new THREE.Group();
           stoolGroup.position.set(seat.x - z.x, platY + platH / 2, seat.z - z.z);
           stoolGroup.rotation.y = seat.r;
@@ -4221,11 +4825,13 @@
           stoolGroup.add(stoolFoot, stoolStem, stoolFootrest, stoolCushion, stoolGoldRim);
           g.add(stoolGroup);
         });
+      }
 
         /* Centerpiece 3D Model construction */
         let centerpiece;
         if (z.id === 'roulette') {
           const rGroup = new THREE.Group();
+          rGroup.position.z = 0.70;
 
           // 2. ELEVATED 3D ROULETTE WHEEL STATION
           const wheelGroup = new THREE.Group();
@@ -4889,6 +5495,7 @@
           roulette3DRefs = { group: rGroup, rotor: rotorGroup, ball: ballMesh, feltMesh, draw3DFeltGrid, update3DPlacedChips, update3DChipRackSelection, chipMeshes: chip3DMeshes, spinBtn: null, lastWinPocketAngle: -0.4263 };
         } else if (z.id === 'plinko') {
           const plinkoGroup = new THREE.Group();
+          plinkoGroup.position.z = -3.20;
 
           // Procedural Polished Mahogany Wood Texture for Plinko Cabinet
           const woodCanvas = document.createElement('canvas'); woodCanvas.width = 512; woodCanvas.height = 512;
@@ -5071,44 +5678,14 @@
           plinkoGroup.add(plinkoBallsGroup);
 
           centerpiece = plinkoGroup;
-          plinko3DRefs = { group: plinkoGroup, pegs: pegs3DMeshes, buckets: bucketMeshes, ballsGroup: plinkoBallsGroup };
-        } else if (z.id === 'dice') {
-          const dGroup = new THREE.Group();
-
-          // Bounded felt pit that contains the physics dice roll
-          const pitR = 1.35;
-          const pitFloor = new THREE.Mesh(new THREE.CylinderGeometry(pitR, pitR, 0.08, 32),
-            new THREE.MeshStandardMaterial({ color: 0x120a24, roughness: 0.7 }));
-          pitFloor.position.y = 0.4; pitFloor.receiveShadow = true;
-          dGroup.add(pitFloor);
-
-          // Raised rim wall (bounces dice back into the pit)
-          const rimWall = new THREE.Mesh(new THREE.TorusGeometry(pitR, 0.09, 10, 40),
-            new THREE.MeshStandardMaterial({ color: 0x241a3d, emissive: 0xE11FD1, emissiveIntensity: 0.5 }));
-          rimWall.rotation.x = Math.PI / 2; rimWall.position.y = 0.46;
-          dGroup.add(rimWall);
-
-          // Two decorative dice resting in the pit before the first roll
-          const restDie1 = makeDieMesh(0.5, 0x8B5CF6);
-          restDie1.position.set(-0.5, 0.68, 0.15);
-          restDie1.rotation.set(0.1, 0.5, 0.05);
-          const restDie2 = makeDieMesh(0.5, 0xFB923C);
-          restDie2.position.set(0.5, 0.68, -0.15);
-          restDie2.rotation.set(-0.08, -0.3, 0.12);
-          dGroup.add(restDie1, restDie2);
-
-          // Container for the live physics dice spawned on each roll
-          const diceRollGroup = new THREE.Group();
-          dGroup.add(diceRollGroup);
-
-          centerpiece = dGroup;
-          dice3DRefs = {
-            group: dGroup,
-            rollGroup: diceRollGroup,
-            restDice: [restDie1, restDie2],
-            pitRadius: pitR - 0.22,   // margen interior para el rebote de los dados
-            floorY: 0.68,             // altura de la superficie del fieltro donde reposan los dados
+          plinko3DRefs = {
+            group: plinkoGroup,
+            ballsGroup: plinkoBallsGroup,
+            pegs: pegs3DMeshes,
+            buckets: bucketMeshes
           };
+        } else if (z.id === 'dice') {
+          centerpiece = createDiceDuelPit();
         } else if (z.id === 'coin') {
           const coinGroup = new THREE.Group();
 
@@ -6420,15 +6997,30 @@
           toLook = new THREE.Vector3(
             z.x + (seat.x - z.x) * 0.15,
             0.78,
-            z.z - 0.50
+            z.z + 0.30
           );
           if (roulette3DRefs && roulette3DRefs.update3DChipRackSelection) roulette3DRefs.update3DChipRackSelection();
         } else if (gameId === 'plinko') {
-          toPos = new THREE.Vector3(z.x, 3.5, z.z + 7.8);
-          toLook = new THREE.Vector3(z.x, 2.6, z.z - 0.4);
+          toPos = new THREE.Vector3(z.x, 3.8, z.z + 4.6);
+          toLook = new THREE.Vector3(z.x, 2.8, z.z - 3.2);
         } else if (gameId === 'dice') {
-          toPos = new THREE.Vector3(z.x + 0.3, 3.4, z.z + 3.4);
-          toLook = new THREE.Vector3(z.x, 0.68, z.z);
+          // Elevated high-angle camera overlooking the dice craps table felt and chip tray
+          const eyeY = 4.30;
+          const backDist = 0.50;
+          toPos = new THREE.Vector3(
+            seat.x - Math.sin(seat.r) * backDist,
+            eyeY,
+            seat.z - Math.cos(seat.r) * backDist
+          );
+          toLook = new THREE.Vector3(
+            z.x,
+            0.92,
+            z.z
+          );
+          if (typeof update3DDiceChips === 'function') update3DDiceChips(dState.bet);
+          if (dice3DRefs && dice3DRefs.update3DDiceChipRackSelection) {
+            dice3DRefs.update3DDiceChipRackSelection();
+          }
         } else if (gameId === 'coin') {
           toPos = new THREE.Vector3(z.x, 3.8, z.z + 4.4);
           toLook = new THREE.Vector3(z.x, 1.1, z.z - 0.2);
@@ -6514,12 +7106,78 @@
       const tableMouse = new THREE.Vector2();
 
       window.addEventListener('click', e => {
-        if (state.mode !== 'roulette' && state.mode !== 'mines' && state.mode !== 'blackjack') return;
+        if (state.mode !== 'roulette' && state.mode !== 'mines' && state.mode !== 'blackjack' && state.mode !== 'dice') return;
         if (e.target.tagName !== 'CANVAS') return;
 
         tableMouse.x = (e.clientX / window.innerWidth) * 2 - 1;
         tableMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
         tableRaycaster.setFromCamera(tableMouse, camera);
+
+        // Dados (Dice Duel 3D): seleccionar fichas en la bandeja 3D y apostar directamente en el tapete 3D
+        if (state.mode === 'dice') {
+          if (dice3DRefs) {
+            // 1. Clic en las 16 pilas de fichas 3D de la bandeja -> SELECCIONA el valor de la ficha
+            if (dice3DRefs.chipStacks) {
+              const diceHits = tableRaycaster.intersectObjects(dice3DRefs.chipStacks, true);
+              if (diceHits.length > 0) {
+                let obj = diceHits[0].object;
+                while (obj && !obj.userData.chipVal) obj = obj.parent;
+                if (obj && obj.userData.chipVal) {
+                  playSound('chip');
+                  dState.selectedChip = roundMoney(obj.userData.chipVal);
+                  showToast(`Ficha seleccionada: ${formatMoney(dState.selectedChip)}. Pulsa en tu zona de apuesta para añadir.`);
+                  if (dice3DRefs.update3DDiceChipRackSelection) {
+                    dice3DRefs.update3DDiceChipRackSelection();
+                  }
+                  return;
+                }
+              }
+            }
+
+            // 2. Clic en el montón de fichas / zona de apuestas del tapete -> AÑADE la ficha seleccionada por cada clic
+            let hitBetArea = false;
+
+            // Detección directa en el montón físico 3D de fichas apostadas
+            if (dice3DRefs.chipsGroup) {
+              const pileHits = tableRaycaster.intersectObjects(dice3DRefs.chipsGroup.children, true);
+              if (pileHits.length > 0) hitBetArea = true;
+            }
+
+            // Detección en los discos sensores de las bandejas de apuesta en el borde
+            if (!hitBetArea && dice3DRefs.betSpots) {
+              const spotHits = tableRaycaster.intersectObjects(dice3DRefs.betSpots, false);
+              if (spotHits.length > 0) hitBetArea = true;
+            }
+
+            // Detección en las bandejas o tapete de la mesa
+            if (!hitBetArea && dice3DRefs.felt) {
+              const feltHits = tableRaycaster.intersectObject(dice3DRefs.felt, false);
+              if (feltHits.length > 0) hitBetArea = true;
+            }
+
+            if (hitBetArea) {
+              if (dState.rolling) {
+                showToast('⏳ Espera a que termine la tirada para cambiar tu apuesta');
+                return;
+              }
+              const addVal = roundMoney((typeof dState.selectedChip === 'number' && dState.selectedChip > 0) ? dState.selectedChip : 50);
+              const nextBet = roundMoney((dState.bet || 0) + addVal);
+              if (nextBet > state.balance) {
+                showToast('⚠️ No tienes suficiente saldo para esa apuesta');
+                return;
+              }
+              playSound('chip');
+              dState.bet = nextBet;
+
+              const display = document.getElementById('diceBetDisplay');
+              if (display) display.textContent = formatMoney(dState.bet);
+              if (typeof update3DDiceChips === 'function') update3DDiceChips(dState.bet);
+              showToast(`+${formatMoney(addVal)} añadido a la apuesta (Total: ${formatMoney(dState.bet)})`);
+              return;
+            }
+          }
+          return;
+        }
 
         // Blackjack: seleccionar denominación en la bandeja 3D y añadir al montón junto a las cartas por cada clic
         if (state.mode === 'blackjack') {
@@ -7235,27 +7893,53 @@
       /* ============================================================
          2. DICE DUEL LOGIC — MOTOR DE FÍSICA REAL PARA LOS DADOS
       ============================================================ */
-      const dState = { bet: 50, rolling: false };
-      document.querySelectorAll('#chipRackDice .chip').forEach(c => {
-        c.addEventListener('click', () => {
+      const dState = { bet: 50, selectedChip: 50, rolling: false };
+
+      function update3DDiceChips(betAmount) {
+        if (!dice3DRefs || !dice3DRefs.chipsGroup) return;
+        const grp = dice3DRefs.chipsGroup;
+        while (grp.children && grp.children.length > 0) grp.remove(grp.children[0]);
+        const amt = Math.max(0, betAmount || 0);
+        if (amt > 0) {
+          // Detectar dinámicamente en qué asiento está sentado el jugador (0 = Asiento Izquierdo, 1 = Asiento Derecho)
+          const mySeatIdx = (state.player.currentSeat && state.player.currentSeat.zone === 'dice' && typeof state.player.currentSeat.seatIndex === 'number')
+            ? state.player.currentSeat.seatIndex
+            : 0;
+          const targetX = (mySeatIdx === 1) ? 1.65 : -1.65;
+
+          // Renderizar pila física 3D de fichas apostadas dentro del círculo de apuesta de la bandeja de su asiento
+          const stackM = create3DChipStackMesh(amt, 0.075, 0.018);
+          stackM.position.set(targetX, 1.350, 1.34);
+          grp.add(stackM);
+        }
+      }
+
+      // Botón para borrar/reiniciar la apuesta a 0
+      const diceClearBtn = document.getElementById('diceClearBetBtn');
+      if (diceClearBtn) {
+        diceClearBtn.addEventListener('click', () => {
+          if (dState.rolling) return;
           playSound('chip');
-          document.querySelectorAll('#chipRackDice .chip').forEach(x => x.classList.remove('selected'));
-          c.classList.add('selected'); dState.bet = parseInt(c.dataset.v, 10);
-          document.getElementById('diceBetDisplay').textContent = '$' + dState.bet;
+          dState.bet = 0;
+          const display = document.getElementById('diceBetDisplay');
+          if (display) display.textContent = '$0';
+          update3DDiceChips(0);
         });
-      });
+      }
 
       let activeDiceRoll = null; // { dice:[...], resolved:false }
       const DICE_FACE_EMOJI = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
-      function spawnPhysicsDie(localX, localZ, accentHex) {
-        const mesh = makeDieMesh(0.42, accentHex);
-        // Altura de lanzamiento equilibrada y prolongada (5.4m - 6.0m)
-        const spawnY = 5.4 + Math.random() * 0.6;
+      function spawnPhysicsDie(localX, localZ, accentHex, targetNum = null) {
+        // Tamaño reducido un 20%: 0.42 * 0.80 = 0.336 (halfSize = 0.168)
+        const mesh = makeDieMesh(0.336, accentHex);
+        const floorY = (dice3DRefs && typeof dice3DRefs.floorY === 'number') ? dice3DRefs.floorY : 0.92;
+        // Altura de lanzamiento sobre el fieltro de la mesa
+        const spawnY = floorY + 1.85 + Math.random() * 0.30;
         mesh.position.set(
-          localX + (Math.random() - 0.5) * 0.18,
+          localX + (Math.random() - 0.5) * 0.14,
           spawnY,
-          localZ + (Math.random() - 0.5) * 0.18
+          localZ + (Math.random() - 0.5) * 0.14
         );
         mesh.rotation.set(
           Math.random() * Math.PI * 2,
@@ -7263,29 +7947,34 @@
           Math.random() * Math.PI * 2
         );
         dice3DRefs.rollGroup.add(mesh);
+
+        // Impulso inicial dirigido hacia el centro del tapete
+        const dirToCenter = new THREE.Vector2(-localX, -localZ).normalize();
+        const throwSpeed = 1.05 + Math.random() * 0.45;
+
         return {
           mesh,
-          // Impulso inicial con parábola suave y sostenida
           vel: new THREE.Vector3(
-            (Math.random() - 0.5) * 2.0,
-            1.6 + Math.random() * 0.5,
-            (Math.random() - 0.5) * 2.0
+            dirToCenter.x * throwSpeed + (Math.random() - 0.5) * 0.5,
+            1.35 + Math.random() * 0.45,
+            dirToCenter.y * throwSpeed + (Math.random() - 0.5) * 0.5
           ),
-          // Rotación 3D natural y continua
+          // Rotación 3D viva, continua y equilibrada (sin trompicones)
           angVel: new THREE.Vector3(
-            (Math.random() - 0.5) * 24,
-            (Math.random() - 0.5) * 26,
-            (Math.random() - 0.5) * 24
+            (Math.random() > 0.5 ? 1 : -1) * (14 + Math.random() * 8),
+            (Math.random() - 0.5) * 10,
+            (Math.random() > 0.5 ? 1 : -1) * (14 + Math.random() * 8)
           ),
-          restitution: 0.82, // Rebote vivo y duradero
+          restitution: 0.68,
           bounceCount: 0,
           settled: false,
-          groundedTimer: 0,
+          lifeTimer: 0,
           snapT: -1,
           snapFrom: null,
           snapTo: null,
+          lastTickTime: 0,
           value: 1,
-          targetVal: null
+          targetVal: targetNum
         };
       }
 
@@ -7296,112 +7985,221 @@
           dice3DRefs.rollGroup.remove(dice3DRefs.rollGroup.children[0]);
         }
         const playerDice = [
-          spawnPhysicsDie(-0.55, 0.30, 0x8B5CF6),
-          spawnPhysicsDie(-0.25, -0.30, 0x8B5CF6),
+          spawnPhysicsDie(-0.65, 0.20, 0x8B5CF6),
+          spawnPhysicsDie(-0.30, -0.20, 0x8B5CF6),
         ];
         const houseDice = [
-          spawnPhysicsDie(0.55, 0.30, 0xFB923C),
-          spawnPhysicsDie(0.25, -0.30, 0xFB923C),
+          spawnPhysicsDie(0.65, 0.20, 0xFB923C),
+          spawnPhysicsDie(0.30, -0.20, 0xFB923C),
         ];
         activeDiceRoll = { player: playerDice, house: houseDice, resolved: false };
       }
 
+      // 8 Esquinas unitarias de un cubo para detección precisa de colisión en cualquier ángulo de rotación
+      const DIE_LOCAL_CORNERS = [
+        new THREE.Vector3(-1, -1, -1),
+        new THREE.Vector3(-1, -1,  1),
+        new THREE.Vector3(-1,  1, -1),
+        new THREE.Vector3(-1,  1,  1),
+        new THREE.Vector3( 1, -1, -1),
+        new THREE.Vector3( 1, -1,  1),
+        new THREE.Vector3( 1,  1, -1),
+        new THREE.Vector3( 1,  1,  1)
+      ];
+
+      // Quaterniones base exactos para orientar cada cara (DIE_FACE_VALUES = [2, 5, 1, 6, 3, 4]) hacia arriba (+Y)
+      const BASE_FACE_QUATS = [
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2), // Face 0 (val 2, +X -> +Y)
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1),  Math.PI / 2), // Face 1 (val 5, -X -> +Y)
+        new THREE.Quaternion(),                                                            // Face 2 (val 1, +Y -> +Y)
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0),  Math.PI),     // Face 3 (val 6, -Y -> +Y)
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2), // Face 4 (val 3, +Z -> +Y)
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0),  Math.PI / 2), // Face 5 (val 4, -Z -> +Y)
+      ];
+
       function updateDicePhysics(dt) {
         if (!dice3DRefs || !activeDiceRoll) return;
-        // Gravedad natural calibrada a 9.8 para un movimiento flotante y duradero
-        const gravity = 9.8;
-        const floorY = dice3DRefs.floorY;
-        const halfSize = 0.21;
-        const boundR = dice3DRefs.pitRadius - 0.08;
+        const clampedDt = Math.min(0.033, dt);
+        const gravity = 8.8; // Gravedad constante y natural
+        const floorY = (dice3DRefs.floorY !== undefined) ? dice3DRefs.floorY : 0.92;
+        const halfSize = 0.168; // 0.336 / 2
+        const boundX = (dice3DRefs.boundX !== undefined) ? (dice3DRefs.boundX - 0.05) : 2.00;
+        const boundZ = (dice3DRefs.boundZ !== undefined) ? (dice3DRefs.boundZ - 0.05) : 1.00;
         const all = activeDiceRoll.player.concat(activeDiceRoll.house);
         let allSettled = true;
 
+        const TOTAL_DURATION = 6.8; // 6.8s de rebotes y pérdida de energía continua muy gradual
+
         all.forEach(d => {
+          d.lifeTimer = (d.lifeTimer || 0) + clampedDt;
+          const t = d.lifeTimer;
+
+          // Factor de energía continuo de 1.0 a 0.0 a lo largo de los 6.8 segundos
+          const energy = Math.max(0, 1 - (t / TOTAL_DURATION));
+          const energyCurve = Math.pow(energy, 0.75); // Curva convexa para mantener rebotes activos durante todo el tiempo
+
+          // Si ya terminó de decantarse, mantenerlo quieto sobre su cara
           if (d.settled) {
-            // Suave slerp cúbico hacia la orientación final una vez estabilizado
             if (d.snapT >= 0 && d.snapT < 1) {
-              d.snapT = Math.min(1, d.snapT + dt * 2.0);
+              d.snapT = Math.min(1, d.snapT + clampedDt * 3.5);
               const easeT = 1 - Math.pow(1 - d.snapT, 3);
               d.mesh.quaternion.slerpQuaternions(d.snapFrom, d.snapTo, easeT);
             }
+            d.mesh.position.y = floorY + halfSize;
             return;
           }
           allSettled = false;
 
-          // Integración de gravedad y posición
-          d.vel.y -= gravity * dt;
-          d.mesh.position.x += d.vel.x * dt;
-          d.mesh.position.y += d.vel.y * dt;
-          d.mesh.position.z += d.vel.z * dt;
+          // Integración de gravedad
+          d.vel.y -= gravity * clampedDt;
 
-          // Fricción aerodinámica suave para mantener la inercia
-          d.vel.x *= Math.pow(0.988, dt * 60);
-          d.vel.z *= Math.pow(0.988, dt * 60);
+          // Integración de posición
+          d.mesh.position.x += d.vel.x * clampedDt;
+          d.mesh.position.y += d.vel.y * clampedDt;
+          d.mesh.position.z += d.vel.z * clampedDt;
 
-          // Integración de rotación 3D a partir de la velocidad angular
+          // Fricción suave en el aire (conserva la inercia)
+          const airDamp = 0.998 - 0.010 * (1 - energyCurve);
+          d.vel.x *= Math.pow(airDamp, clampedDt * 60);
+          d.vel.z *= Math.pow(airDamp, clampedDt * 60);
+
+          // Integración de rotación 3D (conserva el giro continuo disminuyendo muy poco a poco)
           const angMag = d.angVel.length();
           if (angMag > 0.0001) {
             const axis = d.angVel.clone().normalize();
-            const dq = new THREE.Quaternion().setFromAxisAngle(axis, angMag * dt);
+            const dq = new THREE.Quaternion().setFromAxisAngle(axis, angMag * clampedDt);
             d.mesh.quaternion.premultiply(dq);
+
+            const rotDamp = 0.996 - 0.012 * (1 - energyCurve);
+            d.angVel.multiplyScalar(Math.pow(rotDamp, clampedDt * 60));
           }
 
-          // Colisión con el suelo (cadena prolongada de 9 a 14 rebotes con disipación muy suave)
-          if (d.mesh.position.y <= floorY + halfSize) {
-            d.mesh.position.y = floorY + halfSize;
-            if (Math.abs(d.vel.y) > 0.14) {
+          // Calcular las 8 esquinas del cubo rotado en coordenadas mundiales locales
+          let minY = Infinity, maxY = -Infinity;
+          let minX = Infinity, maxX = -Infinity;
+          let minZ = Infinity, maxZ = -Infinity;
+          let lowestCorner = null;
+
+          for (let i = 0; i < 8; i++) {
+            const cv = DIE_LOCAL_CORNERS[i].clone().multiplyScalar(halfSize).applyQuaternion(d.mesh.quaternion);
+            if (cv.y < minY) { minY = cv.y; lowestCorner = cv; }
+            if (cv.y > maxY) maxY = cv.y;
+            if (cv.x < minX) minX = cv.x;
+            if (cv.x > maxX) maxX = cv.x;
+            if (cv.z < minZ) minZ = cv.z;
+            if (cv.z > maxZ) maxZ = cv.z;
+          }
+
+          // COLISIÓN Y REBOTE CONTINUO SOBRE EL TAPETE (REBOTA TODO EL RATO PERDIENDO ENERGÍA POCO A POCO)
+          const targetGroundY = floorY - minY;
+          if (d.mesh.position.y <= targetGroundY) {
+            d.mesh.position.y = targetGroundY;
+
+            // Restitución dinámica que decrece suavemente desde 0.72 hasta 0.0
+            const currentRestitution = 0.72 * energyCurve;
+            const r = lowestCorner || new THREE.Vector3(0, -halfSize, 0);
+
+            if (d.vel.y < -0.15 && currentRestitution > 0.08) {
               d.bounceCount++;
-              // Rebote elástico
-              d.vel.y = -d.vel.y * d.restitution;
-              // Pérdida progresiva y pausada de energía (89% de conservación de energía por bote)
-              d.restitution = Math.max(0.24, d.restitution * 0.89);
-              d.vel.x *= 0.88;
-              d.vel.z *= 0.88;
+              // Rebote elástico vertical proporcional a la energía restante
+              d.vel.y = -d.vel.y * currentRestitution;
 
-              // Impulso rotacional dinámico tras cada impacto
-              d.angVel.x += (Math.random() - 0.5) * Math.abs(d.vel.y) * 7.5;
-              d.angVel.z += (Math.random() - 0.5) * Math.abs(d.vel.y) * 7.5;
-              d.angVel.multiplyScalar(0.88);
+              // Pequeño impulso rotacional orgánico al golpear esquinas
+              d.angVel.x += r.z * d.vel.y * 3.5 * energyCurve;
+              d.angVel.z -= r.x * d.vel.y * 3.5 * energyCurve;
 
-              if (Math.abs(d.vel.y) > 0.22) {
+              // Pérdida de velocidad horizontal gradual
+              const floorFriction = 0.94 + 0.04 * energyCurve;
+              d.vel.x *= floorFriction;
+              d.vel.z *= floorFriction;
+
+              // Sonido de rebote
+              if (t - (d.lastTickTime || 0) > 0.09) {
                 playSound('tick');
+                d.lastTickTime = t;
               }
-              d.groundedTimer = 0;
             } else {
-              // Micro-rebotes sucesivos y rodamiento prolongado antes de detenerse
-              if (d.restitution > 0.24) {
-                d.bounceCount++;
-                d.vel.y = -d.vel.y * d.restitution;
-                d.restitution *= 0.78;
-              } else {
-                d.vel.y = 0;
-              }
-              d.vel.x *= Math.pow(0.82, dt * 60);
-              d.vel.z *= Math.pow(0.82, dt * 60);
-              d.angVel.multiplyScalar(Math.pow(0.84, dt * 60));
-              d.groundedTimer += dt;
+              // Rodamiento suave en los últimos segundos
+              d.vel.y = 0;
+              const rollFriction = 0.982 - 0.04 * (1 - energyCurve);
+              d.vel.x *= Math.pow(rollFriction, clampedDt * 60);
+              d.vel.z *= Math.pow(rollFriction, clampedDt * 60);
+
+              // Rodadura acoplada
+              const rollAngX = d.vel.z / halfSize;
+              const rollAngZ = -d.vel.x / halfSize;
+              d.angVel.x = THREE.MathUtils.lerp(d.angVel.x, rollAngX, clampedDt * 2.5);
+              d.angVel.z = THREE.MathUtils.lerp(d.angVel.z, rollAngZ, clampedDt * 2.5);
             }
           }
 
-          // Colisión con la pared circular del cuenco
-          const dist = Math.hypot(d.mesh.position.x, d.mesh.position.z);
-          if (dist > boundR) {
-            const nx = d.mesh.position.x / dist, nz = d.mesh.position.z / dist;
-            d.mesh.position.x = nx * boundR;
-            d.mesh.position.z = nz * boundR;
-            const vDotN = d.vel.x * nx + d.vel.z * nz;
-            if (vDotN > 0) {
-              d.vel.x -= 1.62 * vDotN * nx;
-              d.vel.z -= 1.62 * vDotN * nz;
-              d.vel.y += Math.abs(vDotN) * 0.22;
-              d.angVel.y += (Math.random() - 0.5) * 8;
-              playSound('tick');
+          // REBOTES SUAVES CON LAS BANDAS DE LA MESA (BUMPERS)
+          const wallRestitution = 0.65 * energyCurve + 0.10;
+          if (d.mesh.position.x + maxX > boundX) {
+            d.mesh.position.x = boundX - maxX;
+            if (d.vel.x > 0) {
+              d.vel.x = -d.vel.x * wallRestitution;
+              d.vel.y += 0.08 * energyCurve;
+              d.angVel.z -= 3.0 * energyCurve;
+              if (t - (d.lastTickTime || 0) > 0.12) { playSound('tick'); d.lastTickTime = t; }
             }
+          } else if (d.mesh.position.x + minX < -boundX) {
+            d.mesh.position.x = -boundX - minX;
+            if (d.vel.x < 0) {
+              d.vel.x = -d.vel.x * wallRestitution;
+              d.vel.y += 0.08 * energyCurve;
+              d.angVel.z += 3.0 * energyCurve;
+              if (t - (d.lastTickTime || 0) > 0.12) { playSound('tick'); d.lastTickTime = t; }
+            }
+          }
+
+          if (d.mesh.position.z + maxZ > boundZ) {
+            d.mesh.position.z = boundZ - maxZ;
+            if (d.vel.z > 0) {
+              d.vel.z = -d.vel.z * wallRestitution;
+              d.vel.y += 0.08 * energyCurve;
+              d.angVel.x += 3.0 * energyCurve;
+              if (t - (d.lastTickTime || 0) > 0.12) { playSound('tick'); d.lastTickTime = t; }
+            }
+          } else if (d.mesh.position.z + minZ < -boundZ) {
+            d.mesh.position.z = -boundZ - minZ;
+            if (d.vel.z < 0) {
+              d.vel.z = -d.vel.z * wallRestitution;
+              d.vel.y += 0.08 * energyCurve;
+              d.angVel.x -= 3.0 * energyCurve;
+              if (t - (d.lastTickTime || 0) > 0.12) { playSound('tick'); d.lastTickTime = t; }
+            }
+          }
+
+          // DECANTACIÓN FINAL CUANDO LA ENERGÍA SE EXTINGUE NATURALMENTE AL FINAL DE LOS 6.8 - 7.0 SEGUNDOS
+          const stagger = ((d.mesh.id || 0) % 4) * 0.12;
+          if (t >= (TOTAL_DURATION + stagger) && !d.settled) {
+            d.settled = true;
+            d.vel.set(0, 0, 0);
+            d.angVel.set(0, 0, 0);
+
+            // Determinar la cara ganadora hacia arriba
+            d.value = (typeof d.targetVal === 'number') ? d.targetVal : readDieFaceUp(d.mesh);
+
+            let targetFaceIdx = 2;
+            for (let i = 0; i < 6; i++) {
+              if (DIE_FACE_VALUES[i] === d.value) { targetFaceIdx = i; break; }
+            }
+
+            // Orientación limpia final (+Y perfectamente perpendicular al techo)
+            const euler = new THREE.Euler().setFromQuaternion(d.mesh.quaternion, 'YXZ');
+            const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), euler.y);
+            const targetQuat = yawQuat.clone().multiply(BASE_FACE_QUATS[targetFaceIdx]);
+
+            d.snapFrom = d.mesh.quaternion.clone();
+            d.snapTo = targetQuat;
+            d.snapT = 0;
+            playSound('tick');
           }
         });
 
-        // Colisión física entre dados
-        const minDist = 0.42;
+        // Colisión elástica entre dados (sin vibración)
+        const minDist = 0.336;
         for (let i = 0; i < all.length; i++) {
           for (let j = i + 1; j < all.length; j++) {
             const d1 = all[i];
@@ -7441,7 +8239,7 @@
               const velAlongNormal = rvx * nx + rvy * ny + rvz * nz;
 
               if (velAlongNormal < 0) {
-                const restitution = 0.65;
+                const restitution = 0.55;
                 const impulse = -(1 + restitution) * velAlongNormal * 0.5;
 
                 const impX = nx * impulse;
@@ -7452,44 +8250,17 @@
                   d1.vel.x -= impX;
                   d1.vel.y -= impY;
                   d1.vel.z -= impZ;
-                  d1.angVel.x += (Math.random() - 0.5) * impulse * 6;
-                  d1.angVel.z += (Math.random() - 0.5) * impulse * 6;
-                  d1.groundedTimer = 0;
                 }
                 if (!d2.settled) {
                   d2.vel.x += impX;
                   d2.vel.y += impY;
                   d2.vel.z += impZ;
-                  d2.angVel.x += (Math.random() - 0.5) * impulse * 6;
-                  d2.angVel.z += (Math.random() - 0.5) * impulse * 6;
-                  d2.groundedTimer = 0;
                 }
-                playSound('tick');
+                if (Math.abs(velAlongNormal) > 0.25) playSound('tick');
               }
             }
           }
         }
-
-        // Criterio de asentamiento extendido y prolongado (9-14 rebotes continuos)
-        all.forEach(d => {
-          const settledEnough = d.vel.length() < 0.06 && d.angVel.length() < 0.18 && d.groundedTimer > 0.45 && d.bounceCount >= 9;
-          if (settledEnough && !d.settled) {
-            d.settled = true;
-            d.value = (typeof d.targetVal === 'number') ? d.targetVal : readDieFaceUp(d.mesh);
-
-            // Orientación suave y exacta de la cara determinada por el servidor
-            const targetVal = d.value;
-            let targetFaceIdx = 2;
-            for (let i = 0; i < 6; i++) {
-              if (DIE_FACE_VALUES[i] === targetVal) { targetFaceIdx = i; break; }
-            }
-            const n = DIE_FACE_NORMALS[targetFaceIdx].clone().applyQuaternion(d.mesh.quaternion).normalize();
-            const correction = new THREE.Quaternion().setFromUnitVectors(n, new THREE.Vector3(0, 1, 0));
-            d.snapFrom = d.mesh.quaternion.clone();
-            d.snapTo = correction.multiply(d.mesh.quaternion.clone());
-            d.snapT = 0;
-          }
-        });
 
         if (allSettled && !activeDiceRoll.resolved) {
           activeDiceRoll.resolved = true;
@@ -8968,9 +9739,9 @@
         const pBallMesh = new THREE.Mesh(pBallGeo, pBallMat);
 
         // Initial Drop Position at Top Center of 3D Pyramid
-        const startX = (Math.random() - 0.5) * 0.15;
-        const startY = 5.2;
-        const startZ = 0.05;
+        const startX = (Math.random() - 0.5) * 0.18;
+        const startY = 5.25;
+        const startZ = -0.05 + (5.0 - startY) * Math.sin(0.16) + 0.08;
         pBallMesh.position.set(startX, startY, startZ);
         plinko3DRefs.ballsGroup.add(pBallMesh);
 
@@ -8980,7 +9751,7 @@
           y: startY,
           z: startZ,
           vx: (Math.random() - 0.5) * 0.4,
-          vy: -0.5,
+          vy: -0.6,
           vz: (Math.random() - 0.5) * 0.1,
           bet: plinkoBet
         });
@@ -10381,6 +11152,10 @@
             roulette3DRefs.ball.position.z = Math.cos(ballAbsAngle) * 0.84;
             roulette3DRefs.ball.position.y = 0.505;
           }
+        }
+        if (window.jackpotTrophyGem) {
+          window.jackpotTrophyGem.rotation.y += dt * 1.5;
+          window.jackpotTrophyGem.rotation.x += dt * 0.5;
         }
         Object.values(zoneMeshes).forEach(zm => {
           zm.pulse += 0.03;
