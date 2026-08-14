@@ -2407,13 +2407,13 @@
         },
         {
           id: 'cinema', name: 'CINE & MUSIC 3D', icon: '📺', x: 0, z: -26, radius: 6.2, color: 0x8B5CF6, seats: [
-            { x: -4.50, z: -23.80, r: Math.PI - 0.23 },
-            { x: -3.00, z: -24.60, r: Math.PI - 0.15 },
-            { x: -1.50, z: -25.20, r: Math.PI - 0.08 },
-            { x: 0.00, z: -25.50, r: Math.PI },
-            { x: 1.50, z: -25.20, r: Math.PI + 0.08 },
-            { x: 3.00, z: -24.60, r: Math.PI + 0.15 },
-            { x: 4.50, z: -23.80, r: Math.PI + 0.23 }
+            { x: -4.50, z: -24.20, r: Math.PI - 0.25 },
+            { x: -3.00, z: -23.80, r: Math.PI - 0.17 },
+            { x: -1.50, z: -23.50, r: Math.PI - 0.08 },
+            { x: 0.00, z: -23.40, r: Math.PI },
+            { x: 1.50, z: -23.50, r: Math.PI + 0.08 },
+            { x: 3.00, z: -23.80, r: Math.PI + 0.17 },
+            { x: 4.50, z: -24.20, r: Math.PI + 0.25 }
           ]
         },
         { id: 'wheel', name: 'FORTUNE WHEEL', icon: '🎡', x: 0, z: -15, radius: 3.4, color: 0xFB923C, seats: [{ x: -1.2, z: -13.6, r: Math.PI }, { x: 1.2, z: -13.6, r: Math.PI }] },
@@ -2677,14 +2677,14 @@
           floorRing2.rotation.x = -Math.PI / 2; floorRing2.position.y = 0.36;
           g.add(floorRing1, floorRing2);
 
-          // 4 Brass Stanchion Pillars with VIP Velvet Ropes
+          // 4 Brass Stanchion Pillars with VIP Velvet Ropes along sides & rear (open front towards TV)
           const stanchionMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.1 });
           const ropeMat = new THREE.MeshStandardMaterial({ color: 0x8B5CF6, roughness: 0.8, emissive: 0x8B5CF6, emissiveIntensity: 0.3 });
 
-          for (let sIdx = 0; sIdx < 4; sIdx++) {
-            const sAngle = (sIdx / 4) * Math.PI * 2 + Math.PI / 4;
-            const sx = Math.cos(sAngle) * (z.radius + 0.4);
-            const sz = Math.sin(sAngle) * (z.radius + 0.4);
+          const stanchionAngles = [0, Math.PI / 4, Math.PI * 3 / 4, Math.PI];
+          stanchionAngles.forEach(sAngle => {
+            const sx = Math.cos(sAngle) * (z.radius + 0.3);
+            const sz = Math.sin(sAngle) * (z.radius + 0.3);
 
             const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.1, 16), stanchionMat);
             post.position.set(sx, 0.55, sz);
@@ -2693,7 +2693,7 @@
             const baseCap = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.08, 16), stanchionMat);
             baseCap.position.set(sx, 0.04, sz);
             g.add(post, ballTop, baseCap);
-          }
+          });
         }
 
         const ring = new THREE.Mesh(new THREE.TorusGeometry(z.radius + 0.05, 0.05, 8, 48),
@@ -2726,12 +2726,19 @@
             armR.position.set(0.46, 0.32, 0);
             seatGroup.add(armL, armR);
 
-            // Reclined VIP Cinema Backrest
+            // Reclined VIP Cinema Backrest (Located at the rear of chair so it faces the TV screen)
             const backrest = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.80, 0.18),
               new THREE.MeshStandardMaterial({ color: 0x241744, emissive: 0x8B5CF6, emissiveIntensity: 0.2, roughness: 0.4 }));
-            backrest.position.set(0, 0.68, 0.38);
+            backrest.position.set(0, 0.68, -0.38);
+            backrest.rotation.x = -0.12; // Slight ergonomic cinema recline
             backrest.castShadow = true;
             seatGroup.add(backrest);
+
+            // Brass Cup Holder on Right Armrest
+            const cupHolder = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.10, 16),
+              new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.1 }));
+            cupHolder.position.set(0.46, 0.58, 0.22);
+            seatGroup.add(cupHolder);
 
             g.add(seatGroup);
           } else {
@@ -3918,6 +3925,9 @@
 
           bjGroup.position.y = 0.35;
           centerpiece = bjGroup;
+        } else if (z.id === 'cinema') {
+          // Cinema Zone: Clean open lounge stage ensuring direct line-of-sight to the TV
+          centerpiece = new THREE.Group();
         } else {
           centerpiece = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.2, 1.2),
             new THREE.MeshStandardMaterial({ color: 0x1f1438, emissive: new THREE.Color(z.color), emissiveIntensity: 0.3 }));
@@ -3930,7 +3940,11 @@
         g.add(light);
 
         const label = makeLabelSprite(z.name, z.icon, z.color);
-        label.position.set(0, 3.2, 0);
+        if (z.id === 'cinema') {
+          label.position.set(0, 4.4, 3.5); // Elevated behind seats at entrance, completely out of the TV view
+        } else {
+          label.position.set(0, 3.2, 0);
+        }
         g.add(label);
 
         scene.add(g);
@@ -4778,15 +4792,15 @@
           );
           if (typeof update3DBJChips === 'function') update3DBJChips(bjState.bet);
         } else if (gameId === 'cinema') {
-          // Posición de cámara desde la butaca específica del jugador con encuadre panorámico a la TV
+          // Eje de cámara a la altura natural y más baja del espectador sentado
           toPos = new THREE.Vector3(
-            seat.x - Math.sin(seat.r) * 0.40,
-            2.35,
-            seat.z - Math.cos(seat.r) * 0.40
+            seat.x,
+            1.75,
+            seat.z + 1.2
           );
-          toLook = new THREE.Vector3(0, 9.2, -42);
-          // Punto de pivote para poder orbitar la cámara con el ratón mientras se está sentado
-          state.cinemaPivot = new THREE.Vector3(0, 9.2, -42);
+          toLook = new THREE.Vector3(seat.x, 5.5, -42);
+          // Punto de pivote más bajo a la altura del asiento para orbitar
+          state.cinemaPivot = new THREE.Vector3(seat.x, 1.6, seat.z);
         }
 
         const start = performance.now();
