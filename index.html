@@ -2406,7 +2406,7 @@
         },
         { id: 'cinema', name: 'CINE & MUSIC 3D', icon: '📺', x: 0, z: -26, radius: 5.2, color: 0x8B5CF6, seats: [] },
         { id: 'wheel', name: 'FORTUNE WHEEL', icon: '🎡', x: 0, z: -15, radius: 3.4, color: 0xFB923C, seats: [{ x: -1.2, z: -13.6, r: Math.PI }, { x: 1.2, z: -13.6, r: Math.PI }] },
-        { id: 'dice', name: 'DICE DUEL', icon: '🎲', x: 14, z: -4, radius: 3.4, color: 0xE11FD1, seats: [{ x: 14.0, z: -2.2, r: Math.PI }, { x: 12.6, z: -2.6, r: Math.PI - 0.25 }, { x: 15.4, z: -2.6, r: Math.PI + 0.25 }] },
+        { id: 'dice', name: 'DICE DUEL', icon: '🎲', x: 14, z: -4, radius: 3.4, color: 0xE11FD1, seats: [{ x: 12.6, z: -2.6, r: Math.PI - 0.25 }, { x: 15.4, z: -2.6, r: Math.PI + 0.25 }] },
         {
           id: 'blackjack', name: 'BLACKJACK 21', icon: '🃏', x: 18, z: 7, radius: 3.4, color: 0x22c55e, seats: [
             { x: 15.60, z: 8.70, r: Math.PI - 0.78 },
@@ -4697,9 +4697,7 @@
           } else if (gameId === 'blackjack') {
             socket.emit('blackjackJoin', { blackjackId: 'blackjack', seatIndex: seat.seatIndex, bet: bjState.bet || 50 });
           } else if (gameId === 'dice') {
-            if (typeof diceCurrentMode !== 'undefined' && diceCurrentMode === 'versus') {
-              socket.emit('diceVersusJoin', { matchId: 'dice-versus-1', balance: state.balance });
-            }
+            socket.emit('diceVersusJoin', { matchId: 'dice-versus-1', seatIndex: (seat && typeof seat.seatIndex === 'number') ? seat.seatIndex : 0, balance: state.balance });
           }
         }
 
@@ -5650,17 +5648,17 @@
         const msg = document.getElementById('diceResultMsg');
 
         if (typeof socket !== 'undefined' && socket && res.winnerId === socket.id) {
-          title.textContent = '¡GANASTE!'; title.style.color = '#4ade80';
-          msg.className = 'win'; msg.textContent = '+$' + res.finalBet;
+          title.textContent = '¡TE LLEVAS EL BOTE!'; title.style.color = '#4ade80';
+          msg.className = 'win'; msg.textContent = '+$' + res.finalBet + ' (Bote total: $' + (res.finalBet * 2) + ')';
           triggerConfetti(); addXP(100);
           playSound('win');
         } else if (res.winnerId) {
-          title.textContent = 'PERDISTE'; title.style.color = '#f87171';
+          title.textContent = 'PERDISTE EL BOTE'; title.style.color = '#f87171';
           msg.className = 'lose'; msg.textContent = '-$' + res.finalBet;
           playSound('lose');
         } else {
           title.textContent = 'EMPATE'; title.style.color = '#d4d4d8';
-          msg.className = 'win'; msg.textContent = 'Reembolsado';
+          msg.className = 'win'; msg.textContent = 'Bote reembolsado';
         }
         banner.classList.add('show');
         dState.rolling = false;
@@ -5717,6 +5715,12 @@
         socket.on('diceVersusState', (vsData) => {
           if (!vsData) return;
           diceVersusState = vsData;
+
+          // Si hay 2 jugadores sentados en la mesa, activar automáticamente el modo versus 1v1
+          if (vsData.player1 && vsData.player2 && diceCurrentMode !== 'versus') {
+            switchDiceMode('versus');
+          }
+
           if (diceCurrentMode !== 'versus') return;
 
           const statusMsgEl = document.getElementById('diceVersusStatusMsg');
@@ -5725,6 +5729,15 @@
           const betBtn = document.getElementById('diceVersusBetBtn');
           const acceptBtn = document.getElementById('diceVersusAcceptBtn');
           const rejectBtn = document.getElementById('diceVersusRejectBtn');
+          const subTitle = document.getElementById('diceSubTitle');
+
+          if (subTitle) {
+            if (vsData.player1 && vsData.player2) {
+              subTitle.textContent = `⚔️ DUELO 1v1 · BOTE EN JUEGO: $${vsData.finalBet * 2} ($${vsData.finalBet} cada uno)`;
+            } else {
+              subTitle.textContent = 'DADOS VERSUS 1v1 · MULTIJUGADOR';
+            }
+          }
 
           if (statusMsgEl) statusMsgEl.textContent = vsData.statusMsg || 'DADOS VERSUS 1v1';
 

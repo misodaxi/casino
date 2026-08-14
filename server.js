@@ -1069,6 +1069,7 @@ io.on('connection', (socket) => {
     const m = getOrCreateDiceVersusState(matchId);
     const pName = (players[socket.id] && players[socket.id].name) || 'Jugador';
     const pBalance = (data && typeof data.balance === 'number') ? data.balance : 1000;
+    const reqSeat = (data && typeof data.seatIndex === 'number') ? data.seatIndex : null;
 
     if (m.player1 && m.player1.id === socket.id) {
       m.player1.name = pName;
@@ -1076,6 +1077,10 @@ io.on('connection', (socket) => {
     } else if (m.player2 && m.player2.id === socket.id) {
       m.player2.name = pName;
       m.player2.balance = pBalance;
+    } else if (reqSeat === 1 && !m.player2) {
+      m.player2 = { id: socket.id, name: pName, seatIndex: 1, bet: 50, accepted: false, balance: pBalance };
+    } else if (reqSeat === 0 && !m.player1) {
+      m.player1 = { id: socket.id, name: pName, seatIndex: 0, bet: 50, accepted: false, balance: pBalance };
     } else if (!m.player1) {
       m.player1 = { id: socket.id, name: pName, seatIndex: 0, bet: 50, accepted: false, balance: pBalance };
     } else if (!m.player2) {
