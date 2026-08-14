@@ -34,10 +34,17 @@ function getClientIp(socket) {
   return socket.handshake.address || (socket.request && socket.request.connection && socket.request.connection.remoteAddress) || '127.0.0.1';
 }
 
-// Global TV 3D Synchronized State
+// Global TV 3D Synchronized State & Multi-User Watch History
 const tvState = {
   videoId: '',
   playing: false,
+  currentTime: 0,
+  updatedAt: Date.now()
+};
+
+const tvLastWatched = {
+  videoId: '',
+  url: '',
   currentTime: 0,
   updatedAt: Date.now()
 };
@@ -687,13 +694,25 @@ function settleDiceVersusMatch(matchId) {
 function getSyncedTvState() {
   const now = Date.now();
   let current = tvState.currentTime;
-  if (tvState.playing) {
+  if (tvState.playing && tvState.videoId) {
     current += (now - tvState.updatedAt) / 1000;
+    if (current > 2) {
+      tvLastWatched.videoId = tvState.videoId;
+      tvLastWatched.url = 'https://www.youtube.com/watch?v=' + tvState.videoId;
+      tvLastWatched.currentTime = Math.max(0, Math.floor(current));
+      tvLastWatched.updatedAt = now;
+    }
   }
   return {
     videoId: tvState.videoId,
     playing: tvState.playing,
     currentTime: Math.max(0, current),
+    lastWatched: {
+      videoId: tvLastWatched.videoId,
+      url: tvLastWatched.url,
+      currentTime: tvLastWatched.currentTime,
+      updatedAt: tvLastWatched.updatedAt
+    },
     updatedAt: now
   };
 }
@@ -729,7 +748,13 @@ io.on('connection', (socket) => {
     tvState.playing = data.playing !== undefined ? !!data.playing : true;
     tvState.currentTime = Math.max(0, data.currentTime || 0);
     tvState.updatedAt = Date.now();
-    socket.broadcast.emit('tvStateUpdate', getSyncedTvState());
+
+    tvLastWatched.videoId = data.videoId;
+    tvLastWatched.url = data.url || ('https://www.youtube.com/watch?v=' + data.videoId);
+    tvLastWatched.currentTime = tvState.currentTime;
+    tvLastWatched.updatedAt = Date.now();
+
+    io.emit('tvStateUpdate', getSyncedTvState());
   });
 
   socket.on('tvPlay', (data) => {
@@ -738,6 +763,11 @@ io.on('connection', (socket) => {
       tvState.currentTime = Math.max(0, data.currentTime);
     }
     tvState.updatedAt = Date.now();
+    if (tvState.videoId && tvState.currentTime > 0) {
+      tvLastWatched.videoId = tvState.videoId;
+      tvLastWatched.currentTime = Math.floor(tvState.currentTime);
+      tvLastWatched.updatedAt = Date.now();
+    }
     socket.broadcast.emit('tvStateUpdate', getSyncedTvState());
   });
 
@@ -747,13 +777,35 @@ io.on('connection', (socket) => {
       tvState.currentTime = Math.max(0, data.currentTime);
     }
     tvState.updatedAt = Date.now();
+    if (tvState.videoId && tvState.currentTime > 0) {
+      tvLastWatched.videoId = tvState.videoId;
+      tvLastWatched.currentTime = Math.floor(tvState.currentTime);
+      tvLastWatched.updatedAt = Date.now();
+    }
     socket.broadcast.emit('tvStateUpdate', getSyncedTvState());
+  });
+
+  socket.on('tvProgress', (data) => {
+    if (!data || !data.videoId) return;
+    if (typeof data.currentTime === 'number' && data.currentTime > 0) {
+      tvLastWatched.videoId = data.videoId;
+      tvLastWatched.url = data.url || ('https://www.youtube.com/watch?v=' + data.videoId);
+      tvLastWatched.currentTime = Math.floor(data.currentTime);
+      tvLastWatched.updatedAt = Date.now();
+      tvState.currentTime = tvLastWatched.currentTime;
+      tvState.updatedAt = Date.now();
+    }
   });
 
   socket.on('tvSeek', (data) => {
     if (!data || typeof data.currentTime !== 'number') return;
     tvState.currentTime = Math.max(0, data.currentTime);
     tvState.updatedAt = Date.now();
+    if (tvState.videoId) {
+      tvLastWatched.videoId = tvState.videoId;
+      tvLastWatched.currentTime = Math.floor(tvState.currentTime);
+      tvLastWatched.updatedAt = Date.now();
+    }
     socket.broadcast.emit('tvStateUpdate', getSyncedTvState());
   });
 
@@ -1302,6 +1354,23 @@ io.on('connection', (socket) => {
         }
       }
       broadcastBlackjackState(bjId);
+    }
+
+    // If all players leave the casino, save TV position and clear active screen
+    if (Object.keys(players).length === 0) {
+      if (tvState.videoId) {
+        const now = Date.now();
+        let current = tvState.currentTime;
+        if (tvState.playing) current += (now - tvState.updatedAt) / 1000;
+        tvLastWatched.videoId = tvState.videoId;
+        tvLastWatched.url = 'https://www.youtube.com/watch?v=' + tvState.videoId;
+        tvLastWatched.currentTime = Math.max(0, Math.floor(current));
+        tvLastWatched.updatedAt = now;
+      }
+      tvState.videoId = '';
+      tvState.playing = false;
+      tvState.currentTime = 0;
+      tvState.updatedAt = Date.now();
     }
   });
 });

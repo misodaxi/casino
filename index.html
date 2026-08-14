@@ -4089,7 +4089,25 @@
             }
           });
 
-          if (data.tvState) applyTvServerState(data.tvState);
+          if (data.tvState) {
+            if (data.tvState.lastWatched) {
+              serverTvLastWatched = data.tvState.lastWatched;
+              if (typeof updateTvResumeCardUI === 'function') {
+                updateTvResumeCardUI(data.tvState.lastWatched);
+              }
+            }
+            if (data.tvState.videoId && data.tvState.playing) {
+              applyTvServerState(data.tvState);
+            } else {
+              tvVideoId = '';
+              tvVideoUrl = '';
+              tvIsPaused = true;
+              const iframe = document.getElementById('tvIframeElement');
+              if (iframe) iframe.src = 'about:blank';
+              const stateEl = document.getElementById('tvStatusState');
+              if (stateEl) stateEl.textContent = '⏹️ Pantalla en espera';
+            }
+          }
         });
 
         // 2. New Player Joined
@@ -7299,6 +7317,7 @@
       }
 
       let tvCurrentPlaybackSeconds = 0;
+      let serverTvLastWatched = null;
 
       function formatTimestamp(sec) {
         sec = Math.max(0, Math.floor(sec || 0));
@@ -7321,38 +7340,58 @@
             time: Math.floor(seconds),
             savedAt: Date.now()
           };
+          serverTvLastWatched = {
+            videoId: id,
+            url: data.url,
+            currentTime: data.time,
+            updatedAt: data.savedAt
+          };
           localStorage.setItem('casino_tv_last_watch', JSON.stringify(data));
-          updateTvResumeCardUI();
+          updateTvResumeCardUI(serverTvLastWatched);
+          if (socket && socket.connected) {
+            socket.emit('tvProgress', {
+              videoId: id,
+              url: data.url,
+              currentTime: data.time
+            });
+          }
         } catch (e) { }
       }
 
-      function updateTvResumeCardUI() {
+      function updateTvResumeCardUI(customData) {
         const resumeCard = document.getElementById('tvResumeCard');
         const resumeTitle = document.getElementById('tvResumeTitle');
         const resumeTime = document.getElementById('tvResumeTime');
         if (!resumeCard) return;
 
-        try {
-          const raw = localStorage.getItem('casino_tv_last_watch');
-          if (!raw) {
-            resumeCard.style.display = 'none';
-            return;
-          }
-          const data = JSON.parse(raw);
-          if (!data || !data.id || data.time < 2) {
-            resumeCard.style.display = 'none';
-            return;
-          }
+        let data = customData || serverTvLastWatched;
+        if (!data || !data.videoId || data.currentTime < 2) {
+          try {
+            const raw = localStorage.getItem('casino_tv_last_watch');
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed && parsed.id && parsed.time >= 2) {
+                data = {
+                  videoId: parsed.id,
+                  url: parsed.url,
+                  currentTime: parsed.time
+                };
+              }
+            }
+          } catch (e) { }
+        }
 
-          resumeCard.style.display = 'flex';
-          if (resumeTitle) {
-            resumeTitle.textContent = data.url || `YouTube: ${data.id}`;
-          }
-          if (resumeTime) {
-            resumeTime.textContent = `Minuto ${formatTimestamp(data.time)}`;
-          }
-        } catch (e) {
+        if (!data || !data.videoId || data.currentTime < 2) {
           resumeCard.style.display = 'none';
+          return;
+        }
+
+        resumeCard.style.display = 'flex';
+        if (resumeTitle) {
+          resumeTitle.textContent = data.url || `YouTube: ${data.videoId}`;
+        }
+        if (resumeTime) {
+          resumeTime.textContent = `Minuto ${formatTimestamp(data.currentTime)}`;
         }
       }
 
@@ -7428,6 +7467,7 @@
         if (emitToServer && socket && !isApplyingTvServerState) {
           socket.emit('tvChangeVideo', {
             videoId: id,
+            url: tvVideoUrl,
             currentTime: startTime,
             playing: true
           });
@@ -7436,18 +7476,52 @@
       }
 
       function applyTvServerState(serverState) {
-        if (!serverState || !serverState.videoId) return;
+        if (!serverState) return;
         isApplyingTvServerState = true;
 
-        const targetId = serverState.videoId;
-        const playing = serverState.playing !== undefined ? !!serverState.playing : true;
+        if (serverState.lastWatched && serverState.lastWatched.videoId) {
+          serverTvLastWatched = serverState.lastWatched;
+          try {
+            localStorage.setItem('casino_tv_last_watch', JSON.stringify({
+              id: serverState.lastWatched.videoId,
+              url: serverState.lastWatched.url,
+              time: serverState.lastWatched.currentTime,
+              savedAt: serverState.lastWatched.updatedAt
+            }));
+          } catch (e) { }
+          updateTvResumeCardUI(serverState.lastWatched);
+        }
+
+        const targetId = serverState.videoId || '';
+        const playing = !!serverState.playing;
         const targetTime = Math.max(0, serverState.currentTime || 0);
 
-        // Sincronizar vídeo de YouTube solo si es diferente
+        // Si no hay vídeo activo en el servidor, la pantalla queda vacía en espera
+        if (!targetId || !playing) {
+          if (tvVideoId && !targetId) {
+            tvVideoId = '';
+            tvVideoUrl = '';
+            tvIsPaused = true;
+            const iframe = document.getElementById('tvIframeElement');
+            if (iframe) iframe.src = 'about:blank';
+            const stateEl = document.getElementById('tvStatusState');
+            if (stateEl) stateEl.textContent = '⏹️ Pantalla en espera';
+          } else if (tvVideoId && !playing) {
+            tvIsPaused = true;
+            const btn = document.getElementById('tvPlayPauseBtn');
+            if (btn) btn.textContent = 'REPRODUCIR ▶️';
+            const stateEl = document.getElementById('tvStatusState');
+            if (stateEl) stateEl.textContent = '⏸️ En Pausa';
+            sendYtCommand('pauseVideo');
+          }
+          setTimeout(() => { isApplyingTvServerState = false; }, 500);
+          return;
+        }
+
+        // Si hay un vídeo activo reproduciéndose
         if (tvVideoId !== targetId) {
           loadYoutubeVideo(targetId, false, targetTime);
         } else {
-          // Si es el mismo vídeo, solo actualizar si el estado play/pause cambió
           if (tvIsPaused === playing) {
             tvIsPaused = !playing;
             const btn = document.getElementById('tvPlayPauseBtn');
@@ -7607,15 +7681,24 @@
       const tvResumeBtnEl = document.getElementById('tvResumeBtn');
       if (tvResumeBtnEl) {
         tvResumeBtnEl.addEventListener('click', () => {
-          try {
-            const raw = localStorage.getItem('casino_tv_last_watch');
-            if (!raw) return;
-            const data = JSON.parse(raw);
-            if (data && data.id) {
-              loadYoutubeVideo(data.id, true, data.time || 0);
-              closeTVModal();
-            }
-          } catch (e) { }
+          let vid = (serverTvLastWatched && serverTvLastWatched.videoId) || '';
+          let tim = (serverTvLastWatched && serverTvLastWatched.currentTime) || 0;
+          if (!vid) {
+            try {
+              const raw = localStorage.getItem('casino_tv_last_watch');
+              if (raw) {
+                const data = JSON.parse(raw);
+                if (data && data.id) {
+                  vid = data.id;
+                  tim = data.time || 0;
+                }
+              }
+            } catch (e) { }
+          }
+          if (vid) {
+            loadYoutubeVideo(vid, true, tim);
+            closeTVModal();
+          }
         });
       }
 
