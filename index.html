@@ -1829,19 +1829,9 @@
       <h2 id="diceTitle">DICE DUEL</h2><span id="diceSubTitle">TÚ VS LA CASA · GANA MÁS ALTO</span>
     </div>
 
-    <!-- Mode Selector: Solo vs Versus 1v1 -->
-    <div class="dice-mode-bar" style="display:flex; justify-content:center; gap:12px; margin: 8px 0 14px 0;">
-      <button class="mini-btn active-mode" id="diceModeSoloBtn"
-        style="padding:6px 18px; border-radius:20px; font-weight:800; background:#3b82f6; color:#fff;">👤 SOLO (VS
-        CASA)</button>
-      <button class="mini-btn" id="diceModeVersusBtn"
-        style="padding:6px 18px; border-radius:20px; font-weight:800; background:#374151; color:#9ca3af;">⚔️ DADOS
-        VERSUS 1v1</button>
-    </div>
-
-    <!-- Versus Status Banner -->
+    <!-- Status Banner for 1v1 Versus -->
     <div id="diceVersusStatusBox"
-      style="display:none; text-align:center; background:rgba(0,0,0,0.6); padding:8px 16px; border-radius:12px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.15);">
+      style="display:none; text-align:center; background:rgba(0,0,0,0.6); padding:8px 16px; border-radius:12px; margin: 8px 0 12px 0; border:1px solid rgba(255,255,255,0.15);">
       <div id="diceVersusStatusMsg" style="font-size:1.05rem; font-weight:800; color:#fbdf24;">Esperando rival...</div>
     </div>
 
@@ -5671,11 +5661,9 @@
       let diceVersusState = null;
       const diceProcessedRolls = new Set();
 
-      function switchDiceMode(mode) {
-        diceCurrentMode = mode;
-        const soloBtn = document.getElementById('diceModeSoloBtn');
-        const versusBtn = document.getElementById('diceModeVersusBtn');
+      function updateDiceTableUI(vsData) {
         const statusBox = document.getElementById('diceVersusStatusBox');
+        const statusMsgEl = document.getElementById('diceVersusStatusMsg');
         const rollBtn = document.getElementById('diceRollBtn');
         const betBtn = document.getElementById('diceVersusBetBtn');
         const acceptBtn = document.getElementById('diceVersusAcceptBtn');
@@ -5684,95 +5672,71 @@
         const p2Who = document.getElementById('diceP2Who');
         const subTitle = document.getElementById('diceSubTitle');
 
-        if (mode === 'solo') {
-          soloBtn.style.background = '#3b82f6'; soloBtn.style.color = '#fff';
-          versusBtn.style.background = '#374151'; versusBtn.style.color = '#9ca3af';
+        if (vsData && vsData.player1 && vsData.player2) {
+          // MODO 1v1 VERSUS AUTOMÁTICO (2 JUGADORES SENTADOS)
+          diceCurrentMode = 'versus';
+          if (statusBox) statusBox.style.display = 'block';
+          if (statusMsgEl) statusMsgEl.textContent = vsData.statusMsg || 'DADOS 1v1 · BOTE';
+
+          if (subTitle) {
+            subTitle.textContent = `⚔️ DUELO 1v1 · BOTE EN JUEGO: $${vsData.finalBet * 2} ($${vsData.finalBet} cada uno)`;
+          }
+
+          if (p1Who) p1Who.textContent = `👤 ${vsData.player1.name}`;
+          if (p2Who) p2Who.textContent = `👤 ${vsData.player2.name}`;
+
+          const isLocalP1 = typeof socket !== 'undefined' && socket && vsData.player1.id === socket.id;
+          const isLocalP2 = typeof socket !== 'undefined' && socket && vsData.player2.id === socket.id;
+          const localUser = isLocalP1 ? vsData.player1 : (isLocalP2 ? vsData.player2 : null);
+          const otherUser = isLocalP1 ? vsData.player2 : (isLocalP2 ? vsData.player1 : null);
+
+          if (vsData.status === 'PLAYER_2_JOINED') {
+            if (rollBtn) { rollBtn.style.display = 'inline-block'; rollBtn.textContent = 'APOSTAR AL BOTE 🎲'; }
+            if (betBtn) betBtn.style.display = 'none';
+            if (acceptBtn) acceptBtn.style.display = 'none';
+            if (rejectBtn) rejectBtn.style.display = 'none';
+          } else if (vsData.status === 'BET_PROPOSED') {
+            if (localUser && localUser.accepted) {
+              if (rollBtn) rollBtn.style.display = 'none';
+              if (betBtn) betBtn.style.display = 'none';
+              if (acceptBtn) acceptBtn.style.display = 'none';
+              if (rejectBtn) rejectBtn.style.display = 'none';
+            } else if (otherUser && otherUser.accepted) {
+              if (rollBtn) rollBtn.style.display = 'none';
+              if (betBtn) betBtn.style.display = 'none';
+              if (acceptBtn) { acceptBtn.style.display = 'inline-block'; acceptBtn.textContent = `ACEPTAR BOTE $${vsData.finalBet * 2} Y TIRAR 👍`; }
+              if (rejectBtn) rejectBtn.style.display = 'inline-block';
+            } else {
+              if (rollBtn) { rollBtn.style.display = 'inline-block'; rollBtn.textContent = 'APOSTAR AL BOTE 🎲'; }
+              if (betBtn) betBtn.style.display = 'none';
+              if (acceptBtn) acceptBtn.style.display = 'none';
+              if (rejectBtn) rejectBtn.style.display = 'none';
+            }
+          } else if (vsData.status === 'BET_LOCKED' || vsData.status === 'ROLLING' || vsData.status === 'SETTLED') {
+            if (rollBtn) rollBtn.style.display = 'none';
+            if (betBtn) betBtn.style.display = 'none';
+            if (acceptBtn) acceptBtn.style.display = 'none';
+            if (rejectBtn) rejectBtn.style.display = 'none';
+          }
+        } else {
+          // MODO SOLO CONTRA LA CASA (1 JUGADOR SENTADO)
+          diceCurrentMode = 'solo';
           if (statusBox) statusBox.style.display = 'none';
-          if (rollBtn) rollBtn.style.display = 'inline-block';
+          if (subTitle) subTitle.textContent = 'TÚ VS LA CASA · GANA MÁS ALTO';
+          if (p1Who) p1Who.textContent = '🙂 TÚ';
+          if (p2Who) p2Who.textContent = '🤖 LA CASA';
+          if (rollBtn) { rollBtn.style.display = 'inline-block'; rollBtn.textContent = 'TIRAR 🎲'; }
           if (betBtn) betBtn.style.display = 'none';
           if (acceptBtn) acceptBtn.style.display = 'none';
           if (rejectBtn) rejectBtn.style.display = 'none';
-          if (p1Who) p1Who.textContent = '🙂 TÚ';
-          if (p2Who) p2Who.textContent = '🤖 LA CASA';
-          if (subTitle) subTitle.textContent = 'TÚ VS LA CASA · GANA MÁS ALTO';
-        } else {
-          versusBtn.style.background = 'linear-gradient(135deg, #ec4899, #8b5cf6)'; versusBtn.style.color = '#fff';
-          soloBtn.style.background = '#374151'; soloBtn.style.color = '#9ca3af';
-          if (statusBox) statusBox.style.display = 'block';
-          if (rollBtn) rollBtn.style.display = 'none';
-          if (subTitle) subTitle.textContent = 'DADOS VERSUS 1v1 · MULTIJUGADOR';
-
-          if (typeof socket !== 'undefined' && socket && socket.connected) {
-            socket.emit('diceVersusJoin', { matchId: 'dice-versus-1', balance: state.balance });
-          }
         }
       }
-
-      document.getElementById('diceModeSoloBtn').addEventListener('click', () => switchDiceMode('solo'));
-      document.getElementById('diceModeVersusBtn').addEventListener('click', () => switchDiceMode('versus'));
 
       if (typeof socket !== 'undefined' && socket) {
         socket.on('diceVersusState', (vsData) => {
           if (!vsData) return;
           diceVersusState = vsData;
-
-          // Si hay 2 jugadores sentados en la mesa, activar automáticamente el modo versus 1v1
-          if (vsData.player1 && vsData.player2 && diceCurrentMode !== 'versus') {
-            switchDiceMode('versus');
-          }
-
-          if (diceCurrentMode !== 'versus') return;
-
-          const statusMsgEl = document.getElementById('diceVersusStatusMsg');
-          const p1Who = document.getElementById('diceP1Who');
-          const p2Who = document.getElementById('diceP2Who');
-          const betBtn = document.getElementById('diceVersusBetBtn');
-          const acceptBtn = document.getElementById('diceVersusAcceptBtn');
-          const rejectBtn = document.getElementById('diceVersusRejectBtn');
-          const subTitle = document.getElementById('diceSubTitle');
-
-          if (subTitle) {
-            if (vsData.player1 && vsData.player2) {
-              subTitle.textContent = `⚔️ DUELO 1v1 · BOTE EN JUEGO: $${vsData.finalBet * 2} ($${vsData.finalBet} cada uno)`;
-            } else {
-              subTitle.textContent = 'DADOS VERSUS 1v1 · MULTIJUGADOR';
-            }
-          }
-
-          if (statusMsgEl) statusMsgEl.textContent = vsData.statusMsg || 'DADOS VERSUS 1v1';
-
-          const isLocalP1 = vsData.player1 && vsData.player1.id === socket.id;
-          const isLocalP2 = vsData.player2 && vsData.player2.id === socket.id;
-
-          if (p1Who) p1Who.textContent = vsData.player1 ? `👤 ${vsData.player1.name}` : '👤 Esperando...';
-          if (p2Who) p2Who.textContent = vsData.player2 ? `👤 ${vsData.player2.name}` : '👤 Esperando...';
-
-          if (vsData.status === 'WAITING_FOR_PLAYER') {
-            if (betBtn) betBtn.style.display = 'none';
-            if (acceptBtn) acceptBtn.style.display = 'none';
-            if (rejectBtn) rejectBtn.style.display = 'none';
-          } else if (vsData.status === 'PLAYER_2_JOINED' || vsData.status === 'BET_PROPOSED') {
-            const localUser = isLocalP1 ? vsData.player1 : (isLocalP2 ? vsData.player2 : null);
-            const otherUser = isLocalP1 ? vsData.player2 : (isLocalP2 ? vsData.player1 : null);
-
-            if (localUser && localUser.accepted) {
-              if (betBtn) betBtn.style.display = 'none';
-              if (acceptBtn) acceptBtn.style.display = 'none';
-              if (rejectBtn) rejectBtn.style.display = 'none';
-            } else if (otherUser && (vsData.status === 'BET_PROPOSED' || otherUser.bet > localUser.bet)) {
-              if (betBtn) betBtn.style.display = 'none';
-              if (acceptBtn) acceptBtn.style.display = 'inline-block';
-              if (rejectBtn) rejectBtn.style.display = 'inline-block';
-            } else {
-              if (betBtn) betBtn.style.display = 'inline-block';
-              if (acceptBtn) acceptBtn.style.display = 'none';
-              if (rejectBtn) rejectBtn.style.display = 'none';
-            }
-          } else if (vsData.status === 'BET_LOCKED' || vsData.status === 'ROLLING' || vsData.status === 'SETTLED') {
-            if (betBtn) betBtn.style.display = 'none';
-            if (acceptBtn) acceptBtn.style.display = 'none';
-            if (rejectBtn) rejectBtn.style.display = 'none';
-          }
+          updateDiceTableUI(vsData);
         });
 
         socket.on('diceVersusRollStart', (data) => {
@@ -5831,12 +5795,6 @@
         };
       }
 
-      document.getElementById('diceVersusBetBtn').addEventListener('click', () => {
-        if (typeof socket !== 'undefined' && socket && socket.connected) {
-          socket.emit('diceVersusBet', { matchId: 'dice-versus-1', bet: dState.bet });
-        }
-      });
-
       document.getElementById('diceVersusAcceptBtn').addEventListener('click', () => {
         if (typeof socket !== 'undefined' && socket && socket.connected) {
           socket.emit('diceVersusAcceptBet', { matchId: 'dice-versus-1', balance: state.balance });
@@ -5852,6 +5810,12 @@
       document.getElementById('diceRollBtn').addEventListener('click', () => {
         if (dState.rolling) return;
         if (state.balance < dState.bet) { showToast('Saldo insuficiente'); return; }
+
+        if (diceCurrentMode === 'versus' && typeof socket !== 'undefined' && socket && socket.connected) {
+          socket.emit('diceVersusBet', { matchId: 'dice-versus-1', bet: dState.bet, balance: state.balance });
+          return;
+        }
+
         dState.rolling = true;
         state.balance -= dState.bet; updateBalanceUI();
         playSound('dice');

@@ -1141,26 +1141,32 @@ io.on('connection', (socket) => {
 
     if (m.player1.id === socket.id) {
       m.player1.bet = betVal;
-      m.player1.accepted = false;
+      m.player1.accepted = true;
+      if (data && typeof data.balance === 'number') m.player1.balance = data.balance;
     } else if (m.player2.id === socket.id) {
       m.player2.bet = betVal;
-      m.player2.accepted = false;
+      m.player2.accepted = true;
+      if (data && typeof data.balance === 'number') m.player2.balance = data.balance;
     } else {
       return;
     }
 
-    // Rule 5: Highest Bet Rule: finalBet = max(player1Bet, player2Bet)
     m.finalBet = Math.max(m.player1.bet, m.player2.bet);
-    m.status = 'BET_PROPOSED';
 
-    if (m.player1.bet === m.player2.bet) {
-      m.statusMsg = `Apuesta propuesta: $${m.finalBet}. Esperando confirmación.`;
+    if (m.player1.accepted && m.player2.accepted) {
+      m.status = 'BET_LOCKED';
+      m.statusMsg = `¡Bote de $${m.finalBet * 2} fijado ($${m.finalBet} cada uno)! ¡Lanzando dados...!`;
+      broadcastDiceVersusState(matchId);
+
+      setTimeout(() => {
+        startDiceVersusRoll(matchId);
+      }, 1000);
     } else {
-      const higherPlayer = (m.player1.bet > m.player2.bet) ? m.player1.name : m.player2.name;
-      m.statusMsg = `${higherPlayer} ha establecido una apuesta de $${m.finalBet}`;
+      m.status = 'BET_PROPOSED';
+      const sender = (m.player1.id === socket.id) ? m.player1.name : m.player2.name;
+      m.statusMsg = `${sender} propone bote de $${m.finalBet * 2} ($${m.finalBet} cada uno)`;
+      broadcastDiceVersusState(matchId);
     }
-
-    broadcastDiceVersusState(matchId);
   });
 
   socket.on('diceVersusAcceptBet', (data) => {
@@ -1181,29 +1187,13 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Confirmation from both players required
-    if (m.player1.accepted && m.player2.accepted) {
-      // Server-side balance verification
-      if (m.player1.balance < m.finalBet || m.player2.balance < m.finalBet) {
-        m.status = 'CANCELLED';
-        m.player1.accepted = false;
-        m.player2.accepted = false;
-        m.statusMsg = 'Saldo insuficiente para uno de los jugadores';
-        broadcastDiceVersusState(matchId);
-        return;
-      }
+    m.status = 'BET_LOCKED';
+    m.statusMsg = `¡Bote de $${m.finalBet * 2} aceptado ($${m.finalBet} cada uno)! ¡Lanzando dados...!`;
+    broadcastDiceVersusState(matchId);
 
-      m.status = 'BET_LOCKED';
-      m.statusMsg = `¡Apuesta fijada en $${m.finalBet}! Preparados...`;
-      broadcastDiceVersusState(matchId);
-
-      setTimeout(() => {
-        startDiceVersusRoll(matchId);
-      }, 1200);
-    } else {
-      m.statusMsg = 'Esperando confirmación del rival...';
-      broadcastDiceVersusState(matchId);
-    }
+    setTimeout(() => {
+      startDiceVersusRoll(matchId);
+    }, 1000);
   });
 
   socket.on('diceVersusRejectBet', (data) => {
