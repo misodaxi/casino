@@ -4096,14 +4096,19 @@
                 updateTvResumeCardUI(data.tvState.lastWatched);
               }
             }
-            // Pantalla en espera de inicio: no carga automáticamente hasta pulsar Reanudar o cargar un vídeo
-            tvVideoId = '';
-            tvVideoUrl = '';
-            tvIsPaused = true;
-            const iframe = document.getElementById('tvIframeElement');
-            if (iframe) iframe.src = 'about:blank';
-            const stateEl = document.getElementById('tvStatusState');
-            if (stateEl) stateEl.textContent = '⏹️ Pantalla en espera';
+            // Si al entrar ya hay un vídeo reproduciéndose activamente en la sala, cargarlo y sincronizarlo de inmediato
+            if (data.tvState.videoId && data.tvState.playing) {
+              applyTvServerState(data.tvState);
+            } else {
+              // Si no hay ningún vídeo activo, la pantalla permanece en reposo
+              tvVideoId = '';
+              tvVideoUrl = '';
+              tvIsPaused = true;
+              const iframe = document.getElementById('tvIframeElement');
+              if (iframe) iframe.src = 'about:blank';
+              const stateEl = document.getElementById('tvStatusState');
+              if (stateEl) stateEl.textContent = '⏹️ Pantalla en espera';
+            }
           }
         });
 
