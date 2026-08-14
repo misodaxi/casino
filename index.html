@@ -7314,7 +7314,19 @@
       }
 
       let tvCurrentPlaybackSeconds = 0;
+      let tvLastPlayStartRealTime = 0;
+      let tvPlayAnchorSecond = 0;
+      let lastTvProgressEmitTime = 0;
       let serverTvLastWatched = null;
+
+      function tvGetExactSecond() {
+        if (!tvVideoId) return 0;
+        if (!tvIsPaused && tvLastPlayStartRealTime > 0) {
+          const elapsed = (performance.now() - tvLastPlayStartRealTime) / 1000;
+          return Math.max(0, tvPlayAnchorSecond + elapsed);
+        }
+        return Math.max(0, tvCurrentPlaybackSeconds);
+      }
 
       function formatTimestamp(sec) {
         sec = Math.max(0, Math.floor(sec || 0));
@@ -7328,30 +7340,36 @@
         return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
       }
 
-      function saveTvLastWatched(id, url, seconds) {
+      function saveTvLastWatched(id, url, seconds, immediate = false) {
         if (!id) return;
         const cleanSec = Math.max(0, Math.floor(seconds || 0));
+        const now = Date.now();
         try {
           const data = {
             id: id,
             url: url || ('https://www.youtube.com/watch?v=' + id),
             time: cleanSec,
-            savedAt: Date.now()
+            savedAt: now
           };
           serverTvLastWatched = {
             videoId: id,
             url: data.url,
             currentTime: cleanSec,
-            updatedAt: data.savedAt
+            updatedAt: now
           };
           localStorage.setItem('casino_tv_last_watch', JSON.stringify(data));
           updateTvResumeCardUI(serverTvLastWatched);
+
           if (socket && socket.connected) {
-            socket.emit('tvProgress', {
-              videoId: id,
-              url: data.url,
-              currentTime: cleanSec
-            });
+            const timeSinceLastEmit = now - lastTvProgressEmitTime;
+            if (immediate || timeSinceLastEmit >= 1000) {
+              lastTvProgressEmitTime = now;
+              socket.emit('tvProgress', {
+                videoId: id,
+                url: data.url,
+                currentTime: cleanSec
+              });
+            }
           }
         } catch (e) { }
       }
@@ -7393,21 +7411,66 @@
         }
       }
 
+      function flushTvSave() {
+        if (tvVideoId) {
+          const exactSec = tvGetExactSecond();
+          tvCurrentPlaybackSeconds = exactSec;
+          saveTvLastWatched(tvVideoId, tvVideoUrl, exactSec, true);
+        }
+      }
+
+      window.addEventListener('beforeunload', flushTvSave);
+      window.addEventListener('pagehide', flushTvSave);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+          flushTvSave();
+        }
+      });
+
       setInterval(() => {
         if (tvVideoId && !tvIsPaused) {
-          tvCurrentPlaybackSeconds += 1;
-          if (tvCurrentPlaybackSeconds >= 2) {
-            saveTvLastWatched(tvVideoId, tvVideoUrl, tvCurrentPlaybackSeconds);
-          }
+          sendYtCommand('getCurrentTime');
+          const exactSec = tvGetExactSecond();
+          saveTvLastWatched(tvVideoId, tvVideoUrl, exactSec, false);
         }
-      }, 1000);
+      }, 500);
 
       window.addEventListener('message', (event) => {
         try {
           let data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-          if (data && data.info && typeof data.info.currentTime === 'number') {
-            tvCurrentPlaybackSeconds = Math.floor(data.info.currentTime);
-            saveTvLastWatched(tvVideoId, tvVideoUrl, tvCurrentPlaybackSeconds);
+          if (!data) return;
+
+          if (data.info && typeof data.info.currentTime === 'number') {
+            tvCurrentPlaybackSeconds = data.info.currentTime;
+            tvPlayAnchorSecond = data.info.currentTime;
+            tvLastPlayStartRealTime = performance.now();
+            saveTvLastWatched(tvVideoId, tvVideoUrl, data.info.currentTime, false);
+          }
+          if (data.info && data.info.playerState !== undefined) {
+            if (data.info.playerState === 2) {
+              tvIsPaused = true;
+              const btn = document.getElementById('tvPlayPauseBtn');
+              if (btn) btn.textContent = 'REPRODUCIR ▶️';
+              const stateEl = document.getElementById('tvStatusState');
+              if (stateEl) stateEl.textContent = '⏸️ En Pausa';
+              flushTvSave();
+            } else if (data.info.playerState === 1) {
+              tvIsPaused = false;
+              tvLastPlayStartRealTime = performance.now();
+              const btn = document.getElementById('tvPlayPauseBtn');
+              if (btn) btn.textContent = 'PAUSAR ⏸️';
+              const stateEl = document.getElementById('tvStatusState');
+              if (stateEl) stateEl.textContent = '🟢 Reproduciendo';
+            }
+          }
+          if (data.event === 'onStateChange') {
+            if (data.info === 2) {
+              tvIsPaused = true;
+              flushTvSave();
+            } else if (data.info === 1) {
+              tvIsPaused = false;
+              tvLastPlayStartRealTime = performance.now();
+            }
           }
         } catch (e) { }
       });
@@ -7431,17 +7494,23 @@
 
         tvVideoId = id;
         tvVideoUrl = 'https://www.youtube.com/watch?v=' + tvVideoId;
-        tvCurrentPlaybackSeconds = Math.max(0, Math.floor(startTime));
+        const cleanStart = Math.max(0, Math.floor(startTime));
+        tvCurrentPlaybackSeconds = cleanStart;
+        tvPlayAnchorSecond = cleanStart;
+        tvLastPlayStartRealTime = performance.now();
         tvIsPaused = false;
+
+        const btn = document.getElementById('tvPlayPauseBtn');
+        if (btn) btn.textContent = 'PAUSAR ⏸️';
 
         const iframe = document.getElementById('tvIframeElement');
         if (iframe) {
           if (stateEl) stateEl.textContent = '🔄 Cargando...';
-          showToast(startTime > 0 ? `📺 Reanudando en ${formatTimestamp(startTime)}...` : '📺 Cargando vídeo en TV 3D...');
+          showToast(cleanStart > 0 ? `📺 Reanudando en ${formatTimestamp(cleanStart)}...` : '📺 Cargando vídeo en TV 3D...');
 
           const muteParam = tvIsMuted ? 1 : 0;
           const originParam = getValidOriginParam();
-          const startParam = startTime > 0 ? `&start=${Math.floor(startTime)}` : '';
+          const startParam = cleanStart > 0 ? `&start=${cleanStart}` : '';
           const embedUrl = `https://www.youtube-nocookie.com/embed/${tvVideoId}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=1&playsinline=1&rel=0&vq=hd2160&hd=1${startParam}${originParam}`;
 
           iframe.src = embedUrl;
@@ -7449,8 +7518,9 @@
           setTimeout(() => {
             sendYtCommand('setPlaybackQuality', ['hd2160']);
             sendYtCommand('setPlaybackQuality', ['highres']);
-            if (startTime > 0) {
-              sendYtCommand('seekTo', [startTime, true]);
+            sendYtCommand('addEventListener', ['onStateChange']);
+            if (cleanStart > 0) {
+              sendYtCommand('seekTo', [cleanStart, true]);
             }
             if (tvVolumeSliderEl) {
               const currentVol = parseInt(tvVolumeSliderEl.value, 10) || 100;
@@ -7460,11 +7530,13 @@
           }, 1000);
         }
 
+        saveTvLastWatched(tvVideoId, tvVideoUrl, cleanStart, true);
+
         if (emitToServer && socket && !isApplyingTvServerState) {
           socket.emit('tvChangeVideo', {
             videoId: id,
             url: tvVideoUrl,
-            currentTime: startTime,
+            currentTime: cleanStart,
             playing: true
           });
         }
@@ -7723,17 +7795,27 @@
 
       document.getElementById('tvPlayPauseBtn').addEventListener('click', function () {
         tvIsPaused = !tvIsPaused;
+        const exactSec = tvGetExactSecond();
+        tvCurrentPlaybackSeconds = exactSec;
         if (tvIsPaused) {
           sendYtCommand('pauseVideo');
           this.textContent = 'REPRODUCIR ▶️';
+          const stateEl = document.getElementById('tvStatusState');
+          if (stateEl) stateEl.textContent = '⏸️ En Pausa';
+          saveTvLastWatched(tvVideoId, tvVideoUrl, exactSec, true);
           if (socket && !isApplyingTvServerState) {
-            socket.emit('tvPause', { currentTime: 0 });
+            socket.emit('tvPause', { currentTime: Math.floor(exactSec) });
           }
         } else {
           sendYtCommand('playVideo');
           this.textContent = 'PAUSAR ⏸️';
+          const stateEl = document.getElementById('tvStatusState');
+          if (stateEl) stateEl.textContent = '🟢 Reproduciendo';
+          tvLastPlayStartRealTime = performance.now();
+          tvPlayAnchorSecond = exactSec;
+          saveTvLastWatched(tvVideoId, tvVideoUrl, exactSec, true);
           if (socket && !isApplyingTvServerState) {
-            socket.emit('tvPlay', { currentTime: 0 });
+            socket.emit('tvPlay', { currentTime: Math.floor(exactSec) });
           }
         }
       });
