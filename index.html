@@ -1740,6 +1740,7 @@
     <div class="top-right">
       <button class="tv-change-btn" id="tvChangeBtn">📺 CAMBIAR VÍDEO / CANAL</button>
       <div class="icon-btn" id="tvBtn" title="Reproductor TV Casino 3D (YouTube)">📺</div>
+      <div class="icon-btn" id="fullscreenBtn" title="Pantalla Completa (F11)">⛶</div>
       <div class="icon-btn" id="soundBtn">🔊</div>
       <div class="icon-btn" id="settingsBtn">⚙️</div>
       <div class="balance-pill">
@@ -7523,6 +7524,71 @@
       });
 
       /* ============================================================
+         FULLSCREEN CONTROLLER (TOGGLE FULLSCREEN ⛶ / 🗗)
+      ============================================================ */
+      const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+      function isFullscreen() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+      }
+
+      function toggleFullscreen() {
+        if (!isFullscreen()) {
+          const docEl = document.documentElement;
+          if (docEl.requestFullscreen) {
+            docEl.requestFullscreen().catch(() => {});
+          } else if (docEl.webkitRequestFullscreen) {
+            docEl.webkitRequestFullscreen();
+          } else if (docEl.mozRequestFullScreen) {
+            docEl.mozRequestFullScreen();
+          } else if (docEl.msRequestFullscreen) {
+            docEl.msRequestFullscreen();
+          }
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+          } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+          } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+          } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+          }
+        }
+      }
+
+      function updateFullscreenUI() {
+        if (!fullscreenBtn) return;
+        if (isFullscreen()) {
+          fullscreenBtn.textContent = '🗗';
+          fullscreenBtn.title = 'Salir de Pantalla Completa';
+          fullscreenBtn.style.color = '#c4b5fd';
+        } else {
+          fullscreenBtn.textContent = '⛶';
+          fullscreenBtn.title = 'Pantalla Completa';
+          fullscreenBtn.style.color = 'var(--text)';
+        }
+      }
+
+      if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+      }
+
+      ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
+        document.addEventListener(evt, () => {
+          updateFullscreenUI();
+          setTimeout(() => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (typeof cssRenderer !== 'undefined' && cssRenderer) {
+              cssRenderer.setSize(window.innerWidth, window.innerHeight);
+            }
+          }, 100);
+        });
+      });
+
+      /* ============================================================
          MAIN ANIMATION & RENDER LOOP
       ============================================================ */
       let lastTime = performance.now();
@@ -7585,4 +7651,4 @@
   </script>
 </body>
 
-</html>mueve la ficha izquierda hacia arriba izquierda hasta
+</html>
