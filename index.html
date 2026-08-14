@@ -7527,12 +7527,13 @@
             if (cleanStart > 0) {
               sendYtCommand('seekTo', [cleanStart, true]);
             }
+            sendYtCommand('playVideo');
             if (tvVolumeSliderEl) {
               const currentVol = parseInt(tvVolumeSliderEl.value, 10) || 100;
               sendYtCommand('setVolume', [currentVol]);
             }
             if (stateEl) stateEl.textContent = '🟢 Reproduciendo';
-          }, 1000);
+          }, 800);
         }
 
         saveTvLastWatched(tvVideoId, tvVideoUrl, cleanStart, true);

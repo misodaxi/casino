@@ -693,10 +693,19 @@ function settleDiceVersusMatch(matchId) {
 
 function getSyncedTvState() {
   const now = Date.now();
+  let liveCurrentTime = Math.max(0, Math.floor(tvState.currentTime || 0));
+  if (tvState.playing && tvState.videoId) {
+    const elapsed = Math.max(0, (now - tvState.updatedAt) / 1000);
+    liveCurrentTime = Math.max(0, Math.floor(tvState.currentTime + elapsed));
+    tvLastWatched.videoId = tvState.videoId;
+    tvLastWatched.url = 'https://www.youtube.com/watch?v=' + tvState.videoId;
+    tvLastWatched.currentTime = liveCurrentTime;
+    tvLastWatched.updatedAt = now;
+  }
   return {
     videoId: tvState.videoId,
     playing: tvState.playing,
-    currentTime: Math.max(0, Math.floor(tvState.currentTime || 0)),
+    currentTime: liveCurrentTime,
     lastWatched: {
       videoId: tvLastWatched.videoId,
       url: tvLastWatched.url,
