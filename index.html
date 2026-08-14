@@ -5351,12 +5351,12 @@
 
       function spawnPhysicsDie(localX, localZ, accentHex) {
         const mesh = makeDieMesh(0.42, accentHex);
-        // Altura de lanzamiento equilibrada (4.4m - 5.0m)
-        const spawnY = 4.4 + Math.random() * 0.5;
+        // Altura de lanzamiento equilibrada y prolongada (5.4m - 6.0m)
+        const spawnY = 5.4 + Math.random() * 0.6;
         mesh.position.set(
-          localX + (Math.random() - 0.5) * 0.15,
+          localX + (Math.random() - 0.5) * 0.18,
           spawnY,
-          localZ + (Math.random() - 0.5) * 0.15
+          localZ + (Math.random() - 0.5) * 0.18
         );
         mesh.rotation.set(
           Math.random() * Math.PI * 2,
@@ -5366,19 +5366,19 @@
         dice3DRefs.rollGroup.add(mesh);
         return {
           mesh,
-          // Impulso inicial natural con parábola ascendente moderada
+          // Impulso inicial con parábola suave y sostenida
           vel: new THREE.Vector3(
-            (Math.random() - 0.5) * 1.8,
-            0.9 + Math.random() * 0.5,
-            (Math.random() - 0.5) * 1.8
+            (Math.random() - 0.5) * 2.0,
+            1.6 + Math.random() * 0.5,
+            (Math.random() - 0.5) * 2.0
           ),
-          // Rotación natural y fluida
+          // Rotación 3D natural y continua
           angVel: new THREE.Vector3(
-            (Math.random() - 0.5) * 20,
-            (Math.random() - 0.5) * 22,
-            (Math.random() - 0.5) * 20
+            (Math.random() - 0.5) * 24,
+            (Math.random() - 0.5) * 26,
+            (Math.random() - 0.5) * 24
           ),
-          restitution: 0.68, // Rebote vivo, natural y prolongado
+          restitution: 0.82, // Rebote vivo y duradero
           bounceCount: 0,
           settled: false,
           groundedTimer: 0,
@@ -5409,8 +5409,8 @@
 
       function updateDicePhysics(dt) {
         if (!dice3DRefs || !activeDiceRoll) return;
-        // Gravedad natural calibrada a 12.8 para balancear peso y rebote
-        const gravity = 12.8;
+        // Gravedad natural calibrada a 9.8 para un movimiento flotante y duradero
+        const gravity = 9.8;
         const floorY = dice3DRefs.floorY;
         const halfSize = 0.21;
         const boundR = dice3DRefs.pitRadius - 0.08;
@@ -5421,7 +5421,7 @@
           if (d.settled) {
             // Suave slerp cúbico hacia la orientación final una vez estabilizado
             if (d.snapT >= 0 && d.snapT < 1) {
-              d.snapT = Math.min(1, d.snapT + dt * 2.8);
+              d.snapT = Math.min(1, d.snapT + dt * 2.0);
               const easeT = 1 - Math.pow(1 - d.snapT, 3);
               d.mesh.quaternion.slerpQuaternions(d.snapFrom, d.snapTo, easeT);
             }
@@ -5435,9 +5435,9 @@
           d.mesh.position.y += d.vel.y * dt;
           d.mesh.position.z += d.vel.z * dt;
 
-          // Fricción aerodinámica ligera
-          d.vel.x *= Math.pow(0.975, dt * 60);
-          d.vel.z *= Math.pow(0.975, dt * 60);
+          // Fricción aerodinámica suave para mantener la inercia
+          d.vel.x *= Math.pow(0.988, dt * 60);
+          d.vel.z *= Math.pow(0.988, dt * 60);
 
           // Integración de rotación 3D a partir de la velocidad angular
           const angMag = d.angVel.length();
@@ -5447,39 +5447,39 @@
             d.mesh.quaternion.premultiply(dq);
           }
 
-          // Colisión con el suelo (5 a 8 rebotes naturales con disipación suave)
+          // Colisión con el suelo (cadena prolongada de 9 a 14 rebotes con disipación muy suave)
           if (d.mesh.position.y <= floorY + halfSize) {
             d.mesh.position.y = floorY + halfSize;
-            if (Math.abs(d.vel.y) > 0.16) {
+            if (Math.abs(d.vel.y) > 0.14) {
               d.bounceCount++;
               // Rebote elástico
               d.vel.y = -d.vel.y * d.restitution;
-              // Pérdida progresiva y natural de energía (76% por impacto)
-              d.restitution = Math.max(0.18, d.restitution * 0.76);
-              d.vel.x *= 0.82;
-              d.vel.z *= 0.82;
+              // Pérdida progresiva y pausada de energía (89% de conservación de energía por bote)
+              d.restitution = Math.max(0.24, d.restitution * 0.89);
+              d.vel.x *= 0.88;
+              d.vel.z *= 0.88;
 
-              // Impulso rotacional dinámico al golpear el tapiz
-              d.angVel.x += (Math.random() - 0.5) * Math.abs(d.vel.y) * 6.0;
-              d.angVel.z += (Math.random() - 0.5) * Math.abs(d.vel.y) * 6.0;
-              d.angVel.multiplyScalar(0.82);
+              // Impulso rotacional dinámico tras cada impacto
+              d.angVel.x += (Math.random() - 0.5) * Math.abs(d.vel.y) * 7.5;
+              d.angVel.z += (Math.random() - 0.5) * Math.abs(d.vel.y) * 7.5;
+              d.angVel.multiplyScalar(0.88);
 
-              if (Math.abs(d.vel.y) > 0.25) {
+              if (Math.abs(d.vel.y) > 0.22) {
                 playSound('tick');
               }
               d.groundedTimer = 0;
             } else {
-              // Micro-rebotes sucesivos y deslizamiento suave antes de detenerse
-              if (d.restitution > 0.22) {
+              // Micro-rebotes sucesivos y rodamiento prolongado antes de detenerse
+              if (d.restitution > 0.24) {
                 d.bounceCount++;
                 d.vel.y = -d.vel.y * d.restitution;
-                d.restitution *= 0.70;
+                d.restitution *= 0.78;
               } else {
                 d.vel.y = 0;
               }
-              d.vel.x *= Math.pow(0.74, dt * 60);
-              d.vel.z *= Math.pow(0.74, dt * 60);
-              d.angVel.multiplyScalar(Math.pow(0.76, dt * 60));
+              d.vel.x *= Math.pow(0.82, dt * 60);
+              d.vel.z *= Math.pow(0.82, dt * 60);
+              d.angVel.multiplyScalar(Math.pow(0.84, dt * 60));
               d.groundedTimer += dt;
             }
           }
@@ -5492,9 +5492,10 @@
             d.mesh.position.z = nz * boundR;
             const vDotN = d.vel.x * nx + d.vel.z * nz;
             if (vDotN > 0) {
-              d.vel.x -= 1.55 * vDotN * nx;
-              d.vel.z -= 1.55 * vDotN * nz;
-              d.angVel.y += (Math.random() - 0.5) * 7;
+              d.vel.x -= 1.62 * vDotN * nx;
+              d.vel.z -= 1.62 * vDotN * nz;
+              d.vel.y += Math.abs(vDotN) * 0.22;
+              d.angVel.y += (Math.random() - 0.5) * 8;
               playSound('tick');
             }
           }
@@ -5541,7 +5542,7 @@
               const velAlongNormal = rvx * nx + rvy * ny + rvz * nz;
 
               if (velAlongNormal < 0) {
-                const restitution = 0.58;
+                const restitution = 0.65;
                 const impulse = -(1 + restitution) * velAlongNormal * 0.5;
 
                 const impX = nx * impulse;
@@ -5552,16 +5553,16 @@
                   d1.vel.x -= impX;
                   d1.vel.y -= impY;
                   d1.vel.z -= impZ;
-                  d1.angVel.x += (Math.random() - 0.5) * impulse * 5;
-                  d1.angVel.z += (Math.random() - 0.5) * impulse * 5;
+                  d1.angVel.x += (Math.random() - 0.5) * impulse * 6;
+                  d1.angVel.z += (Math.random() - 0.5) * impulse * 6;
                   d1.groundedTimer = 0;
                 }
                 if (!d2.settled) {
                   d2.vel.x += impX;
                   d2.vel.y += impY;
                   d2.vel.z += impZ;
-                  d2.angVel.x += (Math.random() - 0.5) * impulse * 5;
-                  d2.angVel.z += (Math.random() - 0.5) * impulse * 5;
+                  d2.angVel.x += (Math.random() - 0.5) * impulse * 6;
+                  d2.angVel.z += (Math.random() - 0.5) * impulse * 6;
                   d2.groundedTimer = 0;
                 }
                 playSound('tick');
@@ -5570,9 +5571,9 @@
           }
         }
 
-        // Criterio de asentamiento pausado y natural (5-7 rebotes)
+        // Criterio de asentamiento extendido y prolongado (9-14 rebotes continuos)
         all.forEach(d => {
-          const settledEnough = d.vel.length() < 0.11 && d.angVel.length() < 0.30 && d.groundedTimer > 0.25 && d.bounceCount >= 5;
+          const settledEnough = d.vel.length() < 0.06 && d.angVel.length() < 0.18 && d.groundedTimer > 0.45 && d.bounceCount >= 9;
           if (settledEnough && !d.settled) {
             d.settled = true;
             d.value = (typeof d.targetVal === 'number') ? d.targetVal : readDieFaceUp(d.mesh);

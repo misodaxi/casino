@@ -624,7 +624,7 @@ function startDiceVersusRoll(matchId) {
 
   setTimeout(() => {
     settleDiceVersusMatch(matchId);
-  }, 5000);
+  }, 10000);
 }
 
 function settleDiceVersusMatch(matchId) {
