@@ -4090,23 +4090,20 @@
           });
 
           if (data.tvState) {
-            if (data.tvState.lastWatched) {
+            if (data.tvState.lastWatched && data.tvState.lastWatched.videoId) {
               serverTvLastWatched = data.tvState.lastWatched;
               if (typeof updateTvResumeCardUI === 'function') {
                 updateTvResumeCardUI(data.tvState.lastWatched);
               }
             }
-            if (data.tvState.videoId && data.tvState.playing) {
-              applyTvServerState(data.tvState);
-            } else {
-              tvVideoId = '';
-              tvVideoUrl = '';
-              tvIsPaused = true;
-              const iframe = document.getElementById('tvIframeElement');
-              if (iframe) iframe.src = 'about:blank';
-              const stateEl = document.getElementById('tvStatusState');
-              if (stateEl) stateEl.textContent = '⏹️ Pantalla en espera';
-            }
+            // Pantalla en espera de inicio: no carga automáticamente hasta pulsar Reanudar o cargar un vídeo
+            tvVideoId = '';
+            tvVideoUrl = '';
+            tvIsPaused = true;
+            const iframe = document.getElementById('tvIframeElement');
+            if (iframe) iframe.src = 'about:blank';
+            const stateEl = document.getElementById('tvStatusState');
+            if (stateEl) stateEl.textContent = '⏹️ Pantalla en espera';
           }
         });
 
@@ -7332,18 +7329,19 @@
       }
 
       function saveTvLastWatched(id, url, seconds) {
-        if (!id || seconds < 2) return;
+        if (!id) return;
+        const cleanSec = Math.max(0, Math.floor(seconds || 0));
         try {
           const data = {
             id: id,
             url: url || ('https://www.youtube.com/watch?v=' + id),
-            time: Math.floor(seconds),
+            time: cleanSec,
             savedAt: Date.now()
           };
           serverTvLastWatched = {
             videoId: id,
             url: data.url,
-            currentTime: data.time,
+            currentTime: cleanSec,
             updatedAt: data.savedAt
           };
           localStorage.setItem('casino_tv_last_watch', JSON.stringify(data));
@@ -7352,7 +7350,7 @@
             socket.emit('tvProgress', {
               videoId: id,
               url: data.url,
-              currentTime: data.time
+              currentTime: cleanSec
             });
           }
         } catch (e) { }
@@ -7365,23 +7363,23 @@
         if (!resumeCard) return;
 
         let data = customData || serverTvLastWatched;
-        if (!data || !data.videoId || data.currentTime < 2) {
+        if (!data || !data.videoId) {
           try {
             const raw = localStorage.getItem('casino_tv_last_watch');
             if (raw) {
               const parsed = JSON.parse(raw);
-              if (parsed && parsed.id && parsed.time >= 2) {
+              if (parsed && parsed.id) {
                 data = {
                   videoId: parsed.id,
                   url: parsed.url,
-                  currentTime: parsed.time
+                  currentTime: parsed.time || 0
                 };
               }
             }
           } catch (e) { }
         }
 
-        if (!data || !data.videoId || data.currentTime < 2) {
+        if (!data || !data.videoId) {
           resumeCard.style.display = 'none';
           return;
         }
@@ -7391,14 +7389,14 @@
           resumeTitle.textContent = data.url || `YouTube: ${data.videoId}`;
         }
         if (resumeTime) {
-          resumeTime.textContent = `Minuto ${formatTimestamp(data.currentTime)}`;
+          resumeTime.textContent = `Minuto ${formatTimestamp(data.currentTime || 0)}`;
         }
       }
 
       setInterval(() => {
         if (tvVideoId && !tvIsPaused) {
           tvCurrentPlaybackSeconds += 1;
-          if (tvCurrentPlaybackSeconds >= 3) {
+          if (tvCurrentPlaybackSeconds >= 2) {
             saveTvLastWatched(tvVideoId, tvVideoUrl, tvCurrentPlaybackSeconds);
           }
         }
@@ -7406,12 +7404,10 @@
 
       window.addEventListener('message', (event) => {
         try {
-          if (typeof event.data === 'string') {
-            const data = JSON.parse(event.data);
-            if (data && data.info && typeof data.info.currentTime === 'number') {
-              tvCurrentPlaybackSeconds = data.info.currentTime;
-              saveTvLastWatched(tvVideoId, tvVideoUrl, tvCurrentPlaybackSeconds);
-            }
+          let data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+          if (data && data.info && typeof data.info.currentTime === 'number') {
+            tvCurrentPlaybackSeconds = Math.floor(data.info.currentTime);
+            saveTvLastWatched(tvVideoId, tvVideoUrl, tvCurrentPlaybackSeconds);
           }
         } catch (e) { }
       });

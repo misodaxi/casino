@@ -693,24 +693,14 @@ function settleDiceVersusMatch(matchId) {
 
 function getSyncedTvState() {
   const now = Date.now();
-  let current = tvState.currentTime;
-  if (tvState.playing && tvState.videoId) {
-    current += (now - tvState.updatedAt) / 1000;
-    if (current > 2) {
-      tvLastWatched.videoId = tvState.videoId;
-      tvLastWatched.url = 'https://www.youtube.com/watch?v=' + tvState.videoId;
-      tvLastWatched.currentTime = Math.max(0, Math.floor(current));
-      tvLastWatched.updatedAt = now;
-    }
-  }
   return {
     videoId: tvState.videoId,
     playing: tvState.playing,
-    currentTime: Math.max(0, current),
+    currentTime: Math.max(0, Math.floor(tvState.currentTime || 0)),
     lastWatched: {
       videoId: tvLastWatched.videoId,
       url: tvLastWatched.url,
-      currentTime: tvLastWatched.currentTime,
+      currentTime: Math.max(0, Math.floor(tvLastWatched.currentTime || 0)),
       updatedAt: tvLastWatched.updatedAt
     },
     updatedAt: now
@@ -1359,13 +1349,10 @@ io.on('connection', (socket) => {
     // If all players leave the casino, save TV position and clear active screen
     if (Object.keys(players).length === 0) {
       if (tvState.videoId) {
-        const now = Date.now();
-        let current = tvState.currentTime;
-        if (tvState.playing) current += (now - tvState.updatedAt) / 1000;
         tvLastWatched.videoId = tvState.videoId;
         tvLastWatched.url = 'https://www.youtube.com/watch?v=' + tvState.videoId;
-        tvLastWatched.currentTime = Math.max(0, Math.floor(current));
-        tvLastWatched.updatedAt = now;
+        tvLastWatched.currentTime = Math.max(0, Math.floor(tvState.currentTime || 0));
+        tvLastWatched.updatedAt = Date.now();
       }
       tvState.videoId = '';
       tvState.playing = false;
