@@ -49,6 +49,111 @@ const tvLastWatched = {
   updatedAt: Date.now()
 };
 
+// Global Jukebox (Gramola) Synchronized State for Whole-Casino Music
+const defaultJukeboxPlaylist = [
+  {
+    id: 'track-1',
+    title: 'Fly Me to the Moon',
+    artist: 'Frank Sinatra',
+    source: 'youtube',
+    videoId: 'ZEcqHA7dbwM',
+    url: 'https://www.youtube.com/watch?v=ZEcqHA7dbwM',
+    cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=150',
+    duration: 147
+  },
+  {
+    id: 'track-2',
+    title: 'Johnny B. Goode',
+    artist: 'Chuck Berry',
+    source: 'youtube',
+    videoId: 'T38v3-SSGcM',
+    url: 'https://www.youtube.com/watch?v=T38v3-SSGcM',
+    cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=150',
+    duration: 161
+  },
+  {
+    id: 'track-3',
+    title: 'Take Five',
+    artist: 'Dave Brubeck Quartet',
+    source: 'youtube',
+    videoId: 'vmDDOFXSgAs',
+    url: 'https://www.youtube.com/watch?v=vmDDOFXSgAs',
+    cover: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=150',
+    duration: 324
+  },
+  {
+    id: 'track-4',
+    title: 'Can\'t Help Falling in Love',
+    artist: 'Elvis Presley',
+    source: 'youtube',
+    videoId: 'vGJTaP6anOU',
+    url: 'https://www.youtube.com/watch?v=vGJTaP6anOU',
+    cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=150',
+    duration: 182
+  },
+  {
+    id: 'track-5',
+    title: 'Get Lucky',
+    artist: 'Daft Punk ft. Pharrell Williams',
+    source: 'youtube',
+    videoId: '5NV6Rdv1a3I',
+    url: 'https://www.youtube.com/watch?v=5NV6Rdv1a3I',
+    cover: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=150',
+    duration: 248
+  },
+  {
+    id: 'track-6',
+    title: 'Billie Jean',
+    artist: 'Michael Jackson',
+    source: 'youtube',
+    videoId: 'Zi_XLOBDo_Y',
+    url: 'https://www.youtube.com/watch?v=Zi_XLOBDo_Y',
+    cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=150',
+    duration: 294
+  },
+  {
+    id: 'track-7',
+    title: 'Autumn Leaves',
+    artist: 'Miles Davis & Cannonball Adderley',
+    source: 'youtube',
+    videoId: 'u37RF5xKNq8',
+    url: 'https://www.youtube.com/watch?v=u37RF5xKNq8',
+    cover: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=150',
+    duration: 659
+  }
+];
+
+const jukeboxState = {
+  currentTrack: defaultJukeboxPlaylist[0],
+  playlist: defaultJukeboxPlaylist,
+  currentIndex: 0,
+  playing: true,
+  currentTime: 0,
+  updatedAt: Date.now(),
+  volume: 75,
+  changerName: 'Casino DJ'
+};
+
+function getSyncedJukeboxState() {
+  const now = Date.now();
+  let liveCurrentTime = Math.max(0, jukeboxState.currentTime || 0);
+  const dur = (jukeboxState.currentTrack && jukeboxState.currentTrack.duration) ? jukeboxState.currentTrack.duration : 180;
+  if (jukeboxState.playing) {
+    const elapsed = Math.max(0, (now - jukeboxState.updatedAt) / 1000);
+    liveCurrentTime = (jukeboxState.currentTime + elapsed) % dur;
+  }
+  return {
+    currentTrack: jukeboxState.currentTrack,
+    playlist: jukeboxState.playlist,
+    currentIndex: jukeboxState.currentIndex,
+    playing: jukeboxState.playing,
+    currentTime: Math.floor(liveCurrentTime),
+    volume: jukeboxState.volume,
+    changerName: jukeboxState.changerName,
+    updatedAt: now
+  };
+}
+
 // Exact 2-decimal currency rounding helper (handles float drift e.g. 0.0999999 -> 0.1)
 function roundMoney(val) {
   if (typeof val === 'string') {
@@ -758,6 +863,149 @@ function settleDiceVersusMatch(matchId) {
   }, 4500);
 }
 
+/* ============================================================
+   AUTHORITATIVE MULTIPLAYER COIN FLIP VERSUS 1v1 ENGINE
+============================================================ */
+const coinVersusMatches = {}; // matchId -> match state object
+
+function getOrCreateCoinVersusState(matchId) {
+  if (!coinVersusMatches[matchId]) {
+    coinVersusMatches[matchId] = {
+      matchId: matchId,
+      player1: null, // { id, name, seatIndex: 0, bet: 50, choice: 'cara', accepted: false, balance: 1000 }
+      player2: null, // { id, name, seatIndex: 1, bet: 50, choice: 'cruz', accepted: false, balance: 1000 }
+      status: 'WAITING_FOR_PLAYER', // 'WAITING_FOR_PLAYER' | 'PLAYER_2_JOINED' | 'BET_PROPOSED' | 'WAITING_FOR_MATCH' | 'BET_LOCKED' | 'FLIPPING' | 'RESULT' | 'SETTLED' | 'CANCELLED'
+      finalBet: 50,
+      roundId: 0,
+      rollId: null,
+      lastResult: null,
+      settled: false,
+      statusMsg: 'Esperando rival...'
+    };
+  }
+  return coinVersusMatches[matchId];
+}
+
+function broadcastCoinVersusState(matchId) {
+  const m = getOrCreateCoinVersusState(matchId);
+  const payload = {
+    matchId: m.matchId,
+    status: m.status,
+    player1: m.player1,
+    player2: m.player2,
+    finalBet: m.finalBet,
+    roundId: m.roundId,
+    rollId: m.rollId,
+    lastResult: m.lastResult,
+    settled: m.settled,
+    statusMsg: m.statusMsg
+  };
+
+  io.to(`coin:${matchId}`).emit('coinVersusState', payload);
+  return payload;
+}
+
+function startCoinVersusFlip(matchId) {
+  const m = getOrCreateCoinVersusState(matchId);
+  if (m.status !== 'BET_LOCKED' || m.settled || !m.player1 || !m.player2) return;
+
+  m.status = 'FLIPPING';
+  m.roundId++;
+  m.rollId = `${matchId}_r${m.roundId}_${Date.now()}`;
+  m.statusMsg = '¡LANZANDO MONEDA AL AIRE...! 🪙';
+
+  // Server generates authoritative random outcome for the coin flip
+  const face = (Math.random() < 0.5) ? 'cara' : 'cruz';
+  const winner = (face === 'cara') ? m.player1 : m.player2;
+
+  // Deterministic 3D trajectory seed for all synchronized clients
+  const seed = {
+    velY: 9.6 + (Math.random() * 1.4),
+    angSpeed: 32.0 + (Math.random() * 8.0),
+    tiltAngle: Math.random() * Math.PI * 2,
+    vx: (Math.random() - 0.5) * 0.40,
+    vz: (Math.random() - 0.5) * 0.40
+  };
+
+  m.lastResult = {
+    matchId: m.matchId,
+    rollId: m.rollId,
+    finalBet: m.finalBet,
+    pot: m.finalBet * 2,
+    face: face,
+    winnerId: winner ? winner.id : null,
+    winnerName: winner ? winner.name : '',
+    winnerSeat: (face === 'cara') ? 0 : 1,
+    player1Id: m.player1.id,
+    player1Name: m.player1.name,
+    player2Id: m.player2.id,
+    player2Name: m.player2.name,
+    seed: seed
+  };
+
+  io.to(`coin:${matchId}`).emit('coinVersusFlipStart', { matchId: m.matchId, rollId: m.rollId });
+  io.to(`coin:${matchId}`).emit('coinVersusFlipResult', m.lastResult);
+
+  broadcastCoinVersusState(matchId);
+
+  setTimeout(() => {
+    settleCoinVersusMatch(matchId);
+  }, 9000);
+}
+
+function settleCoinVersusMatch(matchId) {
+  const m = getOrCreateCoinVersusState(matchId);
+  if (m.settled || !m.lastResult) return;
+
+  m.settled = true;
+  m.status = 'SETTLED';
+
+  const res = m.lastResult;
+  const msg = `¡GANADOR: ${res.winnerName} (${res.face.toUpperCase()})!`;
+  m.statusMsg = msg;
+
+  io.to(`coin:${matchId}`).emit('coinVersusSettled', {
+    matchId: m.matchId,
+    rollId: m.rollId,
+    face: res.face,
+    winnerId: res.winnerId,
+    winnerName: res.winnerName,
+    finalBet: m.finalBet,
+    pot: res.pot,
+    player1Id: m.player1.id,
+    player2Id: m.player2.id
+  });
+
+  broadcastCoinVersusState(matchId);
+
+  setTimeout(() => {
+    if (coinVersusMatches[matchId]) {
+      const match = coinVersusMatches[matchId];
+      if (match.player1 && match.player2) {
+        match.status = 'PLAYER_2_JOINED';
+        match.player1.accepted = false;
+        match.player2.accepted = false;
+        match.settled = false;
+        match.rollId = null;
+        match.lastResult = null;
+        match.statusMsg = 'Rival presente. Estableced las apuestas.';
+      } else if (match.player1 || match.player2) {
+        match.status = 'WAITING_FOR_PLAYER';
+        if (match.player1) match.player1.accepted = false;
+        if (match.player2) match.player2.accepted = false;
+        match.settled = false;
+        match.rollId = null;
+        match.lastResult = null;
+        match.statusMsg = 'Esperando rival...';
+      } else {
+        delete coinVersusMatches[matchId];
+        return;
+      }
+      broadcastCoinVersusState(matchId);
+    }
+  }, 4000);
+}
+
 function getSyncedTvState() {
   const now = Date.now();
   let liveCurrentTime = Math.max(0, Math.floor(tvState.currentTime || 0));
@@ -801,11 +1049,97 @@ io.on('connection', (socket) => {
     color: 0x8B5CF6
   };
 
-  // Send current player & TV state to newly connected player
-  socket.emit('init', { id: socket.id, players, tvState: getSyncedTvState() });
+  // Send current player & TV & Jukebox state to newly connected player
+  socket.emit('init', { id: socket.id, players, tvState: getSyncedTvState(), jukeboxState: getSyncedJukeboxState() });
 
   // Broadcast new player to all other clients
   socket.broadcast.emit('playerJoined', players[socket.id]);
+
+  // Handle Jukebox (Gramola) Whole-Casino Music Events
+  socket.on('jukeboxSyncReq', () => {
+    socket.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+  });
+
+  socket.on('jukeboxPlayTrack', (data) => {
+    if (!data || !data.track) return;
+    const pName = (players[socket.id] && players[socket.id].name) || 'DJ Casino';
+    jukeboxState.currentTrack = data.track;
+    jukeboxState.currentTime = 0;
+    jukeboxState.playing = true;
+    jukeboxState.updatedAt = Date.now();
+    jukeboxState.changerName = data.changerName || pName;
+
+    // Check if track is in playlist; if not, add it
+    const existingIdx = jukeboxState.playlist.findIndex(t => t.id === data.track.id || (t.videoId && t.videoId === data.track.videoId));
+    if (existingIdx !== -1) {
+      jukeboxState.currentIndex = existingIdx;
+    } else {
+      jukeboxState.playlist.push(data.track);
+      jukeboxState.currentIndex = jukeboxState.playlist.length - 1;
+    }
+
+    io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+    io.emit('chatMessage', {
+      id: 'system',
+      name: '🎵 GRAMOLA',
+      message: `${jukeboxState.changerName} ha puesto: "${data.track.title} - ${data.track.artist || ''}" en la Gramola`
+    });
+  });
+
+  socket.on('jukeboxTogglePlay', (data) => {
+    if (data && typeof data.playing === 'boolean') {
+      jukeboxState.playing = data.playing;
+    } else {
+      jukeboxState.playing = !jukeboxState.playing;
+    }
+    if (data && typeof data.currentTime === 'number') {
+      jukeboxState.currentTime = Math.max(0, data.currentTime);
+    } else {
+      jukeboxState.currentTime = getSyncedJukeboxState().currentTime;
+    }
+    jukeboxState.updatedAt = Date.now();
+    io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+  });
+
+  socket.on('jukeboxSeek', (data) => {
+    if (!data || typeof data.currentTime !== 'number') return;
+    jukeboxState.currentTime = Math.max(0, data.currentTime);
+    jukeboxState.updatedAt = Date.now();
+    io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+  });
+
+  socket.on('jukeboxNext', () => {
+    if (jukeboxState.playlist.length === 0) return;
+    jukeboxState.currentIndex = (jukeboxState.currentIndex + 1) % jukeboxState.playlist.length;
+    jukeboxState.currentTrack = jukeboxState.playlist[jukeboxState.currentIndex];
+    jukeboxState.currentTime = 0;
+    jukeboxState.playing = true;
+    jukeboxState.updatedAt = Date.now();
+    io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+  });
+
+  socket.on('jukeboxPrev', () => {
+    if (jukeboxState.playlist.length === 0) return;
+    jukeboxState.currentIndex = (jukeboxState.currentIndex - 1 + jukeboxState.playlist.length) % jukeboxState.playlist.length;
+    jukeboxState.currentTrack = jukeboxState.playlist[jukeboxState.currentIndex];
+    jukeboxState.currentTime = 0;
+    jukeboxState.playing = true;
+    jukeboxState.updatedAt = Date.now();
+    io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+  });
+
+  socket.on('jukeboxSetVolume', (data) => {
+    if (data && typeof data.volume === 'number') {
+      jukeboxState.volume = Math.max(0, Math.min(100, Math.round(data.volume)));
+      io.emit('jukeboxVolumeUpdate', { volume: jukeboxState.volume });
+    }
+  });
+
+  socket.on('jukeboxAddQueue', (data) => {
+    if (!data || !data.track) return;
+    jukeboxState.playlist.push(data.track);
+    io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+  });
 
   // Handle TV 3D synchronized events
   socket.on('tvChangeVideo', (data) => {
@@ -1478,6 +1812,117 @@ io.on('connection', (socket) => {
     }, 3000);
   });
 
+  /* ============================================================
+     AUTHORITATIVE MULTIPLAYER COIN FLIP 1v1 SOCKET EVENTS
+  ============================================================ */
+  socket.on('coinVersusJoin', (data) => {
+    const matchId = (data && data.matchId) ? data.matchId : 'coin-versus-1';
+    socket.join(`coin:${matchId}`);
+    socket.currentCoinMatchId = matchId;
+
+    const m = getOrCreateCoinVersusState(matchId);
+    const pName = (players[socket.id] && players[socket.id].name) || `Jugador_${socket.id.substring(0, 4)}`;
+    const pSeat = (data && typeof data.seatIndex === 'number') ? data.seatIndex : 0;
+    const pBet = (data && typeof data.bet === 'number') ? data.bet : (m.finalBet || 50);
+    const pBalance = (data && typeof data.balance === 'number') ? data.balance : 1000;
+
+    if (pSeat === 0) {
+      m.player1 = { id: socket.id, name: pName, seatIndex: 0, bet: pBet, choice: 'cara', accepted: false, balance: pBalance };
+    } else {
+      m.player2 = { id: socket.id, name: pName, seatIndex: 1, bet: pBet, choice: 'cruz', accepted: false, balance: pBalance };
+    }
+
+    if (m.player1 && m.player2) {
+      m.status = 'PLAYER_2_JOINED';
+      m.statusMsg = `¡Duelo 1 vs 1! ${m.player1.name} (👑 CARA) vs ${m.player2.name} (⚡ CRUZ)`;
+    } else {
+      m.status = 'WAITING_FOR_PLAYER';
+      m.statusMsg = 'Esperando a que se siente un rival...';
+    }
+
+    broadcastCoinVersusState(matchId);
+  });
+
+  socket.on('coinVersusLeave', (data) => {
+    const matchId = (data && data.matchId) ? data.matchId : socket.currentCoinMatchId;
+    if (matchId && coinVersusMatches[matchId]) {
+      const m = coinVersusMatches[matchId];
+      if (m.player1 && m.player1.id === socket.id) m.player1 = null;
+      if (m.player2 && m.player2.id === socket.id) m.player2 = null;
+
+      socket.leave(`coin:${matchId}`);
+      socket.currentCoinMatchId = null;
+
+      if (!m.player1 && !m.player2) {
+        delete coinVersusMatches[matchId];
+      } else {
+        if (m.status !== 'SETTLED' && m.status !== 'FLIPPING') {
+          m.status = 'WAITING_FOR_PLAYER';
+          m.statusMsg = 'Rival desconectado. Esperando rival...';
+          if (m.player1) m.player1.accepted = false;
+          if (m.player2) m.player2.accepted = false;
+        }
+        broadcastCoinVersusState(matchId);
+      }
+    }
+  });
+
+  socket.on('coinVersusBet', (data) => {
+    const matchId = (data && data.matchId) ? data.matchId : socket.currentCoinMatchId;
+    if (!matchId || !coinVersusMatches[matchId]) return;
+    const m = coinVersusMatches[matchId];
+    const betVal = Math.max(10, Math.floor(data.bet || 50));
+
+    if (m.player1 && m.player1.id === socket.id) {
+      m.player1.bet = betVal;
+      m.player1.accepted = true;
+      if (m.player2) {
+        m.player2.accepted = (m.player2.bet === betVal);
+      }
+    } else if (m.player2 && m.player2.id === socket.id) {
+      m.player2.bet = betVal;
+      m.player2.accepted = true;
+      if (m.player1) {
+        m.player1.accepted = (m.player1.bet === betVal);
+      }
+    }
+
+    if (m.player1 && m.player2 && m.player1.bet === m.player2.bet && m.player1.accepted && m.player2.accepted) {
+      m.status = 'BET_LOCKED';
+      m.finalBet = m.player1.bet;
+      m.statusMsg = `¡Apuestas igualadas a $${m.finalBet}! Lanzando moneda...`;
+      broadcastCoinVersusState(matchId);
+      setTimeout(() => startCoinVersusFlip(matchId), 800);
+    } else {
+      m.status = 'WAITING_FOR_MATCH';
+      const pWho = (m.player1 && m.player1.id === socket.id) ? m.player1.name : (m.player2 ? m.player2.name : 'Un jugador');
+      m.statusMsg = `${pWho} apostó $${betVal}. El rival debe igualar para aceptar.`;
+      broadcastCoinVersusState(matchId);
+    }
+  });
+
+  socket.on('coinVersusAcceptBet', (data) => {
+    const matchId = (data && data.matchId) ? data.matchId : socket.currentCoinMatchId;
+    if (!matchId || !coinVersusMatches[matchId]) return;
+    const m = coinVersusMatches[matchId];
+
+    if (m.player1 && m.player1.id === socket.id && m.player2) {
+      m.player1.bet = m.player2.bet;
+      m.player1.accepted = true;
+    } else if (m.player2 && m.player2.id === socket.id && m.player1) {
+      m.player2.bet = m.player1.bet;
+      m.player2.accepted = true;
+    }
+
+    if (m.player1 && m.player2 && m.player1.bet === m.player2.bet) {
+      m.status = 'BET_LOCKED';
+      m.finalBet = m.player1.bet;
+      m.statusMsg = `¡Apuestas igualadas a $${m.finalBet}! Lanzando moneda...`;
+      broadcastCoinVersusState(matchId);
+      setTimeout(() => startCoinVersusFlip(matchId), 800);
+    }
+  });
+
   // Handle chat messages
   socket.on('chatMessage', (msg) => {
     io.emit('chatMessage', {
@@ -1492,6 +1937,25 @@ io.on('connection', (socket) => {
     console.log(`🔴 Jugador desconectado: ${socket.id}`);
     delete players[socket.id];
     io.emit('playerLeft', socket.id);
+
+    if (socket.currentCoinMatchId && coinVersusMatches[socket.currentCoinMatchId]) {
+      const mId = socket.currentCoinMatchId;
+      const m = coinVersusMatches[mId];
+      if (m.player1 && m.player1.id === socket.id) m.player1 = null;
+      if (m.player2 && m.player2.id === socket.id) m.player2 = null;
+
+      if (!m.player1 && !m.player2) {
+        delete coinVersusMatches[mId];
+      } else {
+        if (m.status !== 'SETTLED' && m.status !== 'FLIPPING') {
+          m.status = 'WAITING_FOR_PLAYER';
+          m.statusMsg = 'Rival desconectado. Esperando rival...';
+          if (m.player1) m.player1.accepted = false;
+          if (m.player2) m.player2.accepted = false;
+        }
+        broadcastCoinVersusState(mId);
+      }
+    }
 
     if (socket.currentDiceMatchId && diceVersusMatches[socket.currentDiceMatchId]) {
       const mId = socket.currentDiceMatchId;
