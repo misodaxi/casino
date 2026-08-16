@@ -1,0 +1,388 @@
+// ============================================================
+// MIDNIGHT CASINO SERVER NETWORK & MULTIPLAYER MANAGER
+// ============================================================
+
+const { CASINO_SPATIAL_ZONES } = require('./config');
+const {
+  players,
+  ipNames,
+  tvState,
+  tvLastWatched,
+  jukeboxState,
+  getClientIp,
+  roundMoney,
+  getSyncedTvState,
+  getSyncedJukeboxState
+} = require('./state');
+
+const { setupRouletteSocketEvents, handleRouletteDisconnect } = require('./games/roulette');
+const { setupBlackjackSocketEvents, handleBlackjackDisconnect } = require('./games/blackjack');
+const { setupDiceSocketEvents, handleDiceVersusDisconnect } = require('./games/dice');
+const { setupCoinSocketEvents, handleCoinVersusDisconnect } = require('./games/coin');
+
+function getZoneForPosition(x, z) {
+  let closestZone = 'lobby';
+  let minDistanceSq = Infinity;
+
+  for (const zone of CASINO_SPATIAL_ZONES) {
+    const dx = x - zone.x;
+    const dz = z - zone.z;
+    const distSq = dx * dx + dz * dz;
+    const radSq = zone.radius * zone.radius;
+
+    if (distSq <= radSq && distSq < minDistanceSq) {
+      minDistanceSq = distSq;
+      closestZone = zone.id;
+    }
+  }
+  return closestZone;
+}
+
+function getRelevantPlayersFor(playerId, radius = 55.0) {
+  const target = players[playerId];
+  if (!target) return {};
+  const relevant = {};
+  const radSq = radius * radius;
+
+  for (const [id, p] of Object.entries(players)) {
+    const dx = p.x - target.x;
+    const dz = p.z - target.z;
+    if (dx * dx + dz * dz <= radSq) {
+      relevant[id] = p;
+    }
+  }
+  return relevant;
+}
+
+function setupSocketIO(io) {
+  io.on('connection', (socket) => {
+    const clientIp = getClientIp(socket);
+    const assignedName = ipNames[clientIp] || ('Jugador_' + socket.id.substring(0, 4));
+
+    const initialX = 0;
+    const initialZ = 30;
+    const initialZone = getZoneForPosition(initialX, initialZ);
+
+    players[socket.id] = {
+      id: socket.id,
+      x: initialX,
+      z: initialZ,
+      rotY: 0,
+      color: 0x8B5CF6,
+      name: assignedName,
+      seat: null,
+      zone: initialZone,
+      lastSeq: 0,
+      lastActive: Date.now()
+    };
+
+    socket.currentZone = initialZone;
+    socket.join('zone:' + initialZone);
+
+    // Initial snapshot payload
+    const initialRelevantPlayers = getRelevantPlayersFor(socket.id, 65.0);
+    socket.emit('init', {
+      id: socket.id,
+      zone: initialZone,
+      players: initialRelevantPlayers,
+      tvState: getSyncedTvState(),
+      jukeboxState: getSyncedJukeboxState(),
+      serverTime: Date.now()
+    });
+
+    // Notify other players in the same zone
+    socket.to('zone:' + initialZone).emit('playerJoined', players[socket.id]);
+
+    // Ultra-lightweight Clock Sync
+    socket.on('syncPing', (data) => {
+      socket.emit('syncPong', {
+        clientTime: (data && data.clientTime) ? data.clientTime : 0,
+        serverTime: Date.now()
+      });
+    });
+
+    // High-Frequency Compact Transform Update (pTransform)
+    socket.on('pTransform', (data) => {
+      const p = players[socket.id];
+      if (!p || !data) return;
+
+      if (typeof data.seq === 'number' && p.lastSeq && data.seq < p.lastSeq) {
+        return; // Discard stale packets
+      }
+      if (typeof data.seq === 'number') p.lastSeq = data.seq;
+
+      p.x = typeof data.x === 'number' ? data.x : p.x;
+      p.z = typeof data.z === 'number' ? data.z : p.z;
+      p.rotY = typeof data.rotY === 'number' ? data.rotY : p.rotY;
+      p.lastActive = Date.now();
+
+      const newZone = getZoneForPosition(p.x, p.z);
+      if (newZone !== socket.currentZone) {
+        socket.leave('zone:' + socket.currentZone);
+        socket.to('zone:' + socket.currentZone).emit('playerLeft', socket.id);
+
+        socket.currentZone = newZone;
+        p.zone = newZone;
+        socket.join('zone:' + newZone);
+        socket.to('zone:' + newZone).emit('playerJoined', p);
+
+        const newRelevantPlayers = getRelevantPlayersFor(socket.id, 55.0);
+        socket.emit('zoneSnapshot', {
+          zone: newZone,
+          players: newRelevantPlayers
+        });
+      }
+
+      socket.to('zone:' + socket.currentZone).emit('pTransform', {
+        id: socket.id,
+        x: p.x,
+        z: p.z,
+        rotY: p.rotY,
+        seq: p.lastSeq,
+        t: data.t || Date.now()
+      });
+    });
+
+    // Backwards-Compatible Transform Handler
+    socket.on('updateTransform', (data) => {
+      const p = players[socket.id];
+      if (!p || !data) return;
+
+      p.x = typeof data.x === 'number' ? data.x : p.x;
+      p.z = typeof data.z === 'number' ? data.z : p.z;
+      p.rotY = typeof data.rotY === 'number' ? data.rotY : p.rotY;
+
+      if (data.name && typeof data.name === 'string' && data.name.trim()) {
+        const cleanName = data.name.trim().substring(0, 24);
+        if (cleanName !== p.name) {
+          p.name = cleanName;
+          ipNames[clientIp] = cleanName;
+          io.to('zone:' + socket.currentZone).emit('playerNameChanged', { id: socket.id, name: cleanName });
+        }
+      }
+
+      if (data.seat !== undefined && data.seat !== p.seat) {
+        p.seat = data.seat;
+        io.to('zone:' + socket.currentZone).emit('playerSeatChanged', { id: socket.id, seat: p.seat });
+      }
+
+      const newZone = getZoneForPosition(p.x, p.z);
+      if (newZone !== socket.currentZone) {
+        socket.leave('zone:' + socket.currentZone);
+        socket.to('zone:' + socket.currentZone).emit('playerLeft', socket.id);
+
+        socket.currentZone = newZone;
+        p.zone = newZone;
+        socket.join('zone:' + newZone);
+        socket.to('zone:' + newZone).emit('playerJoined', p);
+      }
+
+      socket.to('zone:' + socket.currentZone).emit('playerMoved', p);
+    });
+
+    // Discrete Name Change Event
+    socket.on('playerNameChange', (data) => {
+      const p = players[socket.id];
+      if (p && data && typeof data.name === 'string' && data.name.trim()) {
+        const cleanName = data.name.trim().substring(0, 24);
+        p.name = cleanName;
+        ipNames[clientIp] = cleanName;
+        io.emit('playerNameChanged', { id: socket.id, name: cleanName });
+      }
+    });
+
+    // Discrete Seat Change Event
+    socket.on('playerSeatChange', (data) => {
+      const p = players[socket.id];
+      if (p && data) {
+        p.seat = data.seat !== undefined ? data.seat : null;
+        io.to('zone:' + socket.currentZone).emit('playerSeatChanged', { id: socket.id, seat: p.seat });
+      }
+    });
+
+    // TV Synchronized Handlers
+    socket.on('tvChangeVideo', (data) => {
+      if (data && data.videoId) {
+        tvState.videoId = data.videoId;
+        tvState.playing = true;
+        tvState.currentTime = 0;
+        tvState.updatedAt = Date.now();
+
+        tvLastWatched.videoId = data.videoId;
+        tvLastWatched.url = data.url || ('https://www.youtube.com/watch?v=' + data.videoId);
+        tvLastWatched.currentTime = 0;
+        tvLastWatched.updatedAt = Date.now();
+
+        io.emit('tvStateUpdate', getSyncedTvState());
+      }
+    });
+
+    socket.on('tvPlay', (data) => {
+      tvState.playing = true;
+      if (data && typeof data.currentTime === 'number') {
+        tvState.currentTime = data.currentTime;
+      }
+      tvState.updatedAt = Date.now();
+      io.emit('tvStateUpdate', getSyncedTvState());
+    });
+
+    socket.on('tvPause', (data) => {
+      tvState.playing = false;
+      if (data && typeof data.currentTime === 'number') {
+        tvState.currentTime = data.currentTime;
+      }
+      tvState.updatedAt = Date.now();
+      io.emit('tvStateUpdate', getSyncedTvState());
+    });
+
+    socket.on('tvProgress', (data) => {
+      if (data && typeof data.currentTime === 'number') {
+        tvState.currentTime = data.currentTime;
+        tvState.updatedAt = Date.now();
+      }
+    });
+
+    socket.on('tvSeek', (data) => {
+      if (data && typeof data.currentTime === 'number') {
+        tvState.currentTime = data.currentTime;
+        tvState.updatedAt = Date.now();
+        io.emit('tvStateUpdate', getSyncedTvState());
+      }
+    });
+
+    socket.on('tvSyncReq', () => {
+      socket.emit('tvStateUpdate', getSyncedTvState());
+    });
+
+    // Jukebox Synchronized Handlers
+    socket.on('jukeboxSyncReq', () => {
+      socket.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+    });
+
+    socket.on('jukeboxPlayTrack', (data) => {
+      if (data && data.track) {
+        jukeboxState.currentTrack = data.track;
+        jukeboxState.playing = true;
+        jukeboxState.currentTime = 0;
+        jukeboxState.updatedAt = Date.now();
+        if (data.changerName) jukeboxState.changerName = data.changerName;
+        io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+      }
+    });
+
+    socket.on('jukeboxTogglePlay', (data) => {
+      if (typeof data.playing === 'boolean') {
+        jukeboxState.playing = data.playing;
+        if (typeof data.currentTime === 'number') {
+          jukeboxState.currentTime = data.currentTime;
+        }
+        jukeboxState.updatedAt = Date.now();
+        io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+      }
+    });
+
+    socket.on('jukeboxSeek', (data) => {
+      if (data && typeof data.currentTime === 'number') {
+        jukeboxState.currentTime = data.currentTime;
+        jukeboxState.updatedAt = Date.now();
+        io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+      }
+    });
+
+    socket.on('jukeboxNext', (data) => {
+      if (jukeboxState.playlist && jukeboxState.playlist.length > 0) {
+        jukeboxState.currentIndex = (jukeboxState.currentIndex + 1) % jukeboxState.playlist.length;
+        jukeboxState.currentTrack = jukeboxState.playlist[jukeboxState.currentIndex];
+        jukeboxState.currentTime = 0;
+        jukeboxState.playing = true;
+        jukeboxState.updatedAt = Date.now();
+        if (data && data.changerName) jukeboxState.changerName = data.changerName;
+        io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+      }
+    });
+
+    socket.on('jukeboxPrev', (data) => {
+      if (jukeboxState.playlist && jukeboxState.playlist.length > 0) {
+        jukeboxState.currentIndex = (jukeboxState.currentIndex - 1 + jukeboxState.playlist.length) % jukeboxState.playlist.length;
+        jukeboxState.currentTrack = jukeboxState.playlist[jukeboxState.currentIndex];
+        jukeboxState.currentTime = 0;
+        jukeboxState.playing = true;
+        jukeboxState.updatedAt = Date.now();
+        if (data && data.changerName) jukeboxState.changerName = data.changerName;
+        io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+      }
+    });
+
+    socket.on('jukeboxSetVolume', (data) => {
+      if (data && typeof data.volume === 'number') {
+        jukeboxState.volume = Math.max(0, Math.min(100, data.volume));
+        socket.broadcast.emit('jukeboxVolumeUpdate', { volume: jukeboxState.volume });
+      }
+    });
+
+    socket.on('jukeboxAddQueue', (data) => {
+      if (data && data.track) {
+        jukeboxState.playlist.push(data.track);
+        io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+      }
+    });
+
+    // Chat Message Rate-Limiting & Broadcasting
+    let chatMsgCount = 0;
+    let lastChatReset = Date.now();
+
+    socket.on('chatMessage', (data) => {
+      const now = Date.now();
+      if (now - lastChatReset > 2000) {
+        chatMsgCount = 0;
+        lastChatReset = now;
+      }
+      chatMsgCount++;
+      if (chatMsgCount > 4) {
+        socket.emit('chatError', { message: 'Por favor, no envíes mensajes tan rápido.' });
+        return;
+      }
+
+      if (data && typeof data.text === 'string' && data.text.trim()) {
+        const p = players[socket.id];
+        const senderName = p ? p.name : (data.name || 'Jugador');
+        const cleanMsg = data.text.trim().substring(0, 160);
+        io.emit('chatMessage', {
+          id: socket.id,
+          name: senderName,
+          text: cleanMsg,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+      }
+    });
+
+    // Game Specific Event Hooks
+    setupRouletteSocketEvents(io, socket, players);
+    setupBlackjackSocketEvents(io, socket, players);
+    setupDiceSocketEvents(io, socket, players);
+    setupCoinSocketEvents(io, socket, players);
+
+    // Disconnect Cleanup
+    socket.on('disconnect', () => {
+      if (socket.currentZone) {
+        socket.to('zone:' + socket.currentZone).emit('playerLeft', socket.id);
+        socket.leave('zone:' + socket.currentZone);
+      } else {
+        io.emit('playerLeft', socket.id);
+      }
+
+      delete players[socket.id];
+
+      handleRouletteDisconnect(io, socket);
+      handleBlackjackDisconnect(io, socket);
+      handleDiceVersusDisconnect(io, socket);
+      handleCoinVersusDisconnect(io, socket);
+    });
+  });
+}
+
+module.exports = {
+  setupSocketIO,
+  getZoneForPosition,
+  getRelevantPlayersFor
+};
