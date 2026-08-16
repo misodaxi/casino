@@ -1188,6 +1188,11 @@
       display: flex;
     }
 
+    #cinemaWrap {
+      background: transparent !important;
+      pointer-events: none !important;
+    }
+
     .game-overlay>* {
       pointer-events: auto;
     }

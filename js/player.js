@@ -134,10 +134,12 @@
 
       window.addEventListener('mousedown', e => {
         if (e.button === 0 || e.button === 2) {
-          if (!e.target.closest('button, input, textarea, select, .action-btn, .chip, .exit-game-btn')) {
-            isDraggingCam = true;
-            previousMousePos = { x: e.clientX, y: e.clientY };
+          if (e.target.closest('button, input, textarea, select, .action-btn, .chip, .exit-game-btn, #tvIframeOverlay, #tvYoutubePlayerContainer, iframe, #css3dHost, .tv-modal, .top-right')) {
+            return;
           }
+          if (state.mode === 'cinema') return;
+          isDraggingCam = true;
+          previousMousePos = { x: e.clientX, y: e.clientY };
         }
       });
 
@@ -161,6 +163,10 @@
       // Touch Orbit for Mobile / Touchpad
       window.addEventListener('touchstart', e => {
         if (e.touches.length === 1) {
+          if (e.target.closest('button, input, textarea, select, .action-btn, .chip, .exit-game-btn, #tvIframeOverlay, #tvYoutubePlayerContainer, iframe, #css3dHost, .tv-modal, .top-right')) {
+            return;
+          }
+          if (state.mode === 'cinema') return;
           isDraggingCam = true;
           previousMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         }

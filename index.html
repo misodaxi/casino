@@ -649,12 +649,12 @@
 
   <!-- ================= 3D TV IFRAME OVERLAY (NATIVE 4K ULTRA HD CSS3D OBJECT) ================= -->
   <div id="tvIframeOverlay"
-    style="position:absolute; width:3840px; height:2160px; z-index:1; pointer-events:auto; display:block; transform-origin:50% 50%; border-radius:12px; overflow:hidden;">
-    <div id="tvYoutubePlayerContainer" style="width:3840px; height:2160px; pointer-events:auto;">
+    style="position:absolute; width:3840px; height:2160px; z-index:100; pointer-events:auto !important; display:block; transform-origin:50% 50%; border-radius:12px; overflow:hidden;">
+    <div id="tvYoutubePlayerContainer" style="width:3840px; height:2160px; pointer-events:auto !important;">
       <iframe id="tvIframeElement" width="100%" height="100%" src="about:blank" frameborder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowfullscreen referrerpolicy="strict-origin-when-cross-origin"
-        style="width:100%; height:100%; border:none; pointer-events:auto;">
+        style="width:100%; height:100%; border:none; pointer-events:auto !important; display:block;">
       </iframe>
     </div>
   </div>

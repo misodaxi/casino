@@ -63,10 +63,11 @@
       var cssRenderer = new THREE.CSS3DRenderer();
       cssRenderer.setSize(window.innerWidth, window.innerHeight);
       if (cssRenderer.domElement && cssRenderer.domElement.style) {
+        cssRenderer.domElement.id = 'css3dHost';
         cssRenderer.domElement.style.position = 'absolute';
         cssRenderer.domElement.style.top = '0';
         cssRenderer.domElement.style.left = '0';
-        cssRenderer.domElement.style.zIndex = '5';
+        cssRenderer.domElement.style.zIndex = '50';
         cssRenderer.domElement.style.pointerEvents = 'none';
       }
       host.appendChild(cssRenderer.domElement);
