@@ -386,7 +386,7 @@ function finishBlackjackRound(io, blackjackId, dealerScore) {
 
       broadcastBlackjackState(io, blackjackId);
     }
-  }, 5000);
+  }, 2200);
 }
 
 function setupBlackjackSocketEvents(io, socket, players) {
@@ -493,12 +493,7 @@ function setupBlackjackSocketEvents(io, socket, players) {
       bj.playerOrder.push(socket.id);
     }
 
-    const activeHands = Object.values(bj.players).filter(p => !p.leftTable && p.hand && p.hand.length > 0);
-    if (activeHands.length === 0) {
-      bj.phase = 'WAITING';
-    }
-
-    if (bj.phase === 'WAITING') {
+    if (bj.phase === 'WAITING' || bj.phase === 'RESULT') {
       const testPair = !!(data && data.forcePairTest);
       startBlackjackDeal(io, bjId, testPair ? socket.id : null);
     } else {

@@ -370,7 +370,7 @@
 
           const myData = s.players && s.players[socket.id];
 
-          if (s.phase === 'WAITING') {
+          if (s.phase === 'WAITING' || s.phase === 'RESULT') {
             if (dealBtn) { dealBtn.style.display = 'inline-block'; dealBtn.textContent = 'REPARTIR 🃏'; }
             if (testSplitBtn) testSplitBtn.style.display = 'inline-block';
             if (hitBtn) hitBtn.style.display = 'none';
@@ -410,7 +410,7 @@
               if (splitBtn) splitBtn.style.display = 'none';
               if (playerScoreEl) playerScoreEl.textContent = `Turno de: ${activePlayer}`;
             }
-          } else if (s.phase === 'DEALER_TURN' || s.phase === 'RESULT') {
+          } else if (s.phase === 'DEALER_TURN' || s.phase === 'DEALING') {
             if (dealBtn) dealBtn.style.display = 'none';
             if (hitBtn) hitBtn.style.display = 'none';
             if (standBtn) standBtn.style.display = 'none';
@@ -572,16 +572,22 @@
           }
         });
 
-        socket.on('blackjackRevealDealer', (data) => {
+        function handleDealerCardReveal(data) {
           if (!data || data.blackjackId !== 'blackjack') return;
           const targetMesh = bjDealerHiddenMesh || bjDealt3DMeshes[2];
           if (targetMesh) {
             flipCard3D(targetMesh, () => {
               const dealerScoreEl = document.getElementById('dealerScore');
-              if (dealerScoreEl) dealerScoreEl.textContent = 'Dealer: ' + data.dealerScore;
+              if (dealerScoreEl) {
+                const s = data.score !== undefined ? data.score : (data.dealerScore !== undefined ? data.dealerScore : '');
+                dealerScoreEl.textContent = 'Dealer: ' + s;
+              }
             });
           }
-        });
+        }
+
+        socket.on('blackjackRevealDealerCard', handleDealerCardReveal);
+        socket.on('blackjackRevealDealer', handleDealerCardReveal);
 
         socket.on('blackjackPlayerBust', (data) => {
           if (!data || data.blackjackId !== 'blackjack') return;
