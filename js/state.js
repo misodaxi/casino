@@ -183,33 +183,57 @@
         return tex;
       }
 
+      const _chipTopMatCache = {};
+      const _chipSideMatCache = {};
+      const _chipRingMatCache = {};
+      const _chipCylGeoCache = {};
+      const _chipRingGeoCache = {};
+
       function create3DChipSingleMesh(chipDef, radius = 0.085, height = 0.022) {
         const chipGroup = new THREE.Group();
-        const tex = getCasinoChipTexture(chipDef);
+        const v = chipDef.v;
 
-        const topMat = new THREE.MeshStandardMaterial({
-          map: tex,
-          roughness: 0.28,
-          metalness: chipDef.gold ? 0.65 : 0.35
-        });
+        if (!_chipTopMatCache[v]) {
+          const tex = getCasinoChipTexture(chipDef);
+          _chipTopMatCache[v] = new THREE.MeshStandardMaterial({
+            map: tex,
+            roughness: 0.28,
+            metalness: chipDef.gold ? 0.65 : 0.35
+          });
+        }
+        if (!_chipSideMatCache[v]) {
+          _chipSideMatCache[v] = new THREE.MeshStandardMaterial({
+            color: chipDef.hex,
+            roughness: 0.3,
+            metalness: chipDef.gold ? 0.5 : 0.2
+          });
+        }
+        if (!_chipRingMatCache[v]) {
+          _chipRingMatCache[v] = new THREE.MeshStandardMaterial({
+            color: chipDef.gold ? 0xfbbf24 : (chipDef.hex || 0xffffff),
+            metalness: 0.9,
+            roughness: 0.15
+          });
+        }
 
-        const sideMat = new THREE.MeshStandardMaterial({
-          color: chipDef.hex,
-          roughness: 0.3,
-          metalness: chipDef.gold ? 0.5 : 0.2
-        });
+        const geoKey = radius + '_' + height;
+        if (!_chipCylGeoCache[geoKey]) {
+          _chipCylGeoCache[geoKey] = new THREE.CylinderGeometry(radius, radius, height, 32);
+        }
+        if (!_chipRingGeoCache[radius]) {
+          _chipRingGeoCache[radius] = new THREE.TorusGeometry(radius, 0.005, 8, 32);
+        }
 
-        const cylinderGeo = new THREE.CylinderGeometry(radius, radius, height, 32);
+        const topMat = _chipTopMatCache[v];
+        const sideMat = _chipSideMatCache[v];
+        const ringMat = _chipRingMatCache[v];
+        const cylinderGeo = _chipCylGeoCache[geoKey];
+        const ringGeo = _chipRingGeoCache[radius];
+
         const mesh = new THREE.Mesh(cylinderGeo, [sideMat, topMat, topMat]);
         mesh.castShadow = true; mesh.receiveShadow = true;
         chipGroup.add(mesh);
 
-        const ringGeo = new THREE.TorusGeometry(radius, 0.005, 8, 32);
-        const ringMat = new THREE.MeshStandardMaterial({
-          color: chipDef.gold ? 0xfbbf24 : (chipDef.hex || 0xffffff),
-          metalness: 0.9,
-          roughness: 0.15
-        });
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.rotation.x = Math.PI / 2;
         chipGroup.add(ring);

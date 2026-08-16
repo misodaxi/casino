@@ -12,7 +12,6 @@
           t.position.y = t.userData.baseY;
           if (t.userData.icon) {
             t.remove(t.userData.icon);
-            t.userData.icon.material.map.dispose();
             t.userData.icon.material.dispose();
             t.userData.icon = null;
           }

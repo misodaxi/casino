@@ -118,6 +118,13 @@
       let targetCamPitch = Math.PI / 6;
       let targetCamDist = 17;
 
+      const _desiredCamPos = new THREE.Vector3();
+      const _lookTargetVec = new THREE.Vector3();
+      const _cachedPromptEl = document.getElementById('prompt');
+      const _cachedPromptTextEl = document.getElementById('promptText');
+      let _lastPromptText = '';
+      let _lastPromptVisible = false;
+
       // Límites de inclinación de cámara: se permite pitch negativo para poder
       // mirar mucho más hacia arriba (techo, TV, carteles) sin que la cámara
       // atraviese el suelo — eso se garantiza aparte con CAM_FLOOR_Y más abajo.
@@ -278,50 +285,65 @@
         playerAvatar.position.set(state.player.x, 0, state.player.z);
         playerAvatar.rotation.y = state.player.rotY;
 
-        /* camera follow & mouse orbit */
+        /* camera follow & mouse orbit (Static Vector Reuse - Zero GC) */
         camYaw += (targetCamYaw - camYaw) * Math.min(1, dt * 10);
         camPitch += (targetCamPitch - camPitch) * Math.min(1, dt * 10);
         camDist += (targetCamDist - camDist) * Math.min(1, dt * 10);
 
         const cx = state.player.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist;
-        // Límite de suelo: la cámara nunca desciende por debajo de CAM_FLOOR_Y,
-        // incluso con pitch negativo (mirando muy hacia arriba)
+        // Límite de suelo: la cámara nunca desciende por debajo de CAM_FLOOR_Y
         const cy = Math.max(CAM_FLOOR_Y, Math.sin(camPitch) * camDist);
         const cz = state.player.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist;
 
-        const desiredPos = new THREE.Vector3(cx, cy, cz);
-        camera.position.lerp(desiredPos, Math.min(1, dt * 8));
+        _desiredCamPos.set(cx, cy, cz);
+        camera.position.lerp(_desiredCamPos, Math.min(1, dt * 8));
 
-        // Elevación del punto de mira: cuanto más bajo/negativo el pitch, más se
-        // alza el punto al que mira la cámara, acentuando la sensación de "mirar
-        // hacia arriba" (techo, TV, carteles) en vez de solo inclinar la cabeza.
         const lookUpFactor = Math.max(0, 0.35 - camPitch);
         const lookTargetY = 1.2 + lookUpFactor * 6.5;
-        state.camFollowLook.lerp(new THREE.Vector3(state.player.x, lookTargetY, state.player.z), Math.min(1, dt * 8));
+        _lookTargetVec.set(state.player.x, lookTargetY, state.player.z);
+        state.camFollowLook.lerp(_lookTargetVec, Math.min(1, dt * 8));
         camera.lookAt(state.camFollowLook);
 
-        /* proximity */
+        /* proximity (Cached DOM Check - Zero Redundant Mutations) */
         let nearest = null, nd = Infinity;
-        ZONES.forEach(z => {
-          const d = Math.hypot(state.player.x - z.x, state.player.z - z.z);
+        const zonesList = window.ZONES || ZONES;
+        for (let i = 0; i < zonesList.length; i++) {
+          const z = zonesList[i];
+          const dx = state.player.x - z.x;
+          const dz = state.player.z - z.z;
+          const d = Math.hypot(dx, dz);
           if (d < z.radius + 1.5 && d < nd) { nd = d; nearest = z; }
-        });
+        }
         state.activeZone = nearest;
-        const prompt = document.getElementById('prompt');
+
+        let neededPrompt = '';
+        let showPrompt = false;
         if (nearest) {
-          if (nearest.id === 'jukebox') {
-            document.getElementById('promptText').textContent = '🎵 Poner Música en la Gramola [E]';
-          } else {
-            document.getElementById('promptText').textContent = 'Sentarse en ' + nearest.name;
-          }
-          prompt.classList.add('show');
+          showPrompt = true;
+          neededPrompt = (nearest.id === 'jukebox') ? '🎵 Poner Música en la Gramola [E]' : ('Sentarse en ' + nearest.name);
         } else {
           const dJuke = Math.hypot(state.player.x - 11.8, state.player.z - 36.0);
           if (dJuke < 3.8) {
-            document.getElementById('promptText').textContent = '🎵 Poner Música en la Gramola [E]';
-            prompt.classList.add('show');
-          } else {
-            prompt.classList.remove('show');
+            showPrompt = true;
+            neededPrompt = '🎵 Poner Música en la Gramola [E]';
+          }
+        }
+
+        const promptEl = _cachedPromptEl || document.getElementById('prompt');
+        const promptTextEl = _cachedPromptTextEl || document.getElementById('promptText');
+        if (promptEl && promptTextEl) {
+          if (showPrompt) {
+            if (_lastPromptText !== neededPrompt) {
+              _lastPromptText = neededPrompt;
+              promptTextEl.textContent = neededPrompt;
+            }
+            if (!_lastPromptVisible) {
+              _lastPromptVisible = true;
+              promptEl.classList.add('show');
+            }
+          } else if (_lastPromptVisible) {
+            _lastPromptVisible = false;
+            promptEl.classList.remove('show');
           }
         }
       }

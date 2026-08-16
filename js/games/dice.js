@@ -136,6 +136,7 @@
 
         activeDiceRoll.resolved = false;
         activeDiceRoll.versusData = versusData;
+        window.isDicePhysicsActive = true;
       }
 
       function rollDiceDuel3D() {
@@ -182,7 +183,19 @@
         return bestFaceVal;
       }
 
+      window.isDicePhysicsActive = false;
+
+      // Pre-allocated scratch objects for Dice Physics (0 GC allocations per sub-step)
+      const _diceCornerScratch = [
+        new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(),
+        new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()
+      ];
+      const _diceTempAxis = new THREE.Vector3();
+      const _diceTempDq = new THREE.Quaternion();
+      const _diceTempWobbleQ = new THREE.Quaternion();
+
       function updateDicePhysics(dt) {
+        if (!window.isDicePhysicsActive) return; // 0 CPU cost when dice are settled
         if (!activeDiceRoll) initTableDicePhysics();
         if (!dice3DRefs || !activeDiceRoll) return;
 
@@ -281,8 +294,8 @@
                 const wobbleAngle = Math.sin(wobbleTime * 28.0) * 0.08 * wobbleDamp;
                 
                 if (d.wobbleAxis) {
-                  const wobbleQ = new THREE.Quaternion().setFromAxisAngle(d.wobbleAxis, wobbleAngle);
-                  d.mesh.quaternion.copy(d.targetQuat).multiply(wobbleQ);
+                  _diceTempWobbleQ.setFromAxisAngle(d.wobbleAxis, wobbleAngle);
+                  d.mesh.quaternion.copy(d.targetQuat).multiply(_diceTempWobbleQ);
                 }
 
                 if (wobbleTime > 0.22 || wobbleDamp < 0.02) {
@@ -318,17 +331,21 @@
             // 3. Integración de rotación 3D
             const angMag = d.angVel.length();
             if (angMag > 0.0001) {
-              const axis = d.angVel.clone().normalize();
-              const dq = new THREE.Quaternion().setFromAxisAngle(axis, angMag * subDt);
-              d.mesh.quaternion.premultiply(dq);
+              _diceTempAxis.copy(d.angVel).normalize();
+              _diceTempDq.setFromAxisAngle(_diceTempAxis, angMag * subDt);
+              d.mesh.quaternion.premultiply(_diceTempDq);
             }
 
-            // 4. Detección de la esquina de contacto más baja
+            // 4. Detección de la esquina de contacto más baja (Zero Allocations)
             let lowestY = Infinity;
-            let lowestCorner = null;
+            let lowestRx = 0, lowestRz = 0;
             for (let i = 0; i < 8; i++) {
-              const cv = DIE_LOCAL_CORNERS[i].clone().multiplyScalar(halfSize).applyQuaternion(d.mesh.quaternion);
-              if (cv.y < lowestY) { lowestY = cv.y; lowestCorner = cv; }
+              const cv = _diceCornerScratch[i].copy(DIE_LOCAL_CORNERS[i]).multiplyScalar(halfSize).applyQuaternion(d.mesh.quaternion);
+              if (cv.y < lowestY) {
+                lowestY = cv.y;
+                lowestRx = cv.x;
+                lowestRz = cv.z;
+              }
             }
 
             const bottomContactY = d.mesh.position.y + lowestY;
@@ -339,8 +356,7 @@
               d.mesh.position.y += (floorY - bottomContactY);
 
               // Velocidad en el punto de contacto
-              const r = lowestCorner || new THREE.Vector3(0, -halfSize, 0);
-              const contactVelY = d.vel.y + (d.angVel.x * r.z - d.angVel.z * r.x);
+              const contactVelY = d.vel.y + (d.angVel.x * lowestRz - d.angVel.z * lowestRx);
 
               if (contactVelY < -0.16 && d.bounceCount < 8) {
                 // FASE 1: REBOTES VIVOS Y ALTOS EN EL TAPETE
@@ -353,8 +369,8 @@
                 d.vel.z *= 0.91;
 
                 // Torque por impacto en esquina
-                d.angVel.x += r.z * 11.0;
-                d.angVel.z -= r.x * 11.0;
+                d.angVel.x += lowestRz * 11.0;
+                d.angVel.z -= lowestRx * 11.0;
                 d.angVel.y *= 0.90;
 
                 if (t - (d.lastTickTime || 0) > 0.055) {
@@ -553,6 +569,7 @@
 
         if (allSettled && !activeDiceRoll.resolved) {
           activeDiceRoll.resolved = true;
+          window.isDicePhysicsActive = false;
           if (activeDiceRoll.versusData) {
             resolveDiceVersusDuel(activeDiceRoll.versusData);
           } else {

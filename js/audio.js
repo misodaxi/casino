@@ -4,6 +4,49 @@
       var audioCtx = null;
       var soundEnabled = true;
 
+      // Pre-cached procedural AudioBuffers (Zero GC spikes during gameplay)
+      var _diceNoiseBuf = null;
+      var _cardNoiseBuf = null;
+      var _explosionNoiseBuf = null;
+      var _cachedSampleRate = 0;
+
+      function getDiceNoiseBuffer(ctx) {
+        if (!_diceNoiseBuf || _cachedSampleRate !== ctx.sampleRate) {
+          _cachedSampleRate = ctx.sampleRate;
+          const bufLen = Math.floor(ctx.sampleRate * 0.028);
+          _diceNoiseBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+          const nData = _diceNoiseBuf.getChannelData(0);
+          for (let i = 0; i < bufLen; i++) nData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufLen * 0.3));
+        }
+        return _diceNoiseBuf;
+      }
+
+      function getCardNoiseBuffer(ctx) {
+        if (!_cardNoiseBuf || _cachedSampleRate !== ctx.sampleRate) {
+          _cachedSampleRate = ctx.sampleRate;
+          const bufLen = Math.floor(ctx.sampleRate * 0.11);
+          _cardNoiseBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+          const nData = _cardNoiseBuf.getChannelData(0);
+          for (let i = 0; i < bufLen; i++) {
+            const progress = i / bufLen;
+            const env = Math.sin(progress * Math.PI) * Math.exp(-progress * 1.8);
+            nData[i] = (Math.random() * 2 - 1) * env;
+          }
+        }
+        return _cardNoiseBuf;
+      }
+
+      function getExplosionNoiseBuffer(ctx) {
+        if (!_explosionNoiseBuf || _cachedSampleRate !== ctx.sampleRate) {
+          _cachedSampleRate = ctx.sampleRate;
+          const bufferSize = Math.floor(ctx.sampleRate * 0.4);
+          _explosionNoiseBuf = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const data = _explosionNoiseBuf.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        }
+        return _explosionNoiseBuf;
+      }
+
       function initAudio() {
         if (!audioCtx) {
           const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -76,13 +119,9 @@
           clickOsc.start(now);
           clickOsc.stop(now + 0.016);
 
-          // 2. Ruido sordo y amortiguado de fibras de fieltro de lana (Felt wool absorption)
-          const bufLen = Math.floor(audioCtx.sampleRate * 0.028);
-          const noiseBuf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
-          const nData = noiseBuf.getChannelData(0);
-          for (let i = 0; i < bufLen; i++) nData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufLen * 0.3));
+          // 2. Ruido sordo y amortiguado de fibras de fieltro de lana (Felt wool absorption - Cached Buffer)
           const noiseSource = audioCtx.createBufferSource();
-          noiseSource.buffer = noiseBuf;
+          noiseSource.buffer = getDiceNoiseBuffer(audioCtx);
           const noiseFilter = audioCtx.createBiquadFilter();
           noiseFilter.type = 'bandpass';
           noiseFilter.frequency.setValueAtTime(1350 * pitchShift, now);
@@ -216,21 +255,13 @@
           osc1.stop(now + 0.30); osc2.stop(now + 0.30);
         }
         else if (type === 'card_deal' || type === 'card' || type === 'card_slide') {
-          // Síntesis física de carta de casino (Bicycle/Bee casino stock) deslizándose del zapato y posándose en el fieltro
+          // Síntesis física de carta de casino deslizada con buffer pre-cacheado
           const intensity = (typeof param === 'number') ? Math.max(0.2, Math.min(1.2, param)) : 0.90;
           const pitchShift = 0.95 + Math.random() * 0.10;
 
-          // 1. Fricción aerodinámica de la carta deslizándose (Air whoosh & felt friction)
-          const bufLen = Math.floor(audioCtx.sampleRate * 0.11);
-          const noiseBuf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
-          const nData = noiseBuf.getChannelData(0);
-          for (let i = 0; i < bufLen; i++) {
-            const progress = i / bufLen;
-            const env = Math.sin(progress * Math.PI) * Math.exp(-progress * 1.8);
-            nData[i] = (Math.random() * 2 - 1) * env;
-          }
+          // 1. Fricción aerodinámica de la carta deslizándose (Air whoosh & felt friction - Cached Buffer)
           const noiseSource = audioCtx.createBufferSource();
-          noiseSource.buffer = noiseBuf;
+          noiseSource.buffer = getCardNoiseBuffer(audioCtx);
 
           const filter = audioCtx.createBiquadFilter();
           filter.type = 'bandpass';
@@ -247,7 +278,7 @@
           noiseGain.connect(audioCtx.destination);
           noiseSource.start(now);
 
-          // 2. Chasquido elástico inicial de salida del zapato / borde de cartulina (Linen card flick transient)
+          // 2. Chasquido elástico inicial de salida del zapato / borde de cartulina
           const snapOsc = audioCtx.createOscillator();
           const snapGain = audioCtx.createGain();
           snapOsc.type = 'triangle';
@@ -260,7 +291,7 @@
           snapOsc.start(now);
           snapOsc.stop(now + 0.022);
 
-          // 3. Impacto suave sobre el fieltro acolchado al aterrizar (Soft felt tap)
+          // 3. Impacto suave sobre el fieltro acolchado al aterrizar
           const tapTime = now + 0.06;
           const tapOsc = audioCtx.createOscillator();
           const tapGain = audioCtx.createGain();
@@ -305,12 +336,8 @@
           slapOsc.stop(now + 0.045);
         }
         else if (type === 'explosion') {
-          const bufferSize = audioCtx.sampleRate * 0.4;
-          const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-          const data = buffer.getChannelData(0);
-          for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
           const noise = audioCtx.createBufferSource();
-          noise.buffer = buffer;
+          noise.buffer = getExplosionNoiseBuffer(audioCtx);
           const gain = audioCtx.createGain();
           gain.gain.setValueAtTime(0.5, now);
           gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);

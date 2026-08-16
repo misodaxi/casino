@@ -56,7 +56,7 @@ const scripts = [
 
 for (const s of scripts) {
   try {
-    const filePath = path.join('c:/Users/Usuario/Desktop/casinow', s);
+    const filePath = path.join(__dirname, s);
     const code = fs.readFileSync(filePath, 'utf8');
     vm.runInContext(code, context);
     console.log('SUCCESS:', s);

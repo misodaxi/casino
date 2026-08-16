@@ -91,7 +91,7 @@ function checkAndTriggerSpin(io, rouletteId) {
           }
         }, 4000);
       }
-    }, 7000);
+    }, 10000);
   }
 }
 

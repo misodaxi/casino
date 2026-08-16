@@ -132,8 +132,15 @@ function draw3DSlotMachineScreen(ctx, state, theme, type, machineRef) {
   ctx.fillText(state.winner ? '⭐ ¡PREMIO GANADOR! ⭐' : 'JACKPOT x50  |  3 EN LÍNEA', 256, 452);
 }
 
+window.activeSpinningSlotsCount = 0;
+window.dirtySlotsCount = 0;
+window.slotTexUpdatesThisSec = 0;
+
 function updateSlot3DScreens(dt) {
+  // Ultra-fast O(1) early return: 0 CPU and 0 texture updates when all 30 machines are idle
+  if (window.activeSpinningSlotsCount <= 0 && window.dirtySlotsCount <= 0) return;
   if (!window.slotMachinesByZone) return;
+
   const now = performance.now();
 
   for (const zoneId of ['slots', 'pachinko', 'tragaperras']) {
@@ -184,9 +191,11 @@ function updateSlot3DScreens(dt) {
 
         draw3DSlotMachineScreen(item.ctx, st, item.theme, item.type, item);
         item.tex.needsUpdate = true;
+        window.slotTexUpdatesThisSec++;
 
         if (allDone) {
           st.spinning = false;
+          window.activeSpinningSlotsCount = Math.max(0, window.activeSpinningSlotsCount - 1);
           const wonAmount = roundMoney(st.bet * st.multiplier);
 
           if (st.multiplier > 0) {
@@ -219,11 +228,14 @@ function updateSlot3DScreens(dt) {
 
           draw3DSlotMachineScreen(item.ctx, st, item.theme, item.type, item);
           item.tex.needsUpdate = true;
+          window.slotTexUpdatesThisSec++;
         }
       } else if (st.dirty) {
         st.dirty = false;
+        window.dirtySlotsCount = Math.max(0, window.dirtySlotsCount - 1);
         draw3DSlotMachineScreen(item.ctx, st, item.theme, item.type, item);
         item.tex.needsUpdate = true;
+        window.slotTexUpdatesThisSec++;
       }
     }
   }
@@ -256,6 +268,7 @@ function spinSlotMachine(gameType) {
   playSound('coin_flip');
 
   st.spinning = true;
+  window.activeSpinningSlotsCount++;
   st.winner = false;
   st.stopped = [false, false, false];
 

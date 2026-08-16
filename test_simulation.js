@@ -205,7 +205,7 @@ const scripts = [
 let allPassed = true;
 for (const s of scripts) {
   try {
-    const filePath = path.join('c:/Users/Usuario/Desktop/casinow', s);
+    const filePath = path.join(__dirname, s);
     const scriptCode = fs.readFileSync(filePath, 'utf8');
     vm.runInContext(scriptCode, sandbox);
     console.log('✓ PASS:', s);

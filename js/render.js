@@ -15,23 +15,31 @@
          ADAPTIVE PERFORMANCE & PIXEL RATIO QUALITY ENGINE
       ============================================================ */
       var isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-      var QualityTiers = {
-        LOW: { name: 'LOW', pixelRatio: 1.0, shadowMap: false, maxParticles: 20 },
-        MEDIUM: { name: 'MEDIUM', pixelRatio: 1.15, shadowMap: true, maxParticles: 40 },
-        HIGH: { name: 'HIGH', pixelRatio: 1.35, shadowMap: true, maxParticles: 75 },
-        ULTRA: { name: 'ULTRA', pixelRatio: Math.min(window.devicePixelRatio || 1.5, 1.75), shadowMap: true, maxParticles: 130 }
+      var QualityTiers = window.QualityTiers || {
+        LOW: { name: 'LOW', pixelRatio: 1.0, shadowMap: false, maxParticles: 20, slotRes: 256, shadowMapSize: 512 },
+        MEDIUM: { name: 'MEDIUM', pixelRatio: 1.15, shadowMap: true, maxParticles: 40, slotRes: 384, shadowMapSize: 512 },
+        HIGH: { name: 'HIGH', pixelRatio: 1.35, shadowMap: true, maxParticles: 75, slotRes: 512, shadowMapSize: 1024 },
+        ULTRA: { name: 'ULTRA', pixelRatio: Math.min(window.devicePixelRatio || 1.5, 1.75), shadowMap: true, maxParticles: 130, slotRes: 512, shadowMapSize: 1024 }
       };
 
       var currentQuality = isMobileDevice ? QualityTiers.MEDIUM : QualityTiers.HIGH;
+      window.currentQuality = currentQuality;
 
       function applyQualityTier(tier) {
         if (!tier) return;
         currentQuality = tier;
+        window.currentQuality = tier;
         renderer.setPixelRatio(tier.pixelRatio);
         renderer.shadowMap.enabled = tier.shadowMap;
         if (tier.shadowMap) {
           renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+          if (typeof moonLight !== 'undefined' && moonLight) {
+            moonLight.castShadow = true;
+            moonLight.shadow.mapSize.width = tier.shadowMapSize || 512;
+            moonLight.shadow.mapSize.height = tier.shadowMapSize || 512;
+          }
+        } else if (typeof moonLight !== 'undefined' && moonLight) {
+          moonLight.castShadow = false;
         }
         const badgeEl = document.getElementById('debugQualityBadge');
         if (badgeEl) {
@@ -39,6 +47,7 @@
           badgeEl.className = 'badge ' + (tier.name === 'ULTRA' ? 'badge-excellent' : (tier.name === 'HIGH' ? 'badge-good' : (tier.name === 'MEDIUM' ? 'badge-fair' : 'badge-poor')));
         }
       }
+      window.applyQualityTier = applyQualityTier;
 
       applyQualityTier(currentQuality);
       renderer.setSize(window.innerWidth, window.innerHeight);
@@ -98,25 +107,29 @@
          3D CASINO ASSET CONSTRUCTORS (AUTHENTIC TO BLUEPRINT)
       ============================================================ */
 
-      // 1. Art-Deco Brass Lamp Post with Warm Glowing Globe
+      // 1. Art-Deco Brass Lamp Post with Warm Glowing Globe (Shared Geometry & Material Pool)
+      const LAMP_FOOT_GEO = new THREE.CylinderGeometry(0.22, 0.28, 0.15, 16);
+      const LAMP_POLE_GEO = new THREE.CylinderGeometry(0.045, 0.07, 3.2, 16);
+      const LAMP_CROWN_GEO = new THREE.CylinderGeometry(0.18, 0.12, 0.2, 16);
+      const LAMP_GLOBE_GEO = new THREE.SphereGeometry(0.22, 16, 16);
+      const LAMP_GOLD_MAT = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
+      const LAMP_GLOBE_MAT = new THREE.MeshStandardMaterial({
+        color: 0xfff3d6,
+        emissive: 0xffd180,
+        emissiveIntensity: 2.2,
+        roughness: 0.2
+      });
+
       function createGoldenLampPost() {
         const g = new THREE.Group();
-        const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
-        const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.15, 16), goldMat);
+        const foot = new THREE.Mesh(LAMP_FOOT_GEO, LAMP_GOLD_MAT);
         foot.position.y = 0.075;
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.07, 3.2, 16), goldMat);
+        const pole = new THREE.Mesh(LAMP_POLE_GEO, LAMP_GOLD_MAT);
         pole.position.y = 1.65;
-        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.12, 0.2, 16), goldMat);
+        const crown = new THREE.Mesh(LAMP_CROWN_GEO, LAMP_GOLD_MAT);
         crown.position.y = 3.25;
 
-        // Glowing Frosted Glass Lantern Globe
-        const globeMat = new THREE.MeshStandardMaterial({
-          color: 0xfff3d6,
-          emissive: 0xffd180,
-          emissiveIntensity: 2.2,
-          roughness: 0.2
-        });
-        const globe = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), globeMat);
+        const globe = new THREE.Mesh(LAMP_GLOBE_GEO, LAMP_GLOBE_MAT);
         globe.position.y = 3.45;
 
         const pLight = new THREE.PointLight(0xffd180, 1.2, 7.5);
@@ -126,26 +139,31 @@
         return g;
       }
 
-      // 2. Potted Palm Tree in Hexagonal Brass Planter
+      // 2. Potted Palm Tree in Hexagonal Brass Planter (Shared Geometry & Material Pool)
+      const PALM_POT_GEO = new THREE.CylinderGeometry(0.44, 0.34, 0.70, 6);
+      const PALM_SOIL_GEO = new THREE.CylinderGeometry(0.42, 0.42, 0.05, 16);
+      const PALM_TRUNK_GEO = new THREE.CylinderGeometry(0.09, 0.14, 2.4, 12);
+      const PALM_FROND_GEO = new THREE.PlaneGeometry(0.55, 1.6);
+      const PALM_POT_MAT = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.92, roughness: 0.18 });
+      const PALM_SOIL_MAT = new THREE.MeshStandardMaterial({ color: 0x1f1610, roughness: 0.9 });
+      const PALM_TRUNK_MAT = new THREE.MeshStandardMaterial({ color: 0x3e2415, roughness: 0.8 });
+      const PALM_LEAF_MAT = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.5, side: THREE.DoubleSide });
+
       function createCasinoPalmTree() {
         const g = new THREE.Group();
-        const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.34, 0.70, 6),
-          new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.92, roughness: 0.18 }));
+        const pot = new THREE.Mesh(PALM_POT_GEO, PALM_POT_MAT);
         pot.position.y = 0.35;
-        const soil = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 16),
-          new THREE.MeshStandardMaterial({ color: 0x1f1610, roughness: 0.9 }));
+        const soil = new THREE.Mesh(PALM_SOIL_GEO, PALM_SOIL_MAT);
         soil.position.y = 0.68;
         g.add(pot, soil);
 
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 2.4, 12),
-          new THREE.MeshStandardMaterial({ color: 0x3e2415, roughness: 0.8 }));
+        const trunk = new THREE.Mesh(PALM_TRUNK_GEO, PALM_TRUNK_MAT);
         trunk.position.y = 1.8;
         g.add(trunk);
 
-        const leafMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.5, side: THREE.DoubleSide });
         for (let f = 0; f < 8; f++) {
           const ang = (f / 8) * Math.PI * 2;
-          const frond = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 1.6), leafMat);
+          const frond = new THREE.Mesh(PALM_FROND_GEO, PALM_LEAF_MAT);
           frond.position.set(Math.sin(ang) * 0.55, 2.8, Math.cos(ang) * 0.55);
           frond.rotation.set(-0.65, ang, 0);
           g.add(frond);
@@ -153,32 +171,50 @@
         return g;
       }
 
-      // 3. VIP Round Cocktail Table with Velvet Club Armchairs
+      // 3. VIP Round Cocktail Table with Velvet Club Armchairs (Shared Asset Pool)
+      const VIP_TABLE_BASE_GEO = new THREE.CylinderGeometry(0.32, 0.38, 0.08, 20);
+      const VIP_TABLE_STEM_GEO = new THREE.CylinderGeometry(0.06, 0.08, 0.72, 16);
+      const VIP_TABLE_TOP_GEO = new THREE.CylinderGeometry(0.68, 0.68, 0.06, 24);
+      const VIP_TABLE_RIM_GEO = new THREE.TorusGeometry(0.69, 0.02, 12, 32);
+      const VIP_TABLE_CANDLE_GEO = new THREE.CylinderGeometry(0.06, 0.06, 0.14, 12);
+      const VIP_CHAIR_SEAT_GEO = new THREE.CylinderGeometry(0.34, 0.32, 0.22, 16);
+      const VIP_CHAIR_BACK_GEO = new THREE.CylinderGeometry(0.36, 0.36, 0.48, 16, 1, false, -Math.PI * 0.45, Math.PI * 0.9);
+      const VIP_CHAIR_LEG_GEO = new THREE.CylinderGeometry(0.02, 0.02, 0.26, 8);
+
+      const VIP_GOLD_MAT = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
+      const VIP_TABLE_TOP_MAT = new THREE.MeshStandardMaterial({ color: 0x0c0717, roughness: 0.2, metalness: 0.3 });
+      const VIP_CANDLE_MAT = new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 1.8 });
+      const VIP_CUSHION_MAT = new THREE.MeshStandardMaterial({ color: 0x140b24, roughness: 0.4 });
+
+      const _vipChairMatCache = {};
+      function getVipChairMaterial(chairColorHex) {
+        if (!_vipChairMatCache[chairColorHex]) {
+          _vipChairMatCache[chairColorHex] = new THREE.MeshStandardMaterial({ color: chairColorHex, roughness: 0.5 });
+        }
+        return _vipChairMatCache[chairColorHex];
+      }
+
       function createVipCocktailTable(chairCount = 4, chairColorHex = 0x221338) {
         const g = new THREE.Group();
-        const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
-        const topMat = new THREE.MeshStandardMaterial({ color: 0x0c0717, roughness: 0.2, metalness: 0.3 });
 
         // Table Base & Top
-        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.08, 20), goldMat);
+        const base = new THREE.Mesh(VIP_TABLE_BASE_GEO, VIP_GOLD_MAT);
         base.position.y = 0.04;
-        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.72, 16), goldMat);
+        const stem = new THREE.Mesh(VIP_TABLE_STEM_GEO, VIP_GOLD_MAT);
         stem.position.y = 0.40;
-        const top = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.68, 0.06, 24), topMat);
+        const top = new THREE.Mesh(VIP_TABLE_TOP_GEO, VIP_TABLE_TOP_MAT);
         top.position.y = 0.75;
-        const rim = new THREE.Mesh(new THREE.TorusGeometry(0.69, 0.02, 12, 32), goldMat);
+        const rim = new THREE.Mesh(VIP_TABLE_RIM_GEO, VIP_GOLD_MAT);
         rim.rotation.x = Math.PI / 2; rim.position.y = 0.75;
 
         // Glowing center cocktail / candle
-        const candle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.14, 12),
-          new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 1.8 }));
+        const candle = new THREE.Mesh(VIP_TABLE_CANDLE_GEO, VIP_CANDLE_MAT);
         candle.position.y = 0.84;
 
         g.add(base, stem, top, rim, candle);
 
         // Radial Club Armchairs
-        const chairMat = new THREE.MeshStandardMaterial({ color: chairColorHex, roughness: 0.5 });
-        const cushionMat = new THREE.MeshStandardMaterial({ color: 0x140b24, roughness: 0.4 });
+        const chairMat = getVipChairMaterial(chairColorHex);
 
         for (let i = 0; i < chairCount; i++) {
           const ang = (i / chairCount) * Math.PI * 2;
@@ -190,14 +226,14 @@
           chairGrp.rotation.y = ang + Math.PI; // Face towards the center table
 
           // Seat cushion
-          const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.32, 0.22, 16), cushionMat);
+          const seat = new THREE.Mesh(VIP_CHAIR_SEAT_GEO, VIP_CUSHION_MAT);
           seat.position.y = 0.36;
           // Curved tub backrest
-          const back = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.48, 16, 1, false, -Math.PI * 0.45, Math.PI * 0.9), chairMat);
+          const back = new THREE.Mesh(VIP_CHAIR_BACK_GEO, chairMat);
           back.position.y = 0.58;
           // Gold legs
           [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]].forEach(([lx, lz]) => {
-            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.26, 8), goldMat);
+            const leg = new THREE.Mesh(VIP_CHAIR_LEG_GEO, VIP_GOLD_MAT);
             leg.position.set(lx, 0.13, lz);
             chairGrp.add(leg);
           });
@@ -205,7 +241,6 @@
           chairGrp.add(seat, back);
           g.add(chairGrp);
         }
-
         return g;
       }
 
@@ -319,51 +354,74 @@
         sceneRef.add(neonGrp);
       }
 
-      // 6. Bowling 3D Alley (Grand Championship 6-Lane Regulation Alley - 48m Long)
+      // 6. Bowling 3D Alley (Grand Championship 6-Lane Regulation Alley - Shared Asset Pool)
+      const BOWLING_LANE_GEO = new THREE.BoxGeometry(2.2, 0.1, 48.0);
+      const BOWLING_GUTTER_GEO = new THREE.BoxGeometry(0.35, 0.06, 48.0);
+      const BOWLING_GUTTER_NEON_GEO = new THREE.BoxGeometry(0.06, 0.04, 48.0);
+      const BOWLING_DIVIDER_GEO = new THREE.BoxGeometry(0.12, 0.22, 48.0);
+      const BOWLING_PIN_BODY_GEO = new THREE.CylinderGeometry(0.07, 0.11, 0.46, 16);
+      const BOWLING_PIN_HEAD_GEO = new THREE.SphereGeometry(0.08, 16, 16);
+      const BOWLING_PIN_STRIPE_GEO = new THREE.CylinderGeometry(0.082, 0.082, 0.05, 16);
+      const BOWLING_BALL_GEO = new THREE.SphereGeometry(0.14, 16, 16);
+      const BOWLING_MONITOR_POLE_GEO = new THREE.CylinderGeometry(0.04, 0.04, 2.4, 12);
+      const BOWLING_MONITOR_BOX_GEO = new THREE.BoxGeometry(1.6, 0.9, 0.15);
+      const BOWLING_HOOD_GEO = new THREE.BoxGeometry(2.9, 2.2, 1.4);
+      const BOWLING_RACK_GEO = new THREE.BoxGeometry(0.40, 0.60, 4.8);
+
+      const BOWLING_LANE_MAT = new THREE.MeshStandardMaterial({ color: 0xdfb989, roughness: 0.18, metalness: 0.12 });
+      const BOWLING_GUTTER_MAT = new THREE.MeshStandardMaterial({ color: 0x0d0d14, roughness: 0.5, metalness: 0.2 });
+      const BOWLING_GUTTER_NEON_MAT = new THREE.MeshStandardMaterial({ color: 0x3b82f6, emissive: 0x3b82f6, emissiveIntensity: 2.2 });
+      const BOWLING_DIVIDER_MAT = new THREE.MeshStandardMaterial({ color: 0x181028, metalness: 0.85, roughness: 0.25 });
+      const BOWLING_PIN_MAT = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
+      const BOWLING_PIN_RED_MAT = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.25 });
+      const BOWLING_HOOD_MAT = new THREE.MeshStandardMaterial({ color: 0x0c0718, emissive: 0x3b82f6, emissiveIntensity: 0.45, roughness: 0.3 });
+      const BOWLING_MONITOR_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0514, emissive: 0x3b82f6, emissiveIntensity: 0.6 });
+      const BOWLING_RACK_MAT = new THREE.MeshStandardMaterial({ color: 0x202028, metalness: 0.85, roughness: 0.2 });
+
+      const _bowlingBallMatCache = {};
+      function getBowlingBallMaterial(colorHex) {
+        if (!_bowlingBallMatCache[colorHex]) {
+          _bowlingBallMatCache[colorHex] = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.15, metalness: 0.6 });
+        }
+        return _bowlingBallMatCache[colorHex];
+      }
+
       function createBowling3DAlley() {
         const g = new THREE.Group();
-        const laneMat = new THREE.MeshStandardMaterial({ color: 0xdfb989, roughness: 0.18, metalness: 0.12 });
-        const gutterMat = new THREE.MeshStandardMaterial({ color: 0x0d0d14, roughness: 0.5, metalness: 0.2 });
-        const gutterNeonMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, emissive: 0x3b82f6, emissiveIntensity: 2.2 });
-        const dividerMat = new THREE.MeshStandardMaterial({ color: 0x181028, metalness: 0.85, roughness: 0.25 });
-        const pinMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
-        const pinRedMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.25 });
         const ballCols = [0x3b82f6, 0xef4444, 0x10b981, 0x8b5cf6, 0xf59e0b, 0xec4899, 0x06b6d4, 0xf97316];
 
         const numLanes = 6;
-        const laneWidth = 2.2;
         const laneSpacing = 3.0;
-        const laneLength = 48.0;
         const startX = -((numLanes - 1) * laneSpacing) / 2;
 
         for (let l = 0; l < numLanes; l++) {
           const laneX = startX + l * laneSpacing;
 
           // 1. Long 48m Regulation Wood Lane Bed
-          const bed = new THREE.Mesh(new THREE.BoxGeometry(laneWidth, 0.1, laneLength), laneMat);
+          const bed = new THREE.Mesh(BOWLING_LANE_GEO, BOWLING_LANE_MAT);
           bed.position.set(laneX, 0.05, -2.5);
           bed.receiveShadow = true;
           g.add(bed);
 
           // 2. Left & Right Gutters with Blue LED Underglow
-          const gutL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.06, laneLength), gutterMat);
-          gutL.position.set(laneX - (laneWidth / 2 + 0.18), 0.03, -2.5);
-          const gutR = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.06, laneLength), gutterMat);
-          gutR.position.set(laneX + (laneWidth / 2 + 0.18), 0.03, -2.5);
+          const gutL = new THREE.Mesh(BOWLING_GUTTER_GEO, BOWLING_GUTTER_MAT);
+          gutL.position.set(laneX - 1.28, 0.03, -2.5);
+          const gutR = new THREE.Mesh(BOWLING_GUTTER_GEO, BOWLING_GUTTER_MAT);
+          gutR.position.set(laneX + 1.28, 0.03, -2.5);
 
-          const gutNeonL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, laneLength), gutterNeonMat);
-          gutNeonL.position.set(laneX - (laneWidth / 2 + 0.18), 0.065, -2.5);
-          const gutNeonR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, laneLength), gutterNeonMat);
-          gutNeonR.position.set(laneX + (laneWidth / 2 + 0.18), 0.065, -2.5);
+          const gutNeonL = new THREE.Mesh(BOWLING_GUTTER_NEON_GEO, BOWLING_GUTTER_NEON_MAT);
+          gutNeonL.position.set(laneX - 1.28, 0.065, -2.5);
+          const gutNeonR = new THREE.Mesh(BOWLING_GUTTER_NEON_GEO, BOWLING_GUTTER_NEON_MAT);
+          gutNeonR.position.set(laneX + 1.28, 0.065, -2.5);
 
           g.add(gutL, gutR, gutNeonL, gutNeonR);
 
           // 3. Lane Dividers
-          const div = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, laneLength), dividerMat);
+          const div = new THREE.Mesh(BOWLING_DIVIDER_GEO, BOWLING_DIVIDER_MAT);
           div.position.set(laneX - laneSpacing / 2, 0.11, -2.5);
           g.add(div);
           if (l === numLanes - 1) {
-            const divEnd = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, laneLength), dividerMat);
+            const divEnd = new THREE.Mesh(BOWLING_DIVIDER_GEO, BOWLING_DIVIDER_MAT);
             divEnd.position.set(laneX + laneSpacing / 2, 0.11, -2.5);
             g.add(divEnd);
           }
@@ -374,11 +432,11 @@
             const pinZ = -24.5 - rIdx * 0.38;
             rowPins.forEach(px => {
               const pinGrp = new THREE.Group();
-              const pinBody = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.11, 0.46, 16), pinMat);
+              const pinBody = new THREE.Mesh(BOWLING_PIN_BODY_GEO, BOWLING_PIN_MAT);
               pinBody.position.y = 0.32;
-              const pinHead = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 16), pinMat);
+              const pinHead = new THREE.Mesh(BOWLING_PIN_HEAD_GEO, BOWLING_PIN_MAT);
               pinHead.position.y = 0.56;
-              const pinStripe = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.082, 0.05, 16), pinRedMat);
+              const pinStripe = new THREE.Mesh(BOWLING_PIN_STRIPE_GEO, BOWLING_PIN_RED_MAT);
               pinStripe.position.y = 0.48;
               pinGrp.add(pinBody, pinHead, pinStripe);
               pinGrp.position.set(laneX + px, 0, pinZ);
@@ -387,30 +445,27 @@
           });
 
           // Pinsetter Hood Box with Neon Backlit Number
-          const hood = new THREE.Mesh(new THREE.BoxGeometry(laneSpacing - 0.1, 2.2, 1.4),
-            new THREE.MeshStandardMaterial({ color: 0x0c0718, emissive: 0x3b82f6, emissiveIntensity: 0.45, roughness: 0.3 }));
+          const hood = new THREE.Mesh(BOWLING_HOOD_GEO, BOWLING_HOOD_MAT);
           hood.position.set(laneX, 1.25, -26.2);
           g.add(hood);
 
           // Suspended Overhead Score Monitors along the Runway
           [-10.0, 6.0, 20.0].forEach(mz => {
-            const monitorPole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.4, 12), dividerMat);
+            const monitorPole = new THREE.Mesh(BOWLING_MONITOR_POLE_GEO, BOWLING_DIVIDER_MAT);
             monitorPole.position.set(laneX, 4.2, mz);
-            const monitor = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.9, 0.15),
-              new THREE.MeshStandardMaterial({ color: 0x0a0514, emissive: 0x3b82f6, emissiveIntensity: 0.6 }));
+            const monitor = new THREE.Mesh(BOWLING_MONITOR_BOX_GEO, BOWLING_MONITOR_MAT);
             monitor.position.set(laneX, 3.2, mz);
             g.add(monitorPole, monitor);
           });
 
           // Ball Return Rack with Return Track & 5 Bowling Balls
-          const rack = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.60, 4.8),
-            new THREE.MeshStandardMaterial({ color: 0x202028, metalness: 0.85, roughness: 0.2 }));
+          const rack = new THREE.Mesh(BOWLING_RACK_GEO, BOWLING_RACK_MAT);
           rack.position.set(laneX - laneSpacing / 2, 0.35, 19.5);
           g.add(rack);
 
           for (let b = 0; b < 5; b++) {
-            const ball = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16),
-              new THREE.MeshStandardMaterial({ color: ballCols[(l * 5 + b) % ballCols.length], roughness: 0.15, metalness: 0.6 }));
+            const ballMat = getBowlingBallMaterial(ballCols[(l * 5 + b) % ballCols.length]);
+            const ball = new THREE.Mesh(BOWLING_BALL_GEO, ballMat);
             ball.position.set(laneX - laneSpacing / 2, 0.76, 17.8 + b * 0.42);
             g.add(ball);
           }
@@ -2294,13 +2349,21 @@
       var zoneMeshes = {}; window.zoneMeshes = zoneMeshes;
 
       /* Reusable emoji sprite (used by the 3D Mines tiles to show 💎 / 💣 when revealed) */
-      function makeEmojiSprite(emoji, size) {
+      const _emojiTextureCache = new Map();
+      function getEmojiTexture(emoji) {
+        if (_emojiTextureCache.has(emoji)) return _emojiTextureCache.get(emoji);
         const c = document.createElement('canvas'); c.width = 128; c.height = 128;
         const ctx = c.getContext('2d');
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.font = '96px Segoe UI';
+        ctx.font = '96px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
         ctx.fillText(emoji, 64, 70);
         const tex = new THREE.CanvasTexture(c);
+        _emojiTextureCache.set(emoji, tex);
+        return tex;
+      }
+
+      function makeEmojiSprite(emoji, size) {
+        const tex = getEmojiTexture(emoji);
         const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true });
         const spr = new THREE.Sprite(mat);
         spr.scale.set(size, size, 1);

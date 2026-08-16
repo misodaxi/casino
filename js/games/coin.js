@@ -273,9 +273,19 @@
           coin3DRefs.launchGroup.remove(coin3DRefs.launchGroup.children[0]);
         }
         activeCoinRoll = spawnPhysicsCoin(targetFace, customSeed, versusData);
+        window.isCoinPhysicsActive = true;
       }
 
+      window.isCoinPhysicsActive = false;
+
+      // Pre-allocated scratch objects for Coin Physics (0 GC allocations per sub-step)
+      const _coinTempAxis = new THREE.Vector3();
+      const _coinTempDq = new THREE.Quaternion();
+      const _coinTempUpWorld = new THREE.Vector3();
+      const _coinUnitY = new THREE.Vector3(0, 1, 0);
+
       function updateCoinPhysics(dt) {
+        if (!window.isCoinPhysicsActive) return; // 0 CPU cost when coin is at rest
         if (!coin3DRefs || !activeCoinRoll) return;
         const d = activeCoinRoll;
 
@@ -288,6 +298,9 @@
           if (!d.resolved) {
             d.resolved = true;
             resolveCoinFlip3D(d.face, d.versusData);
+          }
+          if (d.snapT >= 1) {
+            window.isCoinPhysicsActive = false;
           }
           return;
         }
@@ -305,14 +318,14 @@
 
           const angMag = d.angVel.length();
           if (angMag > 0.0001) {
-            const axis = d.angVel.clone().normalize();
-            const dq = new THREE.Quaternion().setFromAxisAngle(axis, angMag * subDt);
-            d.mesh.quaternion.premultiply(dq);
+            _coinTempAxis.copy(d.angVel).normalize();
+            _coinTempDq.setFromAxisAngle(_coinTempAxis, angMag * subDt);
+            d.mesh.quaternion.premultiply(_coinTempDq);
           }
 
           // Exact mathematical contact distance of tilted 3D cylinder
-          const upWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(d.mesh.quaternion);
-          const ay = upWorld.y;
+          _coinTempUpWorld.copy(_coinUnitY).applyQuaternion(d.mesh.quaternion);
+          const ay = _coinTempUpWorld.y;
           const contactH = Math.abs(ay) * COIN_HALF_H + Math.sqrt(Math.max(0, 1 - ay * ay)) * COIN_RADIUS;
           const minY = COIN_FLOOR_Y + contactH;
 

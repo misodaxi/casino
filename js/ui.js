@@ -15,7 +15,8 @@
       function triggerConfetti() {
         playSound('win');
         var colors = ['#8B5CF6', '#E11FD1', '#FB923C', '#22c55e', '#38bdf8', '#FBBF24'];
-        for (let i = 0; i < 90; i++) {
+        const maxP = (window.currentQuality && window.currentQuality.maxParticles) ? window.currentQuality.maxParticles : 60;
+        for (let i = 0; i < maxP; i++) {
           particles.push({
             x: window.innerWidth / 2,
             y: window.innerHeight / 2 - 50,
@@ -32,6 +33,7 @@
       }
 
       function updateParticles() {
+        if (particles.length === 0) return; // 0 CPU cost when idle
         fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
         for (let i = particles.length - 1; i >= 0; i--) {
           const p = particles[i];
@@ -50,6 +52,9 @@
           fxCtx.fillStyle = p.color;
           fxCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
           fxCtx.restore();
+        }
+        if (particles.length === 0) {
+          fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
         }
       }
 

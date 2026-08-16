@@ -229,11 +229,18 @@ window.numColor = function(n) {
 window.TRAGAPERRAS_SYMBOLS = ['7️⃣', '🍒', '💎', '🔔', '🍋', '⭐', '🍇', '🍀'];
 window.SLOTS_SYMBOLS = ['🎰', '👑', '💎', '🔥', '⚡', '⭐', '🍉', '💰'];
 
+window.LOD_DISTANCES = {
+  NEAR: 15.0,
+  MEDIUM: 35.0,
+  FAR: 60.0,
+  NAMETAG_MAX: 32.0
+};
+
 window.QualityTiers = {
-  LOW: { name: 'LOW', pixelRatio: 1.0, shadowMap: false, maxParticles: 20 },
-  MEDIUM: { name: 'MEDIUM', pixelRatio: 1.15, shadowMap: true, maxParticles: 40 },
-  HIGH: { name: 'HIGH', pixelRatio: 1.35, shadowMap: true, maxParticles: 75 },
-  ULTRA: { name: 'ULTRA', pixelRatio: Math.min(window.devicePixelRatio || 1.5, 1.75), shadowMap: true, maxParticles: 130 }
+  LOW: { name: 'LOW', pixelRatio: 1.0, shadowMap: false, maxParticles: 20, slotRes: 256, shadowMapSize: 512 },
+  MEDIUM: { name: 'MEDIUM', pixelRatio: 1.15, shadowMap: true, maxParticles: 40, slotRes: 384, shadowMapSize: 512 },
+  HIGH: { name: 'HIGH', pixelRatio: 1.35, shadowMap: true, maxParticles: 75, slotRes: 512, shadowMapSize: 1024 },
+  ULTRA: { name: 'ULTRA', pixelRatio: Math.min(window.devicePixelRatio || 1.5, 1.75), shadowMap: true, maxParticles: 130, slotRes: 512, shadowMapSize: 1024 }
 };
 
 window.getBlackjackBetCircleSpot3D = function(seatIndex) {
@@ -245,3 +252,4 @@ window.getBlackjackBetCircleSpot3D = function(seatIndex) {
   return spots[Math.min(2, Math.max(0, seatIndex))] || spots[1];
 };
 var getBlackjackBetCircleSpot3D = window.getBlackjackBetCircleSpot3D;
+

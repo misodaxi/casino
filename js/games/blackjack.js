@@ -35,12 +35,37 @@
         return total;
       }
 
-      // Generate a 3D Card Mesh (10% smaller: W = 0.396, H = 0.007, D = 0.558)
-      function make3DCardMesh(cardObj, faceUp = true) {
-        const cardW = 0.396, cardH = 0.007, cardD = 0.558;
-        const cardGeo = new THREE.BoxGeometry(cardW, cardH, cardD);
+      // Shared 3D Card Geometry & Material Pool (Zero Garbage Allocations per Deal)
+      const CARD_GEO = new THREE.BoxGeometry(0.396, 0.007, 0.558);
+      const CARD_EDGE_MAT = new THREE.MeshStandardMaterial({ color: 0xefeee8, roughness: 0.7 });
 
-        // Front Face Canvas
+      let _cardBackTex = null;
+      let _cardBackMat = null;
+      function getCardBackMaterial() {
+        if (_cardBackMat) return _cardBackMat;
+        const bCanvas = document.createElement('canvas'); bCanvas.width = 256; bCanvas.height = 384;
+        const bCtx = bCanvas.getContext('2d');
+        bCtx.fillStyle = '#1b0d2b'; bCtx.fillRect(0, 0, 256, 384);
+        bCtx.strokeStyle = '#d4af37'; bCtx.lineWidth = 6; bCtx.strokeRect(8, 8, 240, 368);
+        bCtx.strokeStyle = 'rgba(212,175,55,0.35)'; bCtx.lineWidth = 2;
+        for (let i = -300; i < 600; i += 30) {
+          bCtx.beginPath(); bCtx.moveTo(i, 0); bCtx.lineTo(i + 300, 384); bCtx.stroke();
+          bCtx.beginPath(); bCtx.moveTo(i, 384); bCtx.lineTo(i + 300, 0); bCtx.stroke();
+        }
+        bCtx.beginPath(); bCtx.arc(128, 192, 60, 0, Math.PI * 2);
+        bCtx.fillStyle = '#2a1145'; bCtx.fill(); bCtx.strokeStyle = '#f59e0b'; bCtx.lineWidth = 4; bCtx.stroke();
+        bCtx.font = 'bold 50px Segoe UI'; bCtx.fillStyle = '#f59e0b'; bCtx.textAlign = 'center'; bCtx.textBaseline = 'middle';
+        bCtx.fillText('♠', 128, 192);
+        _cardBackTex = new THREE.CanvasTexture(bCanvas);
+        _cardBackMat = new THREE.MeshStandardMaterial({ map: _cardBackTex, roughness: 0.35 });
+        return _cardBackMat;
+      }
+
+      const _cardFrontMatCache = {};
+      function getCardFrontMaterial(cardObj) {
+        const key = cardObj ? (cardObj.v + '_' + cardObj.s) : 'hidden';
+        if (_cardFrontMatCache[key]) return _cardFrontMatCache[key];
+
         const fCanvas = document.createElement('canvas'); fCanvas.width = 256; fCanvas.height = 384;
         const fCtx = fCanvas.getContext('2d');
         fCtx.fillStyle = '#fcfbf7'; fCtx.fillRect(0, 0, 256, 384);
@@ -72,29 +97,17 @@
           fCtx.fillText(cardObj.s, 128, 192);
         }
         const frontTex = new THREE.CanvasTexture(fCanvas);
+        const frontMat = new THREE.MeshStandardMaterial({ map: frontTex, roughness: 0.35 });
+        _cardFrontMatCache[key] = frontMat;
+        return frontMat;
+      }
 
-        // Back Face Canvas (Midnight Casino)
-        const bCanvas = document.createElement('canvas'); bCanvas.width = 256; bCanvas.height = 384;
-        const bCtx = bCanvas.getContext('2d');
-        bCtx.fillStyle = '#1b0d2b'; bCtx.fillRect(0, 0, 256, 384);
-        bCtx.strokeStyle = '#d4af37'; bCtx.lineWidth = 6; bCtx.strokeRect(8, 8, 240, 368);
-        bCtx.strokeStyle = 'rgba(212,175,55,0.35)'; bCtx.lineWidth = 2;
-        for (let i = -300; i < 600; i += 30) {
-          bCtx.beginPath(); bCtx.moveTo(i, 0); bCtx.lineTo(i + 300, 384); bCtx.stroke();
-          bCtx.beginPath(); bCtx.moveTo(i, 384); bCtx.lineTo(i + 300, 0); bCtx.stroke();
-        }
-        bCtx.beginPath(); bCtx.arc(128, 192, 60, 0, Math.PI * 2);
-        bCtx.fillStyle = '#2a1145'; bCtx.fill(); bCtx.strokeStyle = '#f59e0b'; bCtx.lineWidth = 4; bCtx.stroke();
-        bCtx.font = 'bold 50px Segoe UI'; bCtx.fillStyle = '#f59e0b'; bCtx.textAlign = 'center'; bCtx.textBaseline = 'middle';
-        bCtx.fillText('♠', 128, 192);
-        const backTex = new THREE.CanvasTexture(bCanvas);
-
-        const edgeMat = new THREE.MeshStandardMaterial({ color: 0xefeee8, roughness: 0.7 });
-        const topMat = new THREE.MeshStandardMaterial({ map: frontTex, roughness: 0.35 });
-        const botMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.35 });
-
-        const materials = [edgeMat, edgeMat, topMat, botMat, edgeMat, edgeMat];
-        const mesh = new THREE.Mesh(cardGeo, materials);
+      // Generate a 3D Card Mesh from Cached Shared Assets
+      function make3DCardMesh(cardObj, faceUp = true) {
+        const topMat = getCardFrontMaterial(cardObj);
+        const botMat = getCardBackMaterial();
+        const materials = [CARD_EDGE_MAT, CARD_EDGE_MAT, topMat, botMat, CARD_EDGE_MAT, CARD_EDGE_MAT];
+        const mesh = new THREE.Mesh(CARD_GEO, materials);
         mesh.castShadow = true; mesh.receiveShadow = true;
 
         if (!faceUp) {

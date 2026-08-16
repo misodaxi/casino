@@ -44,7 +44,9 @@ function getRelevantPlayersFor(playerId, radius = 55.0) {
   const relevant = {};
   const radSq = radius * radius;
 
-  for (const [id, p] of Object.entries(players)) {
+  for (const id in players) {
+    const p = players[id];
+    if (!p) continue;
     const dx = p.x - target.x;
     const dz = p.z - target.z;
     if (dx * dx + dz * dz <= radSq) {

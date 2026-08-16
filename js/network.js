@@ -116,12 +116,15 @@
           }
         });
 
-        // Clock Synchronization Response
+        // Clock Synchronization Response with Jitter & Latency Tracking
         socket.on('syncPong', (data) => {
           window.netMetrics.msgIn++;
           if (data && typeof data.clientTime === 'number' && typeof data.serverTime === 'number') {
             const now = performance.now();
             const rtt = Math.max(1, Math.round(now - data.clientTime));
+            const prevPing = window.netMetrics.ping || rtt;
+            const sampleJitter = Math.abs(rtt - prevPing);
+            window.netMetrics.jitter = Math.round((window.netMetrics.jitter ? window.netMetrics.jitter * 0.8 : 0) + (sampleJitter * 0.2));
             window.netMetrics.ping = rtt;
             window.netMetrics.quality = getNetworkQualityRating(rtt);
             const estServerNow = data.serverTime + (rtt / 2);
@@ -167,7 +170,7 @@
           }
         });
 
-        // 4. Compact High-Frequency Player Transform Update (Delta Motion)
+        // 4. Compact High-Frequency Player Transform Update with Velocity Estimation (Lag Compensation)
         socket.on('pTransform', (pData) => {
           window.netMetrics.msgIn++;
           window.netMetrics.bytesIn += 38;
@@ -180,10 +183,23 @@
             }
             if (typeof pData.seq === 'number') rp.lastSeq = pData.seq;
 
+            const now = performance.now();
+            const dtPacket = (now - rp.lastPacketTime) / 1000;
+
+            if (dtPacket > 0.015 && dtPacket < 0.35) {
+              const prevTargetX = rp.targetX;
+              const prevTargetZ = rp.targetZ;
+              rp.vx = (pData.x - prevTargetX) / dtPacket;
+              rp.vz = (pData.z - prevTargetZ) / dtPacket;
+            } else {
+              rp.vx = 0;
+              rp.vz = 0;
+            }
+
             rp.targetX = pData.x;
             rp.targetZ = pData.z;
             rp.targetRotY = pData.rotY;
-            rp.lastPacketTime = performance.now();
+            rp.lastPacketTime = now;
           }
         });
 
@@ -311,23 +327,57 @@
       function updateRemotePlayers(dt) {
         const camPos = camera.position;
         const lerpFactor = Math.min(1, dt * 16);
+        const maxDistSq = 3600; // 60m radius LOD far cutoff
+        const nametagDistSq = (window.LOD_DISTANCES && window.LOD_DISTANCES.NAMETAG_MAX) ? (window.LOD_DISTANCES.NAMETAG_MAX * window.LOD_DISTANCES.NAMETAG_MAX) : 1024;
+        const shadowDistSq = 225; // 15m radius shadow cutoff
+        const allowShadows = window.currentQuality && window.currentQuality.shadows;
 
-        Object.values(remotePlayers).forEach(rp => {
-          if (!rp.mesh) return;
+        for (const id in remotePlayers) {
+          const rp = remotePlayers[id];
+          if (!rp || !rp.mesh) continue;
 
           // Distance check for Dynamic LOD & Nametag Culling
           const dx = rp.mesh.position.x - camPos.x;
           const dz = rp.mesh.position.z - camPos.z;
           const distSq = dx * dx + dz * dz;
 
-          // LOD: Hide floating nametag if player is beyond 32m (distSq > 1024)
-          if (rp.mesh.userData.nameTag) {
-            rp.mesh.userData.nameTag.visible = (distSq <= 1024);
+          // LOD 1: If beyond far cutoff (60m), cull entire mesh rendering
+          if (distSq > maxDistSq) {
+            rp.mesh.visible = false;
+            // Still track target position in memory
+            rp.mesh.position.x = rp.targetX;
+            rp.mesh.position.z = rp.targetZ;
+            continue;
           }
 
-          // Smooth positional interpolation
-          rp.mesh.position.x += (rp.targetX - rp.mesh.position.x) * lerpFactor;
-          rp.mesh.position.z += (rp.targetZ - rp.mesh.position.z) * lerpFactor;
+          rp.mesh.visible = true;
+
+          // Dynamic Shadow Culling for Remote Players
+          const shouldCastShadow = allowShadows && (distSq <= shadowDistSq);
+          if (rp.mesh.children) {
+            for (let c = 0; c < rp.mesh.children.length; c++) {
+              const child = rp.mesh.children[c];
+              if (child.isMesh && child.castShadow !== shouldCastShadow) {
+                child.castShadow = shouldCastShadow;
+              }
+            }
+          }
+
+          // LOD 2: Hide floating nametag if player is beyond nametag distance (32m)
+          if (rp.mesh.userData.nameTag) {
+            rp.mesh.userData.nameTag.visible = (distSq <= nametagDistSq);
+          }
+
+          // Velocity-based dead-reckoning extrapolation for real-time lag compensation
+          const pingSec = Math.max(0.010, Math.min(0.065, ((window.netMetrics && window.netMetrics.ping) || 40) / 1000));
+          const leadX = (rp.vx || 0) * pingSec;
+          const leadZ = (rp.vz || 0) * pingSec;
+          const predTargetX = rp.targetX + leadX;
+          const predTargetZ = rp.targetZ + leadZ;
+
+          // Smooth positional interpolation towards predicted transform
+          rp.mesh.position.x += (predTargetX - rp.mesh.position.x) * lerpFactor;
+          rp.mesh.position.z += (predTargetZ - rp.mesh.position.z) * lerpFactor;
 
           // Angle interpolation with wrap-around (shortest angular path)
           let rotDiff = (rp.targetRotY - rp.mesh.rotation.y) % (Math.PI * 2);
@@ -337,83 +387,118 @@
 
           const targetY = rp.seat ? 0.44 : 0;
           rp.mesh.position.y += (targetY - rp.mesh.position.y) * lerpFactor;
-        });
+        }
       }
 
       /* simulated AI bot avatars with state machines */
       const BOTS = [
-        { id: 'bot1', name: '@Elena', color: 0xE11FD1, x: -5, z: 5, tx: -5, tz: 5, mesh: null, state: 'EXPLORING', seat: null, timer: 0 },
-        { id: 'bot2', name: '@Carlos', color: 0x22c55e, x: 6, z: -5, tx: 6, tz: -5, mesh: null, state: 'EXPLORING', seat: null, timer: 0 },
-        { id: 'bot3', name: '@Sofia', color: 0x38bdf8, x: -9.8, z: -1.6, tx: -9.8, tz: -1.6, mesh: null, state: 'PLAYING_AT_TABLE', seat: { zone: 'roulette' }, timer: 10 },
-        { id: 'bot4', name: '@Mateo', color: 0xFBBF24, x: 7.8, z: -1.6, tx: 7.8, tz: -1.6, mesh: null, state: 'PLAYING_AT_TABLE', seat: { zone: 'dice' }, timer: 12 }
+        { id: 'bot1', name: '@Elena', color: 0xE11FD1, x: -5, z: 5, tx: -5, tz: 5, mesh: null, state: 'EXPLORING', seat: null, timer: 0, speed: 2.8 },
+        { id: 'bot2', name: '@Carlos', color: 0x22c55e, x: 6, z: -5, tx: 6, tz: -5, mesh: null, state: 'EXPLORING', seat: null, timer: 0, speed: 2.6 },
+        { id: 'bot3', name: '@Sofia', color: 0x38bdf8, x: -9.8, z: -1.6, tx: -9.8, tz: -1.6, mesh: null, state: 'PLAYING_AT_TABLE', seat: { zone: 'roulette' }, timer: 10, speed: 3.2 },
+        { id: 'bot4', name: '@Mateo', color: 0xFBBF24, x: 7.8, z: -1.6, tx: 7.8, tz: -1.6, mesh: null, state: 'PLAYING_AT_TABLE', seat: { zone: 'dice' }, timer: 12, speed: 3.0 }
       ];
 
       BOTS.forEach(b => {
         b.mesh = createAvatarMesh(b.color);
-        b.mesh.position.set(b.x, 0, b.z);
+        b.mesh.position.set(b.x, b.seat ? 0.44 : 0, b.z);
+        const nameTag = createPlayerNameTag(b.name, b.color);
+        b.mesh.add(nameTag);
+        b.mesh.userData.nameTag = nameTag;
         scene.add(b.mesh);
       });
 
-      function updateBots(dt) {
-        BOTS.forEach(b => {
+      // 1. Low-frequency (5-10 Hz) Decision & State Machine Tick
+      function updateBotsAI(dt) {
+        for (let i = 0; i < BOTS.length; i++) {
+          const b = BOTS[i];
           b.timer -= dt;
 
           if (b.state === 'EXPLORING') {
             const dx = b.tx - b.x, dz = b.tz - b.z;
             const dist = Math.hypot(dx, dz);
-            if (dist < 0.5 || b.timer <= 0) {
-              if (Math.random() > 0.5) {
-                const targetZone = (window.ZONES || ZONES)[Math.floor(Math.random() * (window.ZONES || ZONES).length)];
+            if (dist < 0.6 || b.timer <= 0) {
+              if (Math.random() > 0.45) {
+                const zonesList = window.ZONES || ZONES;
+                const targetZone = zonesList[Math.floor(Math.random() * zonesList.length)];
                 if (targetZone && targetZone.seats && targetZone.seats.length > 0) {
                   const seat = targetZone.seats[Math.floor(Math.random() * targetZone.seats.length)];
                   b.tx = seat.x; b.tz = seat.z;
                   b.state = 'WANDERING_TO_TABLE';
-                  b.timer = 15;
+                  b.seat = seat;
+                  b.timer = 16;
                 } else {
                   b.tx = (targetZone ? targetZone.x : 0) + (Math.random() - 0.5) * 4;
                   b.tz = (targetZone ? targetZone.z : 0) + (Math.random() - 0.5) * 4;
-                  b.timer = 8;
+                  b.seat = null;
+                  b.timer = 9;
                 }
               } else {
-                b.tx = (Math.random() - 0.5) * 26;
-                b.tz = (Math.random() - 0.5) * 26;
-                b.timer = 8;
+                b.tx = (Math.random() - 0.5) * 28;
+                b.tz = (Math.random() - 0.5) * 28;
+                b.seat = null;
+                b.timer = 9;
               }
-            } else {
-              b.x += (dx / dist) * dt * 3; b.z += (dz / dist) * dt * 3;
-              b.mesh.position.set(b.x, 0, b.z);
-              let targetR = Math.atan2(dx, dz);
-              let diffR = targetR - b.mesh.rotation.y;
-              while (diffR < -Math.PI) diffR += Math.PI * 2;
-              while (diffR > Math.PI) diffR -= Math.PI * 2;
-              b.mesh.rotation.y += diffR * Math.min(1, dt * 10);
             }
           }
           else if (b.state === 'WANDERING_TO_TABLE') {
             const dx = b.tx - b.x, dz = b.tz - b.z;
             const dist = Math.hypot(dx, dz);
-            if (dist < 0.3) {
+            if (dist < 0.4) {
               b.state = 'PLAYING_AT_TABLE';
-              b.mesh.position.set(b.tx, 0, b.tz);
-              b.timer = 12 + Math.random() * 10;
-            } else {
-              b.x += (dx / dist) * dt * 3.5; b.z += (dz / dist) * dt * 3.5;
-              b.mesh.position.set(b.x, 0, b.z);
-              let targetR = Math.atan2(dx, dz);
-              let diffR = targetR - b.mesh.rotation.y;
-              while (diffR < -Math.PI) diffR += Math.PI * 2;
-              while (diffR > Math.PI) diffR -= Math.PI * 2;
-              b.mesh.rotation.y += diffR * Math.min(1, dt * 10);
+              b.x = b.tx; b.z = b.tz;
+              b.timer = 12 + Math.random() * 12;
             }
           }
           else if (b.state === 'PLAYING_AT_TABLE') {
             if (b.timer <= 0) {
               b.state = 'EXPLORING';
-              b.tx = (Math.random() - 0.5) * 20; b.tz = (Math.random() - 0.5) * 20;
+              b.seat = null;
+              b.tx = (Math.random() - 0.5) * 24; b.tz = (Math.random() - 0.5) * 24;
               b.timer = 10;
             }
           }
-        });
+        }
+      }
+
+      // 2. High-frequency (60 FPS) Silky-Smooth Kinematic Movement & Rotation
+      function updateBots(dt) {
+        const lerpRot = Math.min(1, dt * 8);
+        const lerpY = Math.min(1, dt * 10);
+
+        for (let i = 0; i < BOTS.length; i++) {
+          const b = BOTS[i];
+          if (!b.mesh) continue;
+
+          if (b.state === 'EXPLORING' || b.state === 'WANDERING_TO_TABLE') {
+            const dx = b.tx - b.x;
+            const dz = b.tz - b.z;
+            const dist = Math.hypot(dx, dz);
+
+            if (dist > 0.08) {
+              const moveSpeed = (b.speed || 2.8);
+              const step = Math.min(dist, moveSpeed * dt);
+              b.x += (dx / dist) * step;
+              b.z += (dz / dist) * step;
+
+              // Smooth continuous shortest angular rotation
+              const targetRot = Math.atan2(dx, dz);
+              let rotDiff = (targetRot - b.mesh.rotation.y) % (Math.PI * 2);
+              if (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+              if (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+              b.mesh.rotation.y += rotDiff * lerpRot;
+            }
+
+            const targetY = (b.state === 'PLAYING_AT_TABLE' || b.seat) && (dist < 0.4) ? 0.44 : 0;
+            b.mesh.position.y += (targetY - b.mesh.position.y) * lerpY;
+            b.mesh.position.x = b.x;
+            b.mesh.position.z = b.z;
+          } else if (b.state === 'PLAYING_AT_TABLE') {
+            const targetY = 0.44;
+            b.mesh.position.y += (targetY - b.mesh.position.y) * lerpY;
+            b.mesh.position.x = b.x;
+            b.mesh.position.z = b.z;
+          }
+        }
       }
 
 // --- Explicit Global Window Bindings ---
@@ -426,3 +511,5 @@ if (typeof addRemotePlayer !== 'undefined') window.addRemotePlayer = addRemotePl
 if (typeof updateRemotePlayerData !== 'undefined') window.updateRemotePlayerData = updateRemotePlayerData;
 if (typeof removeRemotePlayer !== 'undefined') window.removeRemotePlayer = removeRemotePlayer;
 if (typeof updateRemotePlayers !== 'undefined') window.updateRemotePlayers = updateRemotePlayers;
+if (typeof updateBots !== 'undefined') window.updateBots = updateBots;
+if (typeof updateBotsAI !== 'undefined') window.updateBotsAI = updateBotsAI;

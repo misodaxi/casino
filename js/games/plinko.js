@@ -1,7 +1,8 @@
 /* ============================================================
          5. 3D REAL-TIME PHYSICAL PLINKO BALL ENGINE
       ============================================================ */
-      let activePlinkoBalls = [];
+      var activePlinkoBalls = [];
+      window.activePlinkoBalls = activePlinkoBalls;
       let plinkoBet = 50;
 
       // Chip selection for Plinko
@@ -14,6 +15,15 @@
         });
       });
 
+      const PLINKO_BALL_GEO = new THREE.SphereGeometry(0.07, 16, 16);
+      const PLINKO_BALL_MAT = new THREE.MeshStandardMaterial({
+        color: 0x38bdf8,
+        emissive: 0x38bdf8,
+        emissiveIntensity: 1.5,
+        roughness: 0.1,
+        metalness: 0.9
+      });
+
       function dropPlinko3DBall() {
         if (state.balance < plinkoBet) { showToast('Saldo insuficiente'); return; }
         state.balance = roundMoney(state.balance - plinkoBet);
@@ -22,16 +32,8 @@
 
         if (!plinko3DRefs) return;
 
-        // Create 3D Glowing Physics Ball Mesh (Smaller 0.07m radius)
-        const pBallGeo = new THREE.SphereGeometry(0.07, 16, 16);
-        const pBallMat = new THREE.MeshStandardMaterial({
-          color: 0x38bdf8,
-          emissive: 0x38bdf8,
-          emissiveIntensity: 1.5,
-          roughness: 0.1,
-          metalness: 0.9
-        });
-        const pBallMesh = new THREE.Mesh(pBallGeo, pBallMat);
+        // Shared 3D Glowing Physics Ball Mesh (Zero new allocations)
+        const pBallMesh = new THREE.Mesh(PLINKO_BALL_GEO, PLINKO_BALL_MAT);
 
         // Initial Drop Position at Top Center of 3D Pyramid
         const startX = (Math.random() - 0.5) * 0.18;
@@ -164,3 +166,5 @@
 
 // --- Explicit Global Window Bindings ---
 if (typeof updatePlinko3DBalls !== 'undefined') window.updatePlinko3DBalls = updatePlinko3DBalls;
+if (typeof dropPlinko3DBall !== 'undefined') window.dropPlinko3DBall = dropPlinko3DBall;
+if (typeof activePlinkoBalls !== 'undefined') window.activePlinkoBalls = activePlinkoBalls;

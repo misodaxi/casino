@@ -57,7 +57,6 @@
         updateBalanceUI();
         document.getElementById('totalBetDisplay').textContent = formatMoney(rState.totalBet);
         renderStakesR();
-        if (roulette3DRefs && roulette3DRefs.draw3DFeltGrid) roulette3DRefs.draw3DFeltGrid();
         if (roulette3DRefs && roulette3DRefs.update3DPlacedChips) roulette3DRefs.update3DPlacedChips();
 
         if (typeof socket !== 'undefined' && socket && socket.connected) {
@@ -85,12 +84,11 @@
         updateBalanceUI();
         document.getElementById('totalBetDisplay').textContent = '$0';
         renderStakesR();
-        if (roulette3DRefs && roulette3DRefs.draw3DFeltGrid) roulette3DRefs.draw3DFeltGrid();
         if (roulette3DRefs && roulette3DRefs.update3DPlacedChips) roulette3DRefs.update3DPlacedChips();
       });
 
-      /* 3D ROULETTE WHEEL & BALL SPIN PHYSICS - UNIFIED CONTINUOUS KINEMATICS */
-      function animateRoulette3DSpin(winNum, duration = 6400, onDone) {
+      /* 3D ROULETTE WHEEL & BALL SPIN PHYSICS - 3-PHASE CINEMATIC LAUNCH */
+      function animateRoulette3DSpin(winNum, totalDuration = 9600, onDone) {
         if (!roulette3DRefs) { onDone && onDone(); return; }
         const { rotor, ball } = roulette3DRefs;
 
@@ -99,125 +97,176 @@
         const startOffset = -0.4263;
         const pocketAngle = startOffset - idx * segAngle;
 
-        // Strict Direction 1: Rotor rotates CLOCKWISE (+Y)
-        const startRotorRot = rotor.rotation.y;
-        const rotorSpins = 3.0 * Math.PI * 2;
-        const targetRotorRot = startRotorRot + rotorSpins + (Math.PI * 2 - (pocketAngle % (Math.PI * 2)));
-
-        // Strict Direction 2: Ball thrown OPPOSITE / COUNTER-CLOCKWISE (-Y)
-        // Total revolutions ball completes ahead of winning pocket
-        const totalRevsAhead = 6.0 * Math.PI * 2;
-
         // Physical dimensions & limits
         const startR = 1.38;
         const bowlR = 1.10;
         const pocketR = 0.84;
         const dropInwardR = 1.16;
-        const startDropH = 2.20;
+        const startDropH = 2.10;
         const startH = 0.60;
         const bowlH = 0.50;
         const pocketFloorH = 0.505;
 
+        // 1. Initial State from current resting position (NO TELEPORTATION!)
+        const startBallX = ball.position.x || (Math.sin(pocketAngle) * pocketR);
+        const startBallY = ball.position.y || pocketFloorH;
+        const startBallZ = ball.position.z || (Math.cos(pocketAngle) * pocketR);
+        const startBallR = Math.hypot(startBallX, startBallZ) || pocketR;
+        const startBallAngle = Math.atan2(startBallX, startBallZ);
+
+        // Strict Direction 1: Rotor rotates CLOCKWISE (+Y)
+        const startRotorRot = rotor.rotation.y;
+        const rotorSpins = 4.0 * Math.PI * 2;
+        const targetRotorRot = startRotorRot + rotorSpins + (Math.PI * 2 - (pocketAngle % (Math.PI * 2)));
+
+        // Strict Direction 2: Ball thrown OPPOSITE / COUNTER-CLOCKWISE (-Y)
+        const totalRevsAhead = 6.0 * Math.PI * 2;
+
+        const RISE_DURATION = 1000;  // Phase 1: 1.0s smooth levitation from pocket to top rim
+        const WAIT_DURATION = 3000;  // Phase 2: 3.0s suspenseful hover/anticipation at top rim
+        const SPIN_DURATION = 5600;  // Phase 3: 5.6s physical throw & deceleration into pocket
+        const TOTAL_DURATION = RISE_DURATION + WAIT_DURATION + SPIN_DURATION; // 9.6s
+
         let lastFretCross = -1;
         let lastDeflectorSoundTime = 0;
-        let initialDropSoundPlayed = false;
+        let throwSoundPlayed = false;
         let lastNow = performance.now();
         const start = performance.now();
 
         function step(now) {
           const frameDt = Math.min(0.05, (now - lastNow) / 1000);
           lastNow = now;
+          const elapsed = now - start;
 
-          const t = Math.min(1, (now - start) / duration);
+          if (elapsed < RISE_DURATION) {
+            /* ----------------------------------------------------
+               FASE 1: SUBIDA SUAVE DESDE DONDE ESTÁ (0 a 1.0s)
+            ---------------------------------------------------- */
+            const u = elapsed / RISE_DURATION;
+            const eRise = 1 - Math.pow(1 - u, 3); // Smooth ease-out lift
 
-          // 1. Unified C2 Continuous Rotor Deceleration
-          const eRotor = 1 - Math.pow(1 - t, 2.5);
-          const currentRotorAngle = startRotorRot + (targetRotorRot - startRotorRot) * eRotor;
-          rotor.rotation.y = currentRotorAngle;
+            const curR = startBallR + (startR - startBallR) * eRise;
+            const curH = startBallY + (startDropH - startBallY) * eRise;
+            const curAngle = startBallAngle + eRise * 0.35;
 
-          // Target pocket world angle at instant t
-          const winPocketWorldAngle = currentRotorAngle + pocketAngle;
+            rotor.rotation.y = startRotorRot + u * 0.6; // Gentle initial rotor spin
 
-          // 2. Unified C2 Continuous Relative Angle (Monotonically approaches 0 without ANY piecewise discontinuities)
-          const relAngleAhead = -totalRevsAhead * Math.pow(1 - t, 2.2);
-
-          // Subtle natural micro-settle oscillation ONLY within the pocket at the very end
-          let wobbleAngle = 0;
-          let wobbleH = 0;
-          if (t > 0.88) {
-            const tSettle = (t - 0.88) / 0.12;
-            const decay = Math.pow(1 - tSettle, 2);
-            wobbleAngle = Math.sin(tSettle * Math.PI * 8) * (segAngle * 0.20 * decay);
-            wobbleH = Math.abs(Math.cos(tSettle * Math.PI * 6)) * (0.025 * decay);
+            ball.position.x = Math.sin(curAngle) * curR;
+            ball.position.z = Math.cos(curAngle) * curR;
+            ball.position.y = curH;
+            ball.rotation.x += frameDt * 4;
+            ball.rotation.z += frameDt * 3;
           }
+          else if (elapsed < (RISE_DURATION + WAIT_DURATION)) {
+            /* ----------------------------------------------------
+               FASE 2: ESPERA DE 3 SEGUNDOS ARRIBA EN SUSPENSE (1.0s a 4.0s)
+            ---------------------------------------------------- */
+            const u = (elapsed - RISE_DURATION) / WAIT_DURATION;
+            const hoverFloat = Math.sin(u * Math.PI * 4) * 0.035;
+            const curH = startDropH + hoverFloat;
+            const curAngle = startBallAngle + 0.35 + u * 1.6;
 
-          const currentBallAngle = winPocketWorldAngle + relAngleAhead + wobbleAngle;
+            // Rotor accelerates up to high momentum during the 3-second wait
+            rotor.rotation.y = startRotorRot + 0.6 + Math.pow(u, 1.4) * (Math.PI * 3.2);
 
-          // 3. Smooth Radius Evolution (Continuous C2 Spline)
-          let currentR = startR;
-          if (t <= 0.08) {
-            const dropT = t / 0.08;
-            currentR = dropInwardR + (startR - dropInwardR) * Math.sin(dropT * Math.PI / 2);
-          } else if (t < 0.45) {
-            currentR = startR;
-          } else if (t < 0.68) {
-            const tBowl = (t - 0.45) / (0.68 - 0.45);
-            currentR = startR - (startR - bowlR) * Math.pow(tBowl, 1.2);
-          } else {
-            const tRotor = (t - 0.68) / (1.0 - 0.68);
-            currentR = bowlR - (bowlR - pocketR) * Math.min(1, Math.pow(tRotor, 1.3));
-          }
+            ball.position.x = Math.sin(curAngle) * startR;
+            ball.position.z = Math.cos(curAngle) * startR;
+            ball.position.y = curH;
+            ball.rotation.x += frameDt * 6;
+            ball.rotation.z += frameDt * 4;
 
-          // 4. Smooth Height & Physical Collision Bouncing
-          let currentH = startH;
-          if (t <= 0.08) {
-            const dropT = t / 0.08;
-            currentH = startH + (startDropH - startH) * Math.pow(1 - dropT, 2);
-            if (dropT >= 0.95 && !initialDropSoundPlayed) {
-              initialDropSoundPlayed = true;
-              playSound('tick');
-            }
-          } else if (t < 0.45) {
-            currentH = startH;
-          } else if (t < 0.68) {
-            const tBowl = (t - 0.45) / (0.68 - 0.45);
-            const baseH = startH - (startH - bowlH) * Math.pow(tBowl, 1.2);
-            // Deflector clacks
-            const deflectorFreq = Math.sin(tBowl * Math.PI * 12);
-            const deflectorH = Math.max(0, deflectorFreq) * (0.06 * (1 - tBowl * 0.5));
-            if (deflectorFreq > 0.85 && (now - lastDeflectorSoundTime) > 90) {
-              lastDeflectorSoundTime = now;
-              playSound('tick');
-            }
-            currentH = baseH + deflectorH;
-          } else {
-            // Fret Crossing Physical Hops: Derived directly from continuous relAngleAhead
-            const pocketsAhead = Math.abs(relAngleAhead / segAngle);
-            const fretPhase = pocketsAhead % 1.0;
-            const hopArc = Math.sin(fretPhase * Math.PI);
-
-            const hopDecay = Math.pow(1 - (t - 0.68) / (1.0 - 0.68), 1.5);
-            const fretHopH = Math.pow(hopArc, 1.4) * (0.12 * Math.min(1, pocketsAhead / 4) * hopDecay);
-
-            currentH = pocketFloorH + fretHopH + wobbleH;
-
-            // Audio tick on each contiguous pocket boundary crossing
-            const curPock = Math.floor(pocketsAhead);
-            if (curPock !== lastFretCross && curPock <= 25 && t < 0.96) {
-              lastFretCross = curPock;
-              playSound('tick');
+            if (u >= 0.95 && !throwSoundPlayed) {
+              throwSoundPlayed = true;
+              playSound('card_deal'); // Crisp throw swoosh
             }
           }
-
-          ball.position.x = Math.sin(currentBallAngle) * currentR;
-          ball.position.z = Math.cos(currentBallAngle) * currentR;
-          ball.position.y = currentH;
-          ball.rotation.x += frameDt * 16 * (1 - t * 0.5);
-          ball.rotation.z += frameDt * 8 * (1 - t * 0.5);
-
-          if (t < 1) requestAnimationFrame(step);
           else {
-            const finalAbsAngle = currentRotorAngle + pocketAngle;
+            /* ----------------------------------------------------
+               FASE 3: LANZAMIENTO FÍSICO Y DESCENSO A LA RULETA (4.0s a 9.6s)
+            ---------------------------------------------------- */
+            const t = Math.min(1, (elapsed - (RISE_DURATION + WAIT_DURATION)) / SPIN_DURATION);
+
+            // 1. Unified Continuous Rotor Deceleration
+            const eRotor = 1 - Math.pow(1 - t, 2.5);
+            const currentRotorAngle = startRotorRot + (targetRotorRot - startRotorRot) * eRotor;
+            rotor.rotation.y = currentRotorAngle;
+
+            // Target pocket world angle at instant t
+            const winPocketWorldAngle = currentRotorAngle + pocketAngle;
+
+            // 2. Relative Angle Evolution (-Y Counter-Clockwise Monotonic Convergence)
+            const relAngleAhead = -totalRevsAhead * Math.pow(1 - t, 2.2);
+
+            // Subtle natural micro-settle oscillation ONLY within the pocket at the very end
+            let wobbleAngle = 0;
+            let wobbleH = 0;
+            if (t > 0.88) {
+              const tSettle = (t - 0.88) / 0.12;
+              const decay = Math.pow(1 - tSettle, 2);
+              wobbleAngle = Math.sin(tSettle * Math.PI * 8) * (segAngle * 0.20 * decay);
+              wobbleH = Math.abs(Math.cos(tSettle * Math.PI * 6)) * (0.025 * decay);
+            }
+
+            const currentBallAngle = winPocketWorldAngle + relAngleAhead + wobbleAngle;
+
+            // 3. Continuous Radius Evolution
+            let currentR = startR;
+            if (t <= 0.08) {
+              const dropT = t / 0.08;
+              currentR = dropInwardR + (startR - dropInwardR) * Math.sin(dropT * Math.PI / 2);
+            } else if (t < 0.45) {
+              currentR = startR;
+            } else if (t < 0.68) {
+              const tBowl = (t - 0.45) / (0.68 - 0.45);
+              currentR = startR - (startR - bowlR) * Math.pow(tBowl, 1.2);
+            } else {
+              const tRotor = (t - 0.68) / (1.0 - 0.68);
+              currentR = bowlR - (bowlR - pocketR) * Math.min(1, Math.pow(tRotor, 1.3));
+            }
+
+            // 4. Height & Physical Collision Bouncing
+            let currentH = startH;
+            if (t <= 0.08) {
+              const dropT = t / 0.08;
+              currentH = startH + (startDropH - startH) * Math.pow(1 - dropT, 2);
+            } else if (t < 0.45) {
+              currentH = startH;
+            } else if (t < 0.68) {
+              const tBowl = (t - 0.45) / (0.68 - 0.45);
+              const baseH = startH - (startH - bowlH) * Math.pow(tBowl, 1.2);
+              const deflectorFreq = Math.sin(tBowl * Math.PI * 12);
+              const deflectorH = Math.max(0, deflectorFreq) * (0.06 * (1 - tBowl * 0.5));
+              if (deflectorFreq > 0.85 && (now - lastDeflectorSoundTime) > 90) {
+                lastDeflectorSoundTime = now;
+                playSound('tick');
+              }
+              currentH = baseH + deflectorH;
+            } else {
+              const pocketsAhead = Math.abs(relAngleAhead / segAngle);
+              const fretPhase = pocketsAhead % 1.0;
+              const hopArc = Math.sin(fretPhase * Math.PI);
+              const hopDecay = Math.pow(1 - (t - 0.68) / (1.0 - 0.68), 1.5);
+              const fretHopH = Math.pow(hopArc, 1.4) * (0.12 * Math.min(1, pocketsAhead / 4) * hopDecay);
+              currentH = pocketFloorH + fretHopH + wobbleH;
+
+              const curPock = Math.floor(pocketsAhead);
+              if (curPock !== lastFretCross && curPock <= 25 && t < 0.96) {
+                lastFretCross = curPock;
+                playSound('tick');
+              }
+            }
+
+            ball.position.x = Math.sin(currentBallAngle) * currentR;
+            ball.position.z = Math.cos(currentBallAngle) * currentR;
+            ball.position.y = currentH;
+            ball.rotation.x += frameDt * 16 * (1 - t * 0.5);
+            ball.rotation.z += frameDt * 8 * (1 - t * 0.5);
+          }
+
+          if (elapsed < TOTAL_DURATION) {
+            requestAnimationFrame(step);
+          } else {
+            const finalAbsAngle = targetRotorRot + pocketAngle;
             ball.position.x = Math.sin(finalAbsAngle) * pocketR;
             ball.position.z = Math.cos(finalAbsAngle) * pocketR;
             ball.position.y = pocketFloorH;

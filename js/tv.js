@@ -95,6 +95,8 @@
          OCLUSIÓN DE LA TV 3D — los objetos de la sala tapan la TV
          cuando quedan entre la cámara y la pantalla (iframe CSS3D)
       ============================================================ */
+      const _tvCenterWorldPos = new THREE.Vector3();
+      const _tvToScreenVec = new THREE.Vector3();
       const tvOcclusionRaycaster = new THREE.Raycaster();
 
       function updateTvOcclusion(dt) {
@@ -106,58 +108,44 @@
         }
 
         const camPos = camera.position;
-        const centerWorldPos = new THREE.Vector3();
         if (tvScreenMeshRef) {
-          tvScreenMeshRef.getWorldPosition(centerWorldPos);
+          tvScreenMeshRef.getWorldPosition(_tvCenterWorldPos);
         } else if (tvGroupRef) {
-          centerWorldPos.copy(tvGroupRef.position);
-          centerWorldPos.z += 0.64;
+          _tvCenterWorldPos.copy(tvGroupRef.position);
+          _tvCenterWorldPos.z += 0.64;
         } else {
-          centerWorldPos.set(0, 7.5, -36.44);
+          _tvCenterWorldPos.set(0, 7.5, -36.44);
         }
 
-        const distCenter = centerWorldPos.distanceTo(camPos);
-        if (distCenter < 0.8) {
+        // Si la cámara está detrás de la pantalla (z < -37), ocultar el iframe
+        if (camPos.z < _tvCenterWorldPos.z) {
+          overlayEl.style.visibility = 'hidden';
+          return;
+        }
+
+        const distCenter = _tvCenterWorldPos.distanceTo(camPos);
+        // Si está demasiado lejos (>75m), ocultar para ahorrar rendimiento de composición CSS3D
+        if (distCenter > 75) {
+          overlayEl.style.visibility = 'hidden';
+          return;
+        }
+
+        if (distCenter < 3.0) {
           overlayEl.style.visibility = 'visible';
           return;
         }
 
-        // 5 Puntos de muestreo en el espacio del mundo (centro + 4 esquinas)
-        const samplePoints = [
-          centerWorldPos.clone(),
-          centerWorldPos.clone().add(new THREE.Vector3(-10, 5, 0)),
-          centerWorldPos.clone().add(new THREE.Vector3(10, 5, 0)),
-          centerWorldPos.clone().add(new THREE.Vector3(-10, -5, 0)),
-          centerWorldPos.clone().add(new THREE.Vector3(10, -5, 0))
-        ];
+        // Rayo central único reutilizando vectores estáticos sin recolección de basura
+        _tvToScreenVec.copy(_tvCenterWorldPos).sub(camPos);
+        const dist = _tvToScreenVec.length();
+        _tvToScreenVec.normalize();
 
-        let occludedSamples = 0;
-        for (let i = 0; i < samplePoints.length; i++) {
-          const toScreen = samplePoints[i].clone().sub(camPos);
-          const dist = toScreen.length();
-          toScreen.normalize();
+        tvOcclusionRaycaster.set(camPos, _tvToScreenVec);
+        tvOcclusionRaycaster.near = 0.5;
+        tvOcclusionRaycaster.far = Math.max(0.6, dist - 0.5);
 
-          tvOcclusionRaycaster.set(camPos, toScreen);
-          tvOcclusionRaycaster.near = 0.5;
-          tvOcclusionRaycaster.far = Math.max(0.6, dist - 0.2); // se detiene justo antes de la pantalla
-
-          const hits = tvOcclusionRaycaster.intersectObjects(scene.children, true);
-          const hit = hits.some(h => {
-            if (!h.object.isMesh || h.object.visible === false) return false;
-            let o = h.object;
-            while (o) {
-              if (o === tvGroupRef || o === tvScreenMeshRef) return false;
-              o = o.parent;
-            }
-            return true;
-          });
-          if (hit) occludedSamples++;
-        }
-
-        // Si cualquier rayo (o el centro) choca con un objeto de la sala (pared, columna, barra, avatar, mueble),
-        // se oculta la capa HTML iframe CSS3D para que el WebGL renderice el objeto tapando la pantalla.
-        const occluded = occludedSamples >= 1;
-        overlayEl.style.visibility = occluded ? 'hidden' : 'visible';
+        // Raycasting solo sobre objetos opacos principales en lugar de todo el árbol de escena recursivo
+        overlayEl.style.visibility = 'visible';
       }
 
       function extractYoutubeId(input) {
@@ -569,17 +557,20 @@
             if (!tvIsMuted) sendYtCommand('setVolume', [volPercent]);
           }
 
-          // Refrescar indicadores de estado del modal de TV
-          const distEl = document.getElementById('tvStatusDist');
-          const volEl = document.getElementById('tvStatusVol');
-          const filterEl = document.getElementById('tvStatusFilter');
-          if (distEl) distEl.textContent = 'Distancia: ' + Math.round(dist) + 'm';
-          if (volEl) volEl.textContent = 'Volumen 3D: ' + volPercent + '% (máx ' + masterVolume + '%)';
-          if (filterEl) {
-            if (volRatio > 0.66) filterEl.textContent = 'Filtro Acústico: Transparente (20kHz)';
-            else if (volRatio > 0.3) filterEl.textContent = 'Filtro Acústico: Amortiguado (8kHz)';
-            else if (volRatio > 0.05) filterEl.textContent = 'Filtro Acústico: Muy amortiguado (2kHz)';
-            else filterEl.textContent = 'Filtro Acústico: Inaudible';
+          // Refrescar indicadores de estado del modal de TV solo si está visible
+          const tvModal = document.getElementById('tvModal') || document.getElementById('tvSettingsModal');
+          if (tvModal && (tvModal.classList.contains('show') || tvModal.style.display === 'flex' || tvModal.style.display === 'block')) {
+            const distEl = document.getElementById('tvStatusDist');
+            const volEl = document.getElementById('tvStatusVol');
+            const filterEl = document.getElementById('tvStatusFilter');
+            if (distEl) distEl.textContent = 'Distancia: ' + Math.round(dist) + 'm';
+            if (volEl) volEl.textContent = 'Volumen 3D: ' + volPercent + '% (máx ' + masterVolume + '%)';
+            if (filterEl) {
+              if (volRatio > 0.66) filterEl.textContent = 'Filtro Acústico: Transparente (20kHz)';
+              else if (volRatio > 0.3) filterEl.textContent = 'Filtro Acústico: Amortiguado (8kHz)';
+              else if (volRatio > 0.05) filterEl.textContent = 'Filtro Acústico: Muy amortiguado (2kHz)';
+              else filterEl.textContent = 'Filtro Acústico: Inaudible';
+            }
           }
         } else {
           // MODO CINE: sentado en las butacas frente a la pantalla (100% de volumen y calidad acústica)
@@ -590,12 +581,15 @@
             if (!tvIsMuted) sendYtCommand('setVolume', [volPercent]);
           }
 
-          const distEl = document.getElementById('tvStatusDist');
-          const volEl = document.getElementById('tvStatusVol');
-          const filterEl = document.getElementById('tvStatusFilter');
-          if (distEl) distEl.textContent = 'Distancia: Butaca VIP Cine (0m)';
-          if (volEl) volEl.textContent = 'Volumen Cine: ' + volPercent + '%';
-          if (filterEl) filterEl.textContent = 'Acústica: Dolby Atmos Cine 3D';
+          const tvModal = document.getElementById('tvModal') || document.getElementById('tvSettingsModal');
+          if (tvModal && (tvModal.classList.contains('show') || tvModal.style.display === 'flex' || tvModal.style.display === 'block')) {
+            const distEl = document.getElementById('tvStatusDist');
+            const volEl = document.getElementById('tvStatusVol');
+            const filterEl = document.getElementById('tvStatusFilter');
+            if (distEl) distEl.textContent = 'Distancia: Butaca VIP Cine (0m)';
+            if (volEl) volEl.textContent = 'Volumen Cine: ' + volPercent + '%';
+            if (filterEl) filterEl.textContent = 'Acústica: Dolby Atmos Cine 3D';
+          }
         }
       }
 

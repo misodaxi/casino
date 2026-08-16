@@ -7,6 +7,7 @@
       let last1SecTick = 0;
 
       let lastSentTransform = { x: 0, z: 0, rotY: 0, time: 0 };
+      const _pTransformPayload = { x: 0, z: 0, rotY: 0, seq: 0, t: 0 };
       let localSequence = 0;
 
       let frameCount = 0;
@@ -30,6 +31,8 @@
       const debugSocketRateEl = document.getElementById('debugSocketRate');
       const debugDrawCallsEl = document.getElementById('debugDrawCalls');
       const debugDprEl = document.getElementById('debugDpr');
+      const debugSlotsEl = document.getElementById('debugSlots');
+      const debugPhysicsEl = document.getElementById('debugPhysics');
 
       if (debugToggleBtn) {
         debugToggleBtn.addEventListener('click', () => {
@@ -44,6 +47,15 @@
         }
       });
 
+      // Precise Frame Timing & 1% Low Percentile Tracking
+      const FRAME_SAMPLE_SIZE = 120;
+      const frameTimeHistory = new Float32Array(FRAME_SAMPLE_SIZE);
+      let frameHistoryIdx = 0;
+      let frameHistoryCount = 0;
+      let onePercentLowFps = 60;
+      let zeroPointOnePercentLowFps = 60;
+      let maxFrameSpikeMs = 16.6;
+
       function animate() {
         requestAnimationFrame(animate);
         const now = performance.now();
@@ -53,10 +65,24 @@
         // Frame timing & FPS tracking
         frameCount++;
         currentFrameTimeMs = dt * 1000;
+        frameTimeHistory[frameHistoryIdx] = currentFrameTimeMs;
+        frameHistoryIdx = (frameHistoryIdx + 1) % FRAME_SAMPLE_SIZE;
+        if (frameHistoryCount < FRAME_SAMPLE_SIZE) frameHistoryCount++;
+
         if (now - fpsCalcTime >= 500) {
           currentFps = Math.round((frameCount * 1000) / (now - fpsCalcTime));
           frameCount = 0;
           fpsCalcTime = now;
+
+          // Compute 1% and 0.1% low percentile metrics from sliding window
+          const sortedFrames = Array.from(frameTimeHistory.subarray(0, frameHistoryCount)).sort((a, b) => b - a);
+          const onePctIdx = Math.min(sortedFrames.length - 1, Math.max(0, Math.floor(sortedFrames.length * 0.01)));
+          const zeroOnePctIdx = Math.min(sortedFrames.length - 1, Math.max(0, Math.floor(sortedFrames.length * 0.001)));
+          const slowest1PctMs = sortedFrames[onePctIdx] || 16.6;
+          const slowest01PctMs = sortedFrames[zeroOnePctIdx] || 16.6;
+          onePercentLowFps = Math.max(1, Math.round(1000 / Math.max(1, slowest1PctMs)));
+          zeroPointOnePercentLowFps = Math.max(1, Math.round(1000 / Math.max(1, slowest01PctMs)));
+          maxFrameSpikeMs = sortedFrames[0] || 16.6;
 
           if (fpsCounterValEl) {
             fpsCounterValEl.textContent = currentFps;
@@ -97,9 +123,10 @@
         if (state.mode === 'cinema') updateCinemaCamera(dt);
         else if (state.mode !== 'casino' && state.mode !== 'transition') updateSeated360Camera(dt);
         if (typeof updateRemotePlayers === 'function') updateRemotePlayers(dt);
+        if (typeof updateBots === 'function') updateBots(dt);
 
         /* ----------------------------------------------------
-           2. ~20 Hz NETWORK TRANSMITTER (Delta & Keepalive)
+           2. ~20 Hz NETWORK TRANSMITTER (Delta & Keepalive with Zero-Alloc Payload)
         ---------------------------------------------------- */
         if (typeof socket !== 'undefined' && socket && socket.connected && typeof playerAvatar !== 'undefined' && playerAvatar) {
           const curX = playerAvatar.position.x;
@@ -112,35 +139,27 @@
           const dRot = Math.abs(curRotY - lastSentTransform.rotY);
           const elapsed = now - lastSentTransform.time;
 
-          if ((distSq > 0.000225 || dRot > 0.015) && elapsed >= 50) {
-            lastSentTransform = { x: curX, z: curZ, rotY: curRotY, time: now };
-            localSequence++;
-            socket.emit('pTransform', {
-              x: Math.round(curX * 100) / 100,
-              z: Math.round(curZ * 100) / 100,
-              rotY: Math.round(curRotY * 100) / 100,
-              seq: localSequence,
-              t: Math.round(now)
-            });
-            window.netMetrics.msgOut++;
-            window.netMetrics.bytesOut += 38;
-          } else if (elapsed >= 1500) {
+          if (((distSq > 0.000225 || dRot > 0.015) && elapsed >= 50) || elapsed >= 1500) {
+            lastSentTransform.x = curX;
+            lastSentTransform.z = curZ;
+            lastSentTransform.rotY = curRotY;
             lastSentTransform.time = now;
             localSequence++;
-            socket.emit('pTransform', {
-              x: Math.round(curX * 100) / 100,
-              z: Math.round(curZ * 100) / 100,
-              rotY: Math.round(curRotY * 100) / 100,
-              seq: localSequence,
-              t: Math.round(now)
-            });
+
+            _pTransformPayload.x = Math.round(curX * 100) / 100;
+            _pTransformPayload.z = Math.round(curZ * 100) / 100;
+            _pTransformPayload.rotY = Math.round(curRotY * 100) / 100;
+            _pTransformPayload.seq = localSequence;
+            _pTransformPayload.t = Math.round(now);
+
+            socket.emit('pTransform', _pTransformPayload);
             window.netMetrics.msgOut++;
             window.netMetrics.bytesOut += 38;
           }
         }
 
         /* ----------------------------------------------------
-           3. 15–30 FPS SECONDARY: Audio, Particles & TV Occlusion
+           3. 15–30 FPS SECONDARY: Audio, Particles, TV & Secondary Animations
         ---------------------------------------------------- */
         if (now - last15HzTick >= 33) {
           const dt15 = (now - last15HzTick) / 1000;
@@ -150,6 +169,44 @@
           updateAvatarTag();
           updateTVSpatialAudioAndProjection();
           try { updateTvOcclusion(dt15); } catch (e) { }
+
+          /* Jukebox turntable spinning & ceiling speakers pulse */
+          if (window.jukebox3DRefs) {
+            const jk = window.jukebox3DRefs;
+            if (window.localJukeboxState && window.localJukeboxState.playing) {
+              if (jk.spinningDisc) jk.spinningDisc.rotation.y += dt15 * 4.2;
+              if (jk.jukeLight) jk.jukeLight.intensity = 2.2 + Math.sin(now * 0.007) * 0.6;
+              if (jk.innerSpot) jk.innerSpot.intensity = 3.2 + Math.sin(now * 0.009) * 0.5;
+            }
+          }
+          if (window.casinoSpeakerMeshes && window.localJukeboxState && window.localJukeboxState.playing) {
+            const sPulse = 1.0 + Math.sin(now * 0.008) * 0.04;
+            window.casinoSpeakerMeshes.forEach(spk => spk.scale.set(sPulse, sPulse, sPulse));
+          }
+
+          /* rotate roulette rotor & ball in winning pocket */
+          if (window.roulette3DRefs && window.roulette3DRefs.rotor && (!window.rState || !window.rState.spinning)) {
+            window.roulette3DRefs.rotor.rotation.y += dt15 * 0.35;
+            if (window.roulette3DRefs.ball && typeof window.roulette3DRefs.lastWinPocketAngle === 'number') {
+              const ballAbsAngle = window.roulette3DRefs.rotor.rotation.y + window.roulette3DRefs.lastWinPocketAngle;
+              window.roulette3DRefs.ball.position.x = Math.sin(ballAbsAngle) * 0.84;
+              window.roulette3DRefs.ball.position.z = Math.cos(ballAbsAngle) * 0.84;
+              window.roulette3DRefs.ball.position.y = 0.505;
+            }
+          }
+          if (window.jackpotTrophyVictory) {
+            const jv = window.jackpotTrophyVictory;
+            if (jv.victoryGroup) jv.victoryGroup.position.y = 3.70 + Math.sin(now * 0.0025) * 0.07;
+            if (jv.victoryDiamond) {
+              jv.victoryDiamond.rotation.y += dt15 * 1.4;
+              jv.victoryDiamond.rotation.x += dt15 * 0.6;
+            }
+            if (jv.victoryRing) jv.victoryRing.rotation.z += dt15 * 0.8;
+            if (jv.victoryRingNeon) jv.victoryRingNeon.rotation.z -= dt15 * 1.2;
+          } else if (window.jackpotTrophyGem) {
+            window.jackpotTrophyGem.rotation.y += dt15 * 1.5;
+            window.jackpotTrophyGem.rotation.x += dt15 * 0.5;
+          }
         }
 
         /* ----------------------------------------------------
@@ -158,62 +215,33 @@
         if (now - last5HzTick >= 100) {
           const dt5 = (now - last5HzTick) / 1000;
           last5HzTick = now;
-          updateBots(dt5);
+          if (typeof updateBotsAI === 'function') updateBotsAI(dt5);
+
+          if (window.zoneMeshes) {
+            Object.values(window.zoneMeshes).forEach(zm => {
+              zm.pulse = (zm.pulse || 0) + 0.09;
+              if (zm.ring) {
+                const s = 1 + Math.sin(zm.pulse) * 0.05;
+                zm.ring.scale.set(s, 1, s);
+              }
+            });
+          }
         }
 
         /* ----------------------------------------------------
-           5. CONDITIONAL PHYSICS & SLOTS TICKS (Only active when moving)
+           5. 100% CONDITIONAL PHYSICS & SLOTS TICKS (Zero overhead when idle)
         ---------------------------------------------------- */
-        try { updatePlinko3DBalls(dt); } catch (e) { }
-        try { updateDicePhysics(dt); } catch (e) { }
-        try { updateCoinPhysics(dt); } catch (e) { }
-        try { updateSlot3DScreens(dt); } catch (e) { }
-
-        /* Jukebox turntable spinning & ceiling speakers pulse */
-        if (window.jukebox3DRefs) {
-          const jk = window.jukebox3DRefs;
-          if (window.localJukeboxState && window.localJukeboxState.playing) {
-            if (jk.spinningDisc) jk.spinningDisc.rotation.y += dt * 4.2;
-            if (jk.jukeLight) jk.jukeLight.intensity = 2.2 + Math.sin(now * 0.007) * 0.6;
-            if (jk.innerSpot) jk.innerSpot.intensity = 3.2 + Math.sin(now * 0.009) * 0.5;
-          }
+        if (typeof updatePlinko3DBalls === 'function' && ((window.activePlinkoBalls && window.activePlinkoBalls.length > 0) || (typeof activePlinkoBalls !== 'undefined' && activePlinkoBalls.length > 0))) {
+          try { updatePlinko3DBalls(dt); } catch (e) { }
         }
-        if (window.casinoSpeakerMeshes && window.localJukeboxState && window.localJukeboxState.playing) {
-          const sPulse = 1.0 + Math.sin(now * 0.008) * 0.04;
-          window.casinoSpeakerMeshes.forEach(spk => spk.scale.set(sPulse, sPulse, sPulse));
+        if (window.isDicePhysicsActive) {
+          try { updateDicePhysics(dt); } catch (e) { }
         }
-
-        /* rotate roulette rotor & ball in winning pocket */
-        if (window.roulette3DRefs && window.roulette3DRefs.rotor && (!window.rState || !window.rState.spinning)) {
-          window.roulette3DRefs.rotor.rotation.y += dt * 0.35;
-          if (window.roulette3DRefs.ball && typeof window.roulette3DRefs.lastWinPocketAngle === 'number') {
-            const ballAbsAngle = window.roulette3DRefs.rotor.rotation.y + window.roulette3DRefs.lastWinPocketAngle;
-            window.roulette3DRefs.ball.position.x = Math.sin(ballAbsAngle) * 0.84;
-            window.roulette3DRefs.ball.position.z = Math.cos(ballAbsAngle) * 0.84;
-            window.roulette3DRefs.ball.position.y = 0.505;
-          }
+        if (window.isCoinPhysicsActive) {
+          try { updateCoinPhysics(dt); } catch (e) { }
         }
-        if (window.jackpotTrophyVictory) {
-          const jv = window.jackpotTrophyVictory;
-          if (jv.victoryGroup) jv.victoryGroup.position.y = 3.70 + Math.sin(now * 0.0025) * 0.07;
-          if (jv.victoryDiamond) {
-            jv.victoryDiamond.rotation.y += dt * 1.4;
-            jv.victoryDiamond.rotation.x += dt * 0.6;
-          }
-          if (jv.victoryRing) jv.victoryRing.rotation.z += dt * 0.8;
-          if (jv.victoryRingNeon) jv.victoryRingNeon.rotation.z -= dt * 1.2;
-        } else if (window.jackpotTrophyGem) {
-          window.jackpotTrophyGem.rotation.y += dt * 1.5;
-          window.jackpotTrophyGem.rotation.x += dt * 0.5;
-        }
-        if (window.zoneMeshes) {
-          Object.values(window.zoneMeshes).forEach(zm => {
-            zm.pulse = (zm.pulse || 0) + 0.03;
-            if (zm.ring) {
-              const s = 1 + Math.sin(zm.pulse) * 0.05;
-              zm.ring.scale.set(s, 1, s);
-            }
-          });
+        if (window.activeSpinningSlotsCount > 0 || window.dirtySlotsCount > 0) {
+          try { updateSlot3DScreens(dt); } catch (e) { }
         }
 
         /* ----------------------------------------------------
@@ -231,7 +259,7 @@
           }
 
           if (debugHudEl && debugHudEl.classList.contains('show')) {
-            if (debugFpsEl) debugFpsEl.textContent = `${currentFps} FPS (${currentFrameTimeMs.toFixed(1)}ms)`;
+            if (debugFpsEl) debugFpsEl.textContent = `${currentFps} FPS (${currentFrameTimeMs.toFixed(1)}ms) · 1% Low: ${onePercentLowFps} FPS`;
             if (debugPingEl && window.netMetrics) {
               const qBadgeClass = 'badge ' + (window.netMetrics.quality === 'EXCELLENT' ? 'badge-excellent' : (window.netMetrics.quality === 'GOOD' ? 'badge-good' : (window.netMetrics.quality === 'FAIR' ? 'badge-fair' : 'badge-poor')));
               debugPingEl.innerHTML = `${window.netMetrics.ping} ms <span class="${qBadgeClass}">${window.netMetrics.quality}</span>`;
@@ -247,6 +275,14 @@
               debugDrawCallsEl.textContent = `${renderer.info.render.calls} calls / ${renderer.info.render.triangles} tris`;
             }
             if (debugDprEl && renderer && window.currentQuality) debugDprEl.textContent = `${renderer.getPixelRatio().toFixed(2)}x DPR (${window.currentQuality.name})`;
+
+            const slotUpdatesRate = Math.round((window.slotTexUpdatesThisSec || 0) / timeDeltaSec);
+            window.slotTexUpdatesThisSec = 0;
+            const activeSlots = window.activeSpinningSlotsCount || 0;
+            if (debugSlotsEl) debugSlotsEl.textContent = `${activeSlots} / 30 (${slotUpdatesRate}/s)`;
+
+            const activePhysCount = (window.isDicePhysicsActive ? 1 : 0) + (window.isCoinPhysicsActive ? 1 : 0) + (window.activePlinkoBalls ? window.activePlinkoBalls.length : 0);
+            if (debugPhysicsEl) debugPhysicsEl.textContent = activePhysCount > 0 ? `${activePhysCount} activas` : '0 (en reposo)';
           }
         }
 
