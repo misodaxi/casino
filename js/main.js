@@ -56,6 +56,8 @@
       let zeroPointOnePercentLowFps = 60;
       let maxFrameSpikeMs = 16.6;
 
+      const _sortedFramesScratch = new Float32Array(FRAME_SAMPLE_SIZE);
+
       function animate() {
         requestAnimationFrame(animate);
         const now = performance.now();
@@ -74,15 +76,19 @@
           frameCount = 0;
           fpsCalcTime = now;
 
-          // Compute 1% and 0.1% low percentile metrics from sliding window
-          const sortedFrames = Array.from(frameTimeHistory.subarray(0, frameHistoryCount)).sort((a, b) => b - a);
-          const onePctIdx = Math.min(sortedFrames.length - 1, Math.max(0, Math.floor(sortedFrames.length * 0.01)));
-          const zeroOnePctIdx = Math.min(sortedFrames.length - 1, Math.max(0, Math.floor(sortedFrames.length * 0.001)));
-          const slowest1PctMs = sortedFrames[onePctIdx] || 16.6;
-          const slowest01PctMs = sortedFrames[zeroOnePctIdx] || 16.6;
+          // Zero-allocation 1% and 0.1% low percentile computation
+          for (let fi = 0; fi < frameHistoryCount; fi++) {
+            _sortedFramesScratch[fi] = frameTimeHistory[fi];
+          }
+          const validSlice = _sortedFramesScratch.subarray(0, frameHistoryCount).sort();
+          const slowestIdx = Math.max(0, frameHistoryCount - 1);
+          const onePctIdx = Math.max(0, Math.floor(frameHistoryCount * 0.99));
+          const zeroOnePctIdx = Math.max(0, Math.floor(frameHistoryCount * 0.999));
+          const slowest1PctMs = validSlice[onePctIdx] || 16.6;
+          const slowest01PctMs = validSlice[zeroOnePctIdx] || 16.6;
           onePercentLowFps = Math.max(1, Math.round(1000 / Math.max(1, slowest1PctMs)));
           zeroPointOnePercentLowFps = Math.max(1, Math.round(1000 / Math.max(1, slowest01PctMs)));
-          maxFrameSpikeMs = sortedFrames[0] || 16.6;
+          maxFrameSpikeMs = validSlice[slowestIdx] || 16.6;
 
           if (fpsCounterValEl) {
             fpsCounterValEl.textContent = currentFps;
@@ -139,7 +145,7 @@
           const dRot = Math.abs(curRotY - lastSentTransform.rotY);
           const elapsed = now - lastSentTransform.time;
 
-          if (((distSq > 0.000225 || dRot > 0.015) && elapsed >= 50) || elapsed >= 1500) {
+          if (((distSq > 0.0009 || dRot > 0.025) && elapsed >= 50) || elapsed >= 1500) {
             lastSentTransform.x = curX;
             lastSentTransform.z = curZ;
             lastSentTransform.rotY = curRotY;
@@ -210,7 +216,7 @@
         }
 
         /* ----------------------------------------------------
-           4. 5–10 FPS BACKGROUND: Bot AI Decisions & Diagnostics
+           4. 5–10 FPS BACKGROUND: Bot AI Decisions & Pulsations
         ---------------------------------------------------- */
         if (now - last5HzTick >= 100) {
           const dt5 = (now - last5HzTick) / 1000;
@@ -218,13 +224,20 @@
           if (typeof updateBotsAI === 'function') updateBotsAI(dt5);
 
           if (window.zoneMeshes) {
-            Object.values(window.zoneMeshes).forEach(zm => {
+            const zKeys = Object.keys(window.zoneMeshes);
+            for (let zi = 0; zi < zKeys.length; zi++) {
+              const zm = window.zoneMeshes[zKeys[zi]];
+              if (!zm) continue;
+
               zm.pulse = (zm.pulse || 0) + 0.09;
               if (zm.ring) {
                 const s = 1 + Math.sin(zm.pulse) * 0.05;
                 zm.ring.scale.set(s, 1, s);
               }
-            });
+              if (zm.group && !zm.group.visible) {
+                zm.group.visible = true;
+              }
+            }
           }
         }
 

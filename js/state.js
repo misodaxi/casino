@@ -242,6 +242,35 @@
         return chipGroup;
       }
 
+      const _chipLabelMatCache = {};
+
+      function getChipStackLabelMaterial(displayStr) {
+        if (!_chipLabelMatCache[displayStr]) {
+          const labelCanvas = document.createElement('canvas'); labelCanvas.width = 256; labelCanvas.height = 96;
+          const lCtx = labelCanvas.getContext('2d');
+          lCtx.fillStyle = '#0f081d';
+          if (lCtx.roundRect) lCtx.roundRect(8, 8, 240, 80, 18); else lCtx.rect(8, 8, 240, 80);
+          lCtx.fill();
+          lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 4; lCtx.stroke();
+          lCtx.font = '900 42px "Segoe UI", Arial, sans-serif';
+          lCtx.fillStyle = '#fbbf24'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
+          lCtx.fillText(displayStr, 128, 48);
+
+          const labelTex = new THREE.CanvasTexture(labelCanvas);
+          _chipLabelMatCache[displayStr] = new THREE.SpriteMaterial({ map: labelTex, depthTest: false });
+        }
+        return _chipLabelMatCache[displayStr];
+      }
+
+      function safeClear3DGroup(group) {
+        if (!group || !group.children) return;
+        while (group.children.length > 0) {
+          const child = group.children[0];
+          group.remove(child);
+        }
+      }
+      window.safeClear3DGroup = safeClear3DGroup;
+
       function create3DChipStackMesh(amount, customRadius = 0.085, customHeight = 0.022) {
         const stackGroup = new THREE.Group();
         const amt = roundMoney(amount);
@@ -272,18 +301,7 @@
         const totalH = chipsToStack.length * (customHeight + 0.002);
         const displayStr = formatMoney(amt);
 
-        const labelCanvas = document.createElement('canvas'); labelCanvas.width = 256; labelCanvas.height = 96;
-        const lCtx = labelCanvas.getContext('2d');
-        lCtx.fillStyle = '#0f081d';
-        if (lCtx.roundRect) lCtx.roundRect(8, 8, 240, 80, 18); else lCtx.rect(8, 8, 240, 80);
-        lCtx.fill();
-        lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 4; lCtx.stroke();
-        lCtx.font = '900 42px "Segoe UI", Arial, sans-serif';
-        lCtx.fillStyle = '#fbbf24'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
-        lCtx.fillText(displayStr, 128, 48);
-
-        const labelTex = new THREE.CanvasTexture(labelCanvas);
-        const labelMat = new THREE.SpriteMaterial({ map: labelTex, depthTest: false });
+        const labelMat = getChipStackLabelMaterial(displayStr);
         const labelSprite = new THREE.Sprite(labelMat);
         labelSprite.scale.set(0.36, 0.14, 1);
         labelSprite.position.set(0, totalH + 0.09, 0);

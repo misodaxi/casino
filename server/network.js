@@ -20,11 +20,31 @@ const { setupBlackjackSocketEvents, handleBlackjackDisconnect } = require('./gam
 const { setupDiceSocketEvents, handleDiceVersusDisconnect } = require('./games/dice');
 const { setupCoinSocketEvents, handleCoinVersusDisconnect } = require('./games/coin');
 
-function getZoneForPosition(x, z) {
+const CASINO_SPATIAL_ZONES_MAP = {};
+CASINO_SPATIAL_ZONES.forEach(z => {
+  CASINO_SPATIAL_ZONES_MAP[z.id] = {
+    x: z.x,
+    z: z.z,
+    radSq: z.radius * z.radius
+  };
+});
+
+function getZoneForPosition(x, z, currentZoneId = null) {
+  // O(1) Fast Path: if player is still within their current zone radius, return currentZone immediately
+  if (currentZoneId && CASINO_SPATIAL_ZONES_MAP[currentZoneId]) {
+    const cur = CASINO_SPATIAL_ZONES_MAP[currentZoneId];
+    const dx = x - cur.x;
+    const dz = z - cur.z;
+    if (dx * dx + dz * dz <= cur.radSq) {
+      return currentZoneId;
+    }
+  }
+
   let closestZone = 'lobby';
   let minDistanceSq = Infinity;
 
-  for (const zone of CASINO_SPATIAL_ZONES) {
+  for (let i = 0; i < CASINO_SPATIAL_ZONES.length; i++) {
+    const zone = CASINO_SPATIAL_ZONES[i];
     const dx = x - zone.x;
     const dz = z - zone.z;
     const distSq = dx * dx + dz * dz;
@@ -118,7 +138,7 @@ function setupSocketIO(io) {
       p.rotY = typeof data.rotY === 'number' ? data.rotY : p.rotY;
       p.lastActive = Date.now();
 
-      const newZone = getZoneForPosition(p.x, p.z);
+      const newZone = getZoneForPosition(p.x, p.z, socket.currentZone);
       if (newZone !== socket.currentZone) {
         socket.leave('zone:' + socket.currentZone);
         socket.to('zone:' + socket.currentZone).emit('playerLeft', socket.id);

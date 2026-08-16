@@ -1,9 +1,27 @@
 /* ============================================================
-         CANVAS PARTICLE FX SYSTEM (CONFETTI, SPARKS)
-      ============================================================ */
+   CANVAS PARTICLE FX SYSTEM (ZERO-GC CONFETTI OBJECT POOL)
+============================================================ */
       var fxCanvas = document.getElementById('fx-canvas');
       var fxCtx = fxCanvas.getContext('2d');
-      var particles = [];
+      const MAX_CONFETTI_POOL = 160;
+      const confettiColors = ['#8B5CF6', '#E11FD1', '#FB923C', '#22c55e', '#38bdf8', '#FBBF24'];
+
+      // Pre-allocated static particle pool (Zero GC allocations during celebrations)
+      const confettiPool = [];
+      for (let i = 0; i < MAX_CONFETTI_POOL; i++) {
+        confettiPool.push({
+          active: false,
+          x: 0, y: 0,
+          vx: 0, vy: 0,
+          size: 8,
+          color: '#8B5CF6',
+          life: 0,
+          decay: 0.015,
+          rot: 0,
+          vRot: 0
+        });
+      }
+      let activeConfettiCount = 0;
 
       function resizeFxCanvas() {
         fxCanvas.width = window.innerWidth;
@@ -14,46 +32,72 @@
 
       function triggerConfetti() {
         playSound('win');
-        var colors = ['#8B5CF6', '#E11FD1', '#FB923C', '#22c55e', '#38bdf8', '#FBBF24'];
         const maxP = (window.currentQuality && window.currentQuality.maxParticles) ? window.currentQuality.maxParticles : 60;
-        for (let i = 0; i < maxP; i++) {
-          particles.push({
-            x: window.innerWidth / 2,
-            y: window.innerHeight / 2 - 50,
-            vx: (Math.random() - 0.5) * 18,
-            vy: (Math.random() - 0.8) * 16,
-            size: 6 + Math.random() * 8,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            life: 1,
-            decay: 0.012 + Math.random() * 0.01,
-            rot: Math.random() * Math.PI * 2,
-            vRot: (Math.random() - 0.5) * 0.2
-          });
+        const countToSpawn = Math.min(maxP, MAX_CONFETTI_POOL);
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2 - 50;
+
+        let spawned = 0;
+        for (let i = 0; i < MAX_CONFETTI_POOL && spawned < countToSpawn; i++) {
+          const p = confettiPool[i];
+          if (!p.active) {
+            p.active = true;
+            p.x = centerX;
+            p.y = centerY;
+            p.vx = (Math.random() - 0.5) * 18;
+            p.vy = (Math.random() - 0.8) * 16;
+            p.size = 6 + Math.random() * 8;
+            p.color = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+            p.life = 1.0;
+            p.decay = 0.012 + Math.random() * 0.01;
+            p.rot = Math.random() * Math.PI * 2;
+            p.vRot = (Math.random() - 0.5) * 0.2;
+            spawned++;
+            activeConfettiCount++;
+          }
         }
       }
+      function spawnConfetti() { triggerConfetti(); }
 
       function updateParticles() {
-        if (particles.length === 0) return; // 0 CPU cost when idle
+        if (activeConfettiCount <= 0) return; // 0 CPU cost when idle
         fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
-        for (let i = particles.length - 1; i >= 0; i--) {
-          const p = particles[i];
+        let stillActive = 0;
+
+        for (let i = 0; i < MAX_CONFETTI_POOL; i++) {
+          const p = confettiPool[i];
+          if (!p.active) continue;
+
           p.x += p.vx;
           p.y += p.vy;
           p.vy += 0.35;
           p.rot += p.vRot;
           p.life -= p.decay;
 
-          if (p.life <= 0) { particles.splice(i, 1); continue; }
+          if (p.life <= 0) {
+            p.active = false;
+            continue;
+          }
 
-          fxCtx.save();
-          fxCtx.translate(p.x, p.y);
-          fxCtx.rotate(p.rot);
+          stillActive++;
+
+          // Ultra-fast 2D matrix transformation (eliminates expensive save/restore state copies)
+          const cos = Math.cos(p.rot);
+          const sin = Math.sin(p.rot);
+          const half = p.size / 2;
+
+          fxCtx.setTransform(cos, sin, -sin, cos, p.x, p.y);
           fxCtx.globalAlpha = p.life;
           fxCtx.fillStyle = p.color;
-          fxCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
-          fxCtx.restore();
+          fxCtx.fillRect(-half, -half, p.size, p.size);
         }
-        if (particles.length === 0) {
+
+        // Reset canvas matrix transform once after the batch
+        fxCtx.setTransform(1, 0, 0, 1, 0, 0);
+        fxCtx.globalAlpha = 1.0;
+
+        activeConfettiCount = stillActive;
+        if (activeConfettiCount === 0) {
           fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
         }
       }

@@ -49,6 +49,27 @@
       }
       window.applyQualityTier = applyQualityTier;
 
+      const _rackChipLabelMatCache = {};
+      function getRackChipLabelMaterial(str) {
+        if (!_rackChipLabelMatCache[str]) {
+          const labelCanvas = document.createElement('canvas');
+          labelCanvas.width = 128; labelCanvas.height = 64;
+          const lCtx = labelCanvas.getContext('2d');
+          lCtx.fillStyle = '#0f081d';
+          if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
+          lCtx.fill();
+          lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
+          lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
+          lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
+          lCtx.fillText(str, 64, 32);
+
+          const labelTex = new THREE.CanvasTexture(labelCanvas);
+          _rackChipLabelMatCache[str] = new THREE.SpriteMaterial({ map: labelTex, depthTest: false });
+        }
+        return _rackChipLabelMatCache[str];
+      }
+      window.getRackChipLabelMaterial = getRackChipLabelMaterial;
+
       applyQualityTier(currentQuality);
       renderer.setSize(window.innerWidth, window.innerHeight);
       if (renderer.domElement && renderer.domElement.style) {
@@ -81,8 +102,19 @@
 
       /* lights */
       scene.add(new THREE.AmbientLight(0x3e3260, 1.2));
-      var moonLight = new THREE.DirectionalLight(0x9b8cff, 0.6);
-      moonLight.position.set(-20, 30, -10);
+      var moonLight = new THREE.DirectionalLight(0x9b8cff, 0.65);
+      moonLight.position.set(-20, 35, -10);
+      moonLight.castShadow = true;
+      moonLight.shadow.mapSize.width = 1024;
+      moonLight.shadow.mapSize.height = 1024;
+      moonLight.shadow.camera.left = -55;
+      moonLight.shadow.camera.right = 55;
+      moonLight.shadow.camera.top = 55;
+      moonLight.shadow.camera.bottom = -55;
+      moonLight.shadow.camera.near = 1;
+      moonLight.shadow.camera.far = 120;
+      moonLight.shadow.bias = -0.0005;
+      moonLight.shadow.normalBias = 0.02;
       scene.add(moonLight);
 
       /* floor grid */
@@ -436,21 +468,14 @@
             g.add(divEnd);
           }
 
-          // 4. Pinsetter Pit & 10 Regulation Bowling Pins at Deep End (z = -24.5)
+          // 4. Pinsetter Pit & 10 Regulation Bowling Pins at Deep End (z = -24.5) (Optimized Single Mesh Pins)
           const pinRows = [[0], [-0.22, 0.22], [-0.44, 0, 0.44], [-0.66, -0.22, 0.22, 0.66]];
           pinRows.forEach((rowPins, rIdx) => {
             const pinZ = -24.5 - rIdx * 0.38;
             rowPins.forEach(px => {
-              const pinGrp = new THREE.Group();
-              const pinBody = new THREE.Mesh(BOWLING_PIN_BODY_GEO, BOWLING_PIN_MAT);
-              pinBody.position.y = 0.32;
-              const pinHead = new THREE.Mesh(BOWLING_PIN_HEAD_GEO, BOWLING_PIN_MAT);
-              pinHead.position.y = 0.56;
-              const pinStripe = new THREE.Mesh(BOWLING_PIN_STRIPE_GEO, BOWLING_PIN_RED_MAT);
-              pinStripe.position.y = 0.48;
-              pinGrp.add(pinBody, pinHead, pinStripe);
-              pinGrp.position.set(laneX + px, 0, pinZ);
-              g.add(pinGrp);
+              const pin = new THREE.Mesh(BOWLING_PIN_BODY_GEO, BOWLING_PIN_MAT);
+              pin.position.set(laneX + px, 0.30, pinZ);
+              g.add(pin);
             });
           });
 
@@ -660,6 +685,7 @@
           cabCanvas.height = 512;
           const ctx = cabCanvas.getContext('2d');
           const cabTex = new THREE.CanvasTexture(cabCanvas);
+          cabTex.generateMipmaps = false;
           cabTex.minFilter = THREE.LinearFilter;
           cabTex.magFilter = THREE.LinearFilter;
 
@@ -814,7 +840,10 @@
 
         g.add(dais, daisGoldRim, floorInlay, floorNeonHex);
 
-        // Common Luxury Materials
+        // Common Luxury Materials & Shared Geometries Pool for Thrones
+        const TUFT_BUTTON_GEO = new THREE.SphereGeometry(0.018, 8, 8);
+        const TUFT_RIM_GEO = new THREE.TorusGeometry(0.020, 0.004, 6, 10);
+
         const crimsonVelvetMat = new THREE.MeshStandardMaterial({
           color: 0x881337, // Royal Deep Imperial Crimson Velvet
           roughness: 0.72,
@@ -1012,7 +1041,7 @@
 
           backGroup.add(backFrameLower, backFrameShoulder, backFrameArch, velvetLower, velvetShoulder, velvetArch, goldBackBezel);
 
-          // C. Diamond Button Tufting (Capitoné) with Gold Stud Rims
+          // C. Diamond Button Tufting (Capitoné) with Gold Stud Rims (Shared Geometries Pool)
           const tuftPattern = [
             [-0.18, 0.62], [0.18, 0.62],
             [-0.26, 0.84], [0.00, 0.84], [0.26, 0.84],
@@ -1022,9 +1051,9 @@
             [0.00, 1.60]
           ];
           tuftPattern.forEach(([tx, ty]) => {
-            const button = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 8), tuftButtonMat);
+            const button = new THREE.Mesh(TUFT_BUTTON_GEO, tuftButtonMat);
             button.position.set(tx, ty, 0.065);
-            const buttonRim = new THREE.Mesh(new THREE.TorusGeometry(0.020, 0.004, 6, 10), royalGoldMat);
+            const buttonRim = new THREE.Mesh(TUFT_RIM_GEO, royalGoldMat);
             buttonRim.position.set(tx, ty, 0.064);
             backGroup.add(button, buttonRim);
           });
@@ -1430,20 +1459,8 @@
             stack.add(chipM);
           }
 
-          // Floating 3D Value Label with gold border
-          const labelCanvas = document.createElement('canvas');
-          labelCanvas.width = 128; labelCanvas.height = 64;
-          const lCtx = labelCanvas.getContext('2d');
-          lCtx.fillStyle = '#0f081d';
-          if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
-          lCtx.fill();
-          lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
-          lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
-          lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
-          lCtx.fillText(cDef.str, 64, 32);
-
-          const labelTex = new THREE.CanvasTexture(labelCanvas);
-          const labelSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex, depthTest: false }));
+          // Floating 3D Value Label with gold border (Pooled Material)
+          const labelSpr = new THREE.Sprite(getRackChipLabelMaterial(cDef.str));
           labelSpr.scale.set(0.16, 0.08, 1);
           labelSpr.position.set(0, 0.125, 0);
           stack.add(labelSpr);
@@ -2483,30 +2500,45 @@
         return tex;
       }
 
+      let _cachedCoinEdgeMat = null;
+      let _cachedCoinCaraMat = null;
+      let _cachedCoinCruzMat = null;
+      const _cachedCoinGeoMap = {};
+
       function makeCoinMesh(radius = 0.48, thickness = 0.08) {
-        // 100% Pure 24K Gold Materials (Deep metallic luster & crisp reflections)
-        const edgeMat = new THREE.MeshStandardMaterial({
-          map: makeCoinEdgeTexture(),
-          color: 0xffd700,
-          metalness: 0.98,
-          roughness: 0.12
-        });
-        const caraFaceMat = new THREE.MeshStandardMaterial({
-          map: makeCoinFaceTexture('CARA', '👑'),
-          color: 0xffd700,
-          metalness: 0.96,
-          roughness: 0.14
-        });
-        const cruzFaceMat = new THREE.MeshStandardMaterial({
-          map: makeCoinFaceTexture('CRUZ', '⚡'),
-          color: 0xffd700,
-          metalness: 0.96,
-          roughness: 0.14
-        });
+        if (!_cachedCoinEdgeMat) {
+          _cachedCoinEdgeMat = new THREE.MeshStandardMaterial({
+            map: makeCoinEdgeTexture(),
+            color: 0xffd700,
+            metalness: 0.98,
+            roughness: 0.12
+          });
+        }
+        if (!_cachedCoinCaraMat) {
+          _cachedCoinCaraMat = new THREE.MeshStandardMaterial({
+            map: makeCoinFaceTexture('CARA', '👑'),
+            color: 0xffd700,
+            metalness: 0.96,
+            roughness: 0.14
+          });
+        }
+        if (!_cachedCoinCruzMat) {
+          _cachedCoinCruzMat = new THREE.MeshStandardMaterial({
+            map: makeCoinFaceTexture('CRUZ', '⚡'),
+            color: 0xffd700,
+            metalness: 0.96,
+            roughness: 0.14
+          });
+        }
+
+        const geoKey = radius + '_' + thickness;
+        if (!_cachedCoinGeoMap[geoKey]) {
+          _cachedCoinGeoMap[geoKey] = new THREE.CylinderGeometry(radius, radius, thickness, 48);
+        }
 
         const mesh = new THREE.Mesh(
-          new THREE.CylinderGeometry(radius, radius, thickness, 64),
-          [edgeMat, caraFaceMat, cruzFaceMat]
+          _cachedCoinGeoMap[geoKey],
+          [_cachedCoinEdgeMat, _cachedCoinCaraMat, _cachedCoinCruzMat]
         );
         mesh.castShadow = true;
         mesh.receiveShadow = true;
@@ -2705,20 +2737,8 @@
             stack.add(chipM);
           }
 
-          // Floating 3D Value Label with gold border (EXACTLY matching user image)
-          const labelCanvas = document.createElement('canvas');
-          labelCanvas.width = 128; labelCanvas.height = 64;
-          const lCtx = labelCanvas.getContext('2d');
-          lCtx.fillStyle = '#0f081d';
-          if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
-          lCtx.fill();
-          lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
-          lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
-          lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
-          lCtx.fillText(cDef.str, 64, 32);
-
-          const labelTex = new THREE.CanvasTexture(labelCanvas);
-          const labelSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex, depthTest: false }));
+          // Floating 3D Value Label with gold border (Pooled Material)
+          const labelSpr = new THREE.Sprite(getRackChipLabelMaterial(cDef.str));
           labelSpr.scale.set(0.16, 0.08, 1);
           labelSpr.position.set(0, 0.125, 0);
           labelSpr.userData = { chipVal: cDef.v };
@@ -3782,19 +3802,8 @@
               stack.add(chipM);
             }
 
-            // Floating 3D Value Label
-            const labelCanvas = document.createElement('canvas'); labelCanvas.width = 128; labelCanvas.height = 64;
-            const lCtx = labelCanvas.getContext('2d');
-            lCtx.fillStyle = '#0f081d';
-            if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
-            lCtx.fill();
-            lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
-            lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
-            lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
-            lCtx.fillText(cDef.str, 64, 32);
-
-            const labelTex = new THREE.CanvasTexture(labelCanvas);
-            const labelSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex, depthTest: false }));
+            // Floating 3D Value Label (Pooled Material)
+            const labelSpr = new THREE.Sprite(getRackChipLabelMaterial(cDef.str));
             labelSpr.scale.set(0.20, 0.10, 1);
             labelSpr.position.set(0, 0.14, 0);
             stack.add(labelSpr);
@@ -3808,9 +3817,12 @@
           rGroup.add(placedChips3DGroup);
 
           function update3DPlacedChips() {
-            while (placedChips3DGroup.children.length > 0) {
-              const child = placedChips3DGroup.children[0];
-              placedChips3DGroup.remove(child);
+            if (typeof safeClear3DGroup === 'function') {
+              safeClear3DGroup(placedChips3DGroup);
+            } else {
+              while (placedChips3DGroup.children.length > 0) {
+                placedChips3DGroup.remove(placedChips3DGroup.children[0]);
+              }
             }
 
             const betsMap = (typeof rState !== 'undefined' && rState && rState.bets) ? rState.bets : {};
@@ -4286,20 +4298,8 @@
               stack.add(chipM);
             }
 
-            // Floating 3D Value Label with gold border
-            const labelCanvas = document.createElement('canvas');
-            labelCanvas.width = 128; labelCanvas.height = 64;
-            const lCtx = labelCanvas.getContext('2d');
-            lCtx.fillStyle = '#0f081d';
-            if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
-            lCtx.fill();
-            lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
-            lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
-            lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
-            lCtx.fillText(cDef.str, 64, 32);
-
-            const labelTex = new THREE.CanvasTexture(labelCanvas);
-            const labelSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex, depthTest: false }));
+            // Floating 3D Value Label with gold border (Pooled Material)
+            const labelSpr = new THREE.Sprite(getRackChipLabelMaterial(cDef.str));
             labelSpr.scale.set(0.16, 0.08, 1);
             labelSpr.position.set(0, 0.115, 0);
             stack.add(labelSpr);
@@ -4422,10 +4422,13 @@
         }
         g.add(centerpiece);
 
-        const light = new THREE.PointLight(z.color, 1.2, 8);
-        light.position.set(0, 2.5, 0);
-        if (z.id === 'jukebox') light.intensity = 0; // Jukebox already has its own custom warm point light!
-        g.add(light);
+        // Consolidated Ambiance PointLights (Skip duplicate lights for zones with dedicated fixtures)
+        const hasDedicatedFixture = ['bowling', 'tvcasino', 'jackpot', 'dice', 'coin', 'jukebox', 'bar'].includes(z.id);
+        if (!hasDedicatedFixture) {
+          const light = new THREE.PointLight(z.color, 1.2, 10, 2);
+          light.position.set(0, 2.5, 0);
+          g.add(light);
+        }
 
         const label = makeLabelSprite(z.name, z.icon, z.color);
         if (z.id === 'jukebox') {
@@ -4441,8 +4444,10 @@
 
         if (g && typeof g.traverse === 'function') {
           g.traverse(m => {
-            if (m && (m.isMesh || m.isSprite)) {
-              m.frustumCulled = false;
+            if (m && m.isMesh && m.geometry) {
+              if (typeof m.geometry.computeBoundingSphere === 'function' && !m.geometry.boundingSphere) {
+                m.geometry.computeBoundingSphere();
+              }
             }
           });
         }
@@ -4455,6 +4460,13 @@
       createFloorNeonTracks(scene);
       createCasinoWalls(scene);
       createCasinoCeilingSpeakers(scene);
+
+      // Pre-compile and pre-warm all WebGL shader programs to eliminate in-game stutter
+      try {
+        if (renderer && scene && camera && typeof renderer.compile === 'function') {
+          renderer.compile(scene, camera);
+        }
+      } catch (e) { }
 
 // --- Explicit Global Window Bindings ---
 if (typeof host !== 'undefined') window.host = host;

@@ -46,7 +46,9 @@
         ctx.fillText(name || 'Jugador', 256, 64);
 
         const tex = new THREE.CanvasTexture(canvas);
+        tex.generateMipmaps = false;
         tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
         const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
         const sprite = new THREE.Sprite(mat);
         sprite.scale.set(2.2, 0.55, 1);
@@ -763,12 +765,14 @@
           state.cinemaPivot = new THREE.Vector3(seat.x, 1.6, seat.z);
         }
 
+        const _tempCamLookVec = new THREE.Vector3();
         const start = performance.now();
         function step(now) {
           if (transId !== currentCamTransitionId) return;
           let t = Math.min(1, (now - start) / 900);
           camera.position.lerpVectors(state.savedCasinoCam.pos, toPos, t);
-          camera.lookAt(new THREE.Vector3().lerpVectors(state.savedCasinoCam.look, toLook, t));
+          _tempCamLookVec.lerpVectors(state.savedCasinoCam.look, toLook, t);
+          camera.lookAt(_tempCamLookVec);
           if (t < 1) requestAnimationFrame(step);
           else {
             if (transId !== currentCamTransitionId) return;
@@ -828,12 +832,18 @@
         tableMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
         tableRaycaster.setFromCamera(tableMouse, camera);
 
-        // Click on 3D Jukebox in casino mode
+        // Click on 3D Jukebox in casino mode (Spatial proximity pre-check to eliminate unnecessary deep recursive raycasts)
         if (state.mode === 'casino' && window.jukebox3DRefs && window.jukebox3DRefs.group) {
-          const jukeHits = tableRaycaster.intersectObject(window.jukebox3DRefs.group, true);
-          if (jukeHits.length > 0) {
-            openJukeboxModal();
-            return;
+          const camX = camera ? camera.position.x : 0;
+          const camZ = camera ? camera.position.z : 0;
+          const djx = camX - 11.8;
+          const djz = camZ - 36.0;
+          if (djx * djx + djz * djz <= 256) { // Only raycast if camera/player is within 16m of Jukebox
+            const jukeHits = tableRaycaster.intersectObject(window.jukebox3DRefs.group, true);
+            if (jukeHits.length > 0) {
+              openJukeboxModal();
+              return;
+            }
           }
         }
 

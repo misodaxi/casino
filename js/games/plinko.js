@@ -15,7 +15,7 @@
         });
       });
 
-      const PLINKO_BALL_GEO = new THREE.SphereGeometry(0.07, 16, 16);
+      const PLINKO_BALL_GEO = new THREE.SphereGeometry(0.07, 14, 14);
       const PLINKO_BALL_MAT = new THREE.MeshStandardMaterial({
         color: 0x38bdf8,
         emissive: 0x38bdf8,
@@ -23,6 +23,27 @@
         roughness: 0.1,
         metalness: 0.9
       });
+      const PLINKO_BALL_POOL = [];
+
+      function getPlinkoBallMesh() {
+        if (PLINKO_BALL_POOL.length > 0) {
+          const m = PLINKO_BALL_POOL.pop();
+          m.visible = true;
+          return m;
+        }
+        return new THREE.Mesh(PLINKO_BALL_GEO, PLINKO_BALL_MAT);
+      }
+
+      function recyclePlinkoBallMesh(mesh) {
+        if (!mesh) return;
+        mesh.visible = false;
+        if (plinko3DRefs && plinko3DRefs.ballsGroup) {
+          plinko3DRefs.ballsGroup.remove(mesh);
+        }
+        if (PLINKO_BALL_POOL.length < 40) {
+          PLINKO_BALL_POOL.push(mesh);
+        }
+      }
 
       function dropPlinko3DBall() {
         if (state.balance < plinkoBet) { showToast('Saldo insuficiente'); return; }
@@ -32,8 +53,8 @@
 
         if (!plinko3DRefs) return;
 
-        // Shared 3D Glowing Physics Ball Mesh (Zero new allocations)
-        const pBallMesh = new THREE.Mesh(PLINKO_BALL_GEO, PLINKO_BALL_MAT);
+        // Pooled 3D Glowing Physics Ball Mesh (Zero GC allocations)
+        const pBallMesh = getPlinkoBallMesh();
 
         // Initial Drop Position at Top Center of 3D Pyramid
         const startX = (Math.random() - 0.5) * 0.18;
@@ -155,8 +176,8 @@
               }, 300);
             }
 
-            // Remove ball mesh
-            plinko3DRefs.ballsGroup.remove(ball.mesh);
+            // Recycle ball mesh to pool (0 allocation)
+            recyclePlinkoBallMesh(ball.mesh);
             activePlinkoBalls.splice(i, 1);
           }
         }

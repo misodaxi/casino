@@ -259,18 +259,54 @@
         setInterval(syncClock, 10000);
       }
 
-      function addRemotePlayer(pData) {
-        if (!pData || !pData.id || remotePlayers[pData.id]) return;
-        const mesh = createAvatarMesh(pData.color || 0x8B5CF6);
-        mesh.position.set(pData.x || 0, pData.seat ? 0.44 : 0, pData.z || 0);
-        mesh.rotation.y = pData.rotY || 0;
+      // High-performance Remote Avatar Object Pool (Zero Canvas/Texture Re-allocations on Zone Despawn)
+      const AVATAR_REMOTE_POOL = [];
 
-        const pName = pData.name || ('Jugador_' + pData.id.substring(0, 4));
-        const nameTag = createPlayerNameTag(pName, pData.color || 0x8B5CF6);
+      function getPooledRemoteAvatar(name, colorHex) {
+        if (AVATAR_REMOTE_POOL.length > 0) {
+          const mesh = AVATAR_REMOTE_POOL.pop();
+          mesh.visible = true;
+          if (mesh.children && mesh.children[0] && typeof getAvatarBodyMaterial === 'function') {
+            mesh.children[0].material = getAvatarBodyMaterial(colorHex || 0x8B5CF6);
+          }
+          if (mesh.userData && mesh.userData.nameTag) {
+            mesh.userData.nameTag.userData.colorHex = colorHex || 0x8B5CF6;
+            if (typeof updatePlayerNameTagText === 'function') {
+              updatePlayerNameTagText(mesh.userData.nameTag, name || 'Jugador');
+            }
+          }
+          if (!mesh.parent && typeof scene !== 'undefined') scene.add(mesh);
+          return mesh;
+        }
+
+        const mesh = createAvatarMesh(colorHex || 0x8B5CF6);
+        const nameTag = createPlayerNameTag(name || 'Jugador', colorHex || 0x8B5CF6);
         mesh.add(nameTag);
         mesh.userData.nameTag = nameTag;
+        if (typeof scene !== 'undefined') scene.add(mesh);
+        return mesh;
+      }
 
-        scene.add(mesh);
+      function recycleRemoteAvatar(mesh) {
+        if (!mesh) return;
+        mesh.visible = false;
+        if (AVATAR_REMOTE_POOL.length < 80) {
+          AVATAR_REMOTE_POOL.push(mesh);
+        } else {
+          if (mesh.userData && mesh.userData.nameTag && mesh.userData.nameTag.material) {
+            if (mesh.userData.nameTag.material.map) mesh.userData.nameTag.material.map.dispose();
+            mesh.userData.nameTag.material.dispose();
+          }
+          if (typeof scene !== 'undefined') scene.remove(mesh);
+        }
+      }
+
+      function addRemotePlayer(pData) {
+        if (!pData || !pData.id || remotePlayers[pData.id]) return;
+        const pName = pData.name || ('Jugador_' + pData.id.substring(0, 4));
+        const mesh = getPooledRemoteAvatar(pName, pData.color || 0x8B5CF6);
+        mesh.position.set(pData.x || 0, pData.seat ? 0.44 : 0, pData.z || 0);
+        mesh.rotation.y = pData.rotY || 0;
 
         remotePlayers[pData.id] = {
           id: pData.id,
@@ -303,14 +339,7 @@
         if (remotePlayers[id]) {
           const rp = remotePlayers[id];
           if (rp.mesh) {
-            if (rp.mesh.userData.nameTag) {
-              if (rp.mesh.userData.nameTag.material) {
-                if (rp.mesh.userData.nameTag.material.map) rp.mesh.userData.nameTag.material.map.dispose();
-                rp.mesh.userData.nameTag.material.dispose();
-              }
-              rp.mesh.remove(rp.mesh.userData.nameTag);
-            }
-            scene.remove(rp.mesh);
+            recycleRemoteAvatar(rp.mesh);
           }
           delete remotePlayers[id];
         }
