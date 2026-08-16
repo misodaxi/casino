@@ -292,25 +292,25 @@ function finishBlackjackRound(io, blackjackId, dealerScore) {
       const pScore = p.score;
       const isBJ = (p.status === 'BLACKJACK' || (p.hand.length === 2 && pScore === 21));
 
-      if (p.status === 'BUST') {
-        bj.results[id] = { result: 'LOSE', payout: 0, msg: `Te pasaste (${pScore})` };
+      if (p.status === 'BUST' || pScore > 21) {
+        bj.results[id] = { result: 'LOSE', payout: 0, bet: p.bets, score: pScore, isDoubled: !!p.isDoubled, msg: `Te pasaste (${pScore})` };
       } else if (isBJ) {
         if (dealerBJ) {
-          bj.results[id] = { result: 'PUSH', payout: p.bets, msg: 'Empate de Blackjack' };
+          bj.results[id] = { result: 'PUSH', payout: p.bets, bet: p.bets, score: pScore, isDoubled: !!p.isDoubled, msg: 'Empate de Blackjack' };
         } else {
           const win = Math.round(p.bets * 2.5 * 100) / 100;
-          bj.results[id] = { result: 'BLACKJACK', payout: win, msg: '¡Blackjack Natural! (3:2)' };
+          bj.results[id] = { result: 'BLACKJACK', payout: win, bet: p.bets, score: pScore, isDoubled: !!p.isDoubled, msg: '¡Blackjack Natural! (3:2)' };
         }
       } else if (dealerBust) {
         const win = Math.round(p.bets * 2 * 100) / 100;
-        bj.results[id] = { result: 'WIN', payout: win, msg: `Crupier se pasó (${dealerScore})` };
+        bj.results[id] = { result: 'WIN', payout: win, bet: p.bets, score: pScore, isDoubled: !!p.isDoubled, msg: `Crupier se pasó (${dealerScore})` };
       } else if (pScore > dealerScore) {
         const win = Math.round(p.bets * 2 * 100) / 100;
-        bj.results[id] = { result: 'WIN', payout: win, msg: `¡Ganaste! (${pScore} vs ${dealerScore})` };
+        bj.results[id] = { result: 'WIN', payout: win, bet: p.bets, score: pScore, isDoubled: !!p.isDoubled, msg: `¡Ganaste! (${pScore} vs ${dealerScore})` };
       } else if (pScore === dealerScore) {
-        bj.results[id] = { result: 'PUSH', payout: p.bets, msg: `Empate (${pScore})` };
+        bj.results[id] = { result: 'PUSH', payout: p.bets, bet: p.bets, score: pScore, isDoubled: !!p.isDoubled, msg: `Empate (${pScore})` };
       } else {
-        bj.results[id] = { result: 'LOSE', payout: 0, msg: `Crupier gana (${dealerScore} vs ${pScore})` };
+        bj.results[id] = { result: 'LOSE', payout: 0, bet: p.bets, score: pScore, isDoubled: !!p.isDoubled, msg: `Crupier gana (${dealerScore} vs ${pScore})` };
       }
     } else {
       const s1 = p.score;
@@ -318,14 +318,14 @@ function finishBlackjackRound(io, blackjackId, dealerScore) {
       let r1 = 'LOSE', p1 = 0, m1 = '';
       let r2 = 'LOSE', p2 = 0, m2 = '';
 
-      if (p.handStatus[0] === 'BUST') { r1 = 'LOSE'; p1 = 0; m1 = 'Mano 1 se pasó'; }
+      if (p.handStatus[0] === 'BUST' || s1 > 21) { r1 = 'LOSE'; p1 = 0; m1 = 'Mano 1 se pasó'; }
       else if (dealerBust) { r1 = 'WIN'; p1 = Math.round(p.bets * 2 * 100) / 100; m1 = 'Mano 1 Gana'; }
       else if (s1 > dealerScore) { r1 = 'WIN'; p1 = Math.round(p.bets * 2 * 100) / 100; m1 = 'Mano 1 Gana'; }
       else if (s1 === dealerScore) { r1 = 'PUSH'; p1 = p.bets; m1 = 'Mano 1 Empata'; }
       else { r1 = 'LOSE'; p1 = 0; m1 = 'Mano 1 Pierde'; }
 
       const bet2 = p.splitBet || p.bets;
-      if (p.handStatus[1] === 'BUST') { r2 = 'LOSE'; p2 = 0; m2 = 'Mano 2 se pasó'; }
+      if (p.handStatus[1] === 'BUST' || s2 > 21) { r2 = 'LOSE'; p2 = 0; m2 = 'Mano 2 se pasó'; }
       else if (dealerBust) { r2 = 'WIN'; p2 = Math.round(bet2 * 2 * 100) / 100; m2 = 'Mano 2 Gana'; }
       else if (s2 > dealerScore) { r2 = 'WIN'; p2 = Math.round(bet2 * 2 * 100) / 100; m2 = 'Mano 2 Gana'; }
       else if (s2 === dealerScore) { r2 = 'PUSH'; p2 = bet2; m2 = 'Mano 2 Empata'; }
@@ -335,6 +335,8 @@ function finishBlackjackRound(io, blackjackId, dealerScore) {
         result: 'SPLIT_RESULT',
         isSplit: true,
         payout: Math.round((p1 + p2) * 100) / 100,
+        bet: p.bets,
+        bet2: bet2,
         hand1: { result: r1, payout: p1, msg: m1, score: s1 },
         hand2: { result: r2, payout: p2, msg: m2, score: s2 },
         msg: `${m1} · ${m2}`
@@ -342,11 +344,15 @@ function finishBlackjackRound(io, blackjackId, dealerScore) {
     }
   });
 
-  io.to(`blackjack:${blackjackId}`).emit('blackjackRoundResult', {
+  const resultPayload = {
     blackjackId,
     dealerScore,
-    results: bj.results
-  });
+    results: bj.results,
+    roundId: bj.roundId
+  };
+
+  io.to(`blackjack:${blackjackId}`).emit('blackjackRoundResult', resultPayload);
+  io.to(`blackjack:${blackjackId}`).emit('blackjackResult', resultPayload);
 
   broadcastBlackjackState(io, blackjackId);
 

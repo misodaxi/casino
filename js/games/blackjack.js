@@ -590,69 +590,120 @@
           }
         });
 
-        socket.on('blackjackResult', (data) => {
+        let _lastProcessedBjRoundId = null;
+
+        function handleBlackjackResultPayload(data) {
           if (!data || data.blackjackId !== 'blackjack') return;
           const myResult = data.results && data.results[socket.id];
           if (!myResult) return;
+
+          const roundKey = (data.roundId !== undefined ? data.roundId : '') + '_' + JSON.stringify(myResult);
+          if (_lastProcessedBjRoundId === roundKey) return;
+          _lastProcessedBjRoundId = roundKey;
 
           const banner = document.getElementById('bjResultBanner');
           const title = document.getElementById('bjResultTitle');
           const msg = document.getElementById('bjResultMsg');
 
+          bjState.active = false;
+          bjBetFirstClick = true;
+
+          const dealBtn = document.getElementById('bjDealBtn');
+          const testSplitBtn = document.getElementById('bjTestSplitBtn');
+          const hitBtn = document.getElementById('bjHitBtn');
+          const standBtn = document.getElementById('bjStandBtn');
+          const doubleBtn = document.getElementById('bjDoubleBtn');
+          const splitBtn = document.getElementById('bjSplitBtn');
+
+          if (dealBtn) { dealBtn.style.display = 'inline-block'; dealBtn.textContent = 'REPARTIR 🃏'; }
+          if (testSplitBtn) testSplitBtn.style.display = 'inline-block';
+          if (hitBtn) hitBtn.style.display = 'none';
+          if (standBtn) standBtn.style.display = 'none';
+          if (doubleBtn) doubleBtn.style.display = 'none';
+          if (splitBtn) splitBtn.style.display = 'none';
+
           if (!myResult.isSplit) {
             const outcome = myResult.result;
             const betAmt = roundMoney(myResult.bet || bjState.bet || 50);
+            const payout = roundMoney(myResult.payout || 0);
 
-            if (outcome === 'WIN') {
-              state.balance = roundMoney(state.balance + betAmt * 2); updateBalanceUI();
+            if (payout > 0) {
+              state.balance = roundMoney(state.balance + payout);
+              updateBalanceUI();
+            }
+
+            const netGain = roundMoney(payout - betAmt);
+
+            if (outcome === 'BLACKJACK') {
+              if (title) title.textContent = '¡BLACKJACK NATURAL! (3:2)';
+              if (msg) { msg.className = 'win'; msg.textContent = '+' + formatMoney(netGain > 0 ? netGain : payout); }
+              playSound('win');
+              triggerConfetti();
+              addXP(180);
+              showToast(`🃏 ¡Blackjack Natural! Ganaste ${formatMoney(payout)}`);
+            } else if (outcome === 'WIN') {
               if (title) title.textContent = '¡GANASTE!';
-              if (msg) { msg.className = 'win'; msg.textContent = '+' + formatMoney(betAmt); }
-              triggerConfetti(); addXP(120);
-            } else if (outcome === 'BUST') {
-              if (title) title.textContent = 'BUST! PERDISTE';
-              if (msg) { msg.className = 'lose'; msg.textContent = '-' + formatMoney(betAmt); }
-              playSound('lose');
-            } else if (outcome === 'LOSE') {
-              if (title) title.textContent = 'PERDISTE';
-              if (msg) { msg.className = 'lose'; msg.textContent = '-' + formatMoney(betAmt); }
-              playSound('lose');
+              if (msg) { msg.className = 'win'; msg.textContent = '+' + formatMoney(netGain > 0 ? netGain : payout); }
+              playSound('win');
+              triggerConfetti();
+              addXP(120);
+              showToast(`🃏 ¡Mano ganada! +${formatMoney(netGain > 0 ? netGain : payout)}`);
             } else if (outcome === 'PUSH') {
-              state.balance = roundMoney(state.balance + betAmt); updateBalanceUI();
               if (title) title.textContent = 'EMPATE';
-              if (msg) { msg.className = 'win'; msg.textContent = 'Reembolsado'; }
+              if (msg) { msg.className = 'win'; msg.textContent = 'Reembolsado (' + formatMoney(betAmt) + ')'; }
+              playSound('chip');
+              showToast(`🃏 Empate, apuesta de ${formatMoney(betAmt)} reembolsada`);
+            } else {
+              // LOSE o BUST
+              if (title) title.textContent = (outcome === 'BUST' || (myResult.msg && myResult.msg.includes('pasaste'))) ? '¡TE PASASTE! (BUST)' : 'PERDISTE';
+              if (msg) { msg.className = 'lose'; msg.textContent = '-' + formatMoney(betAmt); }
+              playSound('lose');
+              showToast(`🃏 Mano finalizada (-${formatMoney(betAmt)})`);
             }
           } else {
-            // Resultado de ambas manos divididas
-            const r1 = myResult.result;
-            const r2 = myResult.result2;
+            // Split Hand Results
+            const totalPayout = roundMoney(myResult.payout || 0);
             const b1 = roundMoney(myResult.bet || 50);
-            const b2 = roundMoney(myResult.bet2 || 50);
-            let net = 0;
+            const b2 = roundMoney(myResult.bet2 || myResult.splitBet || b1);
+            const totalBet = roundMoney(b1 + b2);
 
-            if (r1 === 'WIN') { state.balance = roundMoney(state.balance + b1 * 2); net = roundMoney(net + b1); }
-            else if (r1 === 'PUSH') { state.balance = roundMoney(state.balance + b1); }
-            else { net = roundMoney(net - b1); }
-
-            if (r2 === 'WIN') { state.balance = roundMoney(state.balance + b2 * 2); net = roundMoney(net + b2); }
-            else if (r2 === 'PUSH') { state.balance = roundMoney(state.balance + b2); }
-            else { net = roundMoney(net - b2); }
-
-            updateBalanceUI();
-
-            if (title) title.textContent = (net > 0) ? '¡MANO GANADA!' : (net === 0 ? 'EMPATE' : 'RONDA FINALIZADA');
-            if (msg) {
-              msg.className = net >= 0 ? 'win' : 'lose';
-              msg.textContent = `Mano 2: ${r2} | Mano 1: ${r1} (${net >= 0 ? '+' : ''}${formatMoney(net)})`;
+            if (totalPayout > 0) {
+              state.balance = roundMoney(state.balance + totalPayout);
+              updateBalanceUI();
             }
-            if (net > 0) { triggerConfetti(); addXP(150); }
-            else if (net < 0) { playSound('lose'); }
+
+            const netGain = roundMoney(totalPayout - totalBet);
+
+            if (netGain > 0) {
+              if (title) title.textContent = '¡SPLIT GANADOR!';
+              if (msg) { msg.className = 'win'; msg.textContent = '+' + formatMoney(netGain) + ` (${myResult.msg || ''})`; }
+              playSound('win');
+              triggerConfetti();
+              addXP(150);
+              showToast(`🃏 ¡Split ganador! +${formatMoney(netGain)}`);
+            } else if (netGain < 0) {
+              if (title) title.textContent = 'RONDA FINALIZADA';
+              if (msg) { msg.className = 'lose'; msg.textContent = '-' + formatMoney(Math.abs(netGain)) + ` (${myResult.msg || ''})`; }
+              playSound('lose');
+              showToast(`🃏 Split finalizado (-${formatMoney(Math.abs(netGain))})`);
+            } else {
+              if (title) title.textContent = 'EMPATE';
+              if (msg) { msg.className = 'win'; msg.textContent = 'Reembolsado ($0)'; }
+              playSound('chip');
+              showToast('🃏 Split empatado (apuestas reembolsadas)');
+            }
           }
 
-          if (banner && state.mode === 'blackjack') banner.classList.add('show');
-          setTimeout(() => {
-            if (banner) banner.classList.remove('show');
-          }, 3500);
-        });
+          if (banner && state.mode === 'blackjack') {
+            banner.classList.add('show');
+            setTimeout(() => {
+              if (banner) banner.classList.remove('show');
+            }, 3500);
+          }
+        }
+
+        socket.on('blackjackRoundResult', handleBlackjackResultPayload);
+        socket.on('blackjackResult', handleBlackjackResultPayload);
       }
 
       // Singleplayer Local Offline Fallback Engine for Blackjack when Socket is disconnected
