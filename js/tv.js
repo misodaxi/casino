@@ -156,7 +156,86 @@
         return match ? match[1] : null;
       }
 
+      let ytPlayer = null;
+      let ytPlayerReady = false;
+
+      function onYouTubeIframeAPIReady() {
+        initYTPlayer();
+      }
+      window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+      function initYTPlayer(initialVideoId = null, initialStart = 0) {
+        if (ytPlayer && ytPlayerReady) {
+          if (initialVideoId) {
+            try {
+              ytPlayer.loadVideoById({
+                videoId: initialVideoId,
+                startSeconds: initialStart
+              });
+            } catch (e) { }
+          }
+          return;
+        }
+
+        if (window.YT && window.YT.Player) {
+          try {
+            ytPlayer = new YT.Player('tvIframeElement', {
+              events: {
+                onReady: (event) => {
+                  ytPlayerReady = true;
+                  if (initialStart > 0) {
+                    try { event.target.seekTo(initialStart, true); } catch (e) { }
+                  }
+                  if (initialVideoId && !tvIsPaused) {
+                    try { event.target.playVideo(); } catch (e) { }
+                  }
+                },
+                onStateChange: (event) => {
+                  handleYtStateChange(event.data);
+                }
+              }
+            });
+          } catch (e) { }
+        }
+      }
+
       function sendYtCommand(func, args = []) {
+        if (ytPlayer && ytPlayerReady) {
+          try {
+            if (func === 'seekTo') {
+              const sec = typeof args[0] === 'number' ? args[0] : parseFloat(args[0]) || 0;
+              const allowAhead = args[1] !== undefined ? !!args[1] : true;
+              ytPlayer.seekTo(sec, allowAhead);
+              return;
+            }
+            if (func === 'playVideo') {
+              ytPlayer.playVideo();
+              return;
+            }
+            if (func === 'pauseVideo') {
+              ytPlayer.pauseVideo();
+              return;
+            }
+            if (func === 'setVolume') {
+              ytPlayer.setVolume(args[0] || 100);
+              return;
+            }
+            if (func === 'mute') {
+              ytPlayer.mute();
+              return;
+            }
+            if (func === 'unMute') {
+              ytPlayer.unMute();
+              return;
+            }
+            if (typeof ytPlayer[func] === 'function') {
+              ytPlayer[func](...args);
+              return;
+            }
+          } catch (e) { }
+        }
+
+        // PostMessage fallback
         const iframe = document.getElementById('tvIframeElement');
         if (iframe && iframe.contentWindow) {
           try {
@@ -220,6 +299,15 @@
 
       function tvGetExactSecond() {
         if (!tvVideoId) return 0;
+        if (ytPlayer && ytPlayerReady && typeof ytPlayer.getCurrentTime === 'function') {
+          try {
+            const cur = ytPlayer.getCurrentTime();
+            if (typeof cur === 'number' && !isNaN(cur) && cur > 0) {
+              tvCurrentPlaybackSeconds = cur;
+              return cur;
+            }
+          } catch (e) { }
+        }
         if (!tvIsPaused && tvLastPlayStartRealTime > 0) {
           const elapsed = (performance.now() - tvLastPlayStartRealTime) / 1000;
           return Math.max(0, tvPlayAnchorSecond + elapsed);
@@ -318,10 +406,17 @@
         _lastSeekExecutionTime = performance.now();
         _isSeekingLock = true;
 
+        if (ytPlayer && ytPlayerReady && typeof ytPlayer.seekTo === 'function') {
+          try { ytPlayer.seekTo(cleanSec, true); } catch (e) { }
+        }
         sendYtCommand('seekTo', [cleanSec, true]);
+
         setTimeout(() => {
+          if (ytPlayer && ytPlayerReady && typeof ytPlayer.seekTo === 'function') {
+            try { ytPlayer.seekTo(cleanSec, true); } catch (e) { }
+          }
           sendYtCommand('seekTo', [cleanSec, true]);
-        }, 150);
+        }, 180);
 
         saveTvLastWatched(tvVideoId, tvVideoUrl, cleanSec, true);
 
@@ -341,6 +436,30 @@
           }
         }
       }, 1200);
+
+      function handleYtStateChange(stateCode) {
+        if (stateCode === 1) { // PLAYING
+          tvIsPaused = false;
+          tvLastPlayStartRealTime = performance.now();
+          const btn = document.getElementById('tvPlayPauseBtn');
+          if (btn) btn.textContent = 'PAUSAR ⏸️';
+          const stateEl = document.getElementById('tvStatusState');
+          if (stateEl) stateEl.textContent = '🟢 Reproduciendo';
+          if (socket && !isApplyingTvServerState && !_isSeekingLock) {
+            socket.emit('tvPlay', { currentTime: Math.floor(tvGetExactSecond()) });
+          }
+        } else if (stateCode === 2) { // PAUSED
+          tvIsPaused = true;
+          const btn = document.getElementById('tvPlayPauseBtn');
+          if (btn) btn.textContent = 'REPRODUCIR ▶️';
+          const stateEl = document.getElementById('tvStatusState');
+          if (stateEl) stateEl.textContent = '⏸️ En Pausa';
+          flushTvSave();
+          if (socket && !isApplyingTvServerState && !_isSeekingLock) {
+            socket.emit('tvPause', { currentTime: Math.floor(tvGetExactSecond()) });
+          }
+        }
+      }
 
       window.addEventListener('message', (event) => {
         try {
@@ -363,50 +482,17 @@
             tvLastPlayStartRealTime = performance.now();
             saveTvLastWatched(tvVideoId, tvVideoUrl, data.info.currentTime, false);
 
-            // Si el usuario saltó en la barra nativa de YouTube (>3.0s de diferencia)
             if (serverDrift > 3.0 && socket && !isApplyingTvServerState) {
               socket.emit('tvSeek', { currentTime: Math.floor(data.info.currentTime) });
             }
           }
 
           if (data.info && data.info.playerState !== undefined) {
-            if (data.info.playerState === 2) {
-              tvIsPaused = true;
-              const btn = document.getElementById('tvPlayPauseBtn');
-              if (btn) btn.textContent = 'REPRODUCIR ▶️';
-              const stateEl = document.getElementById('tvStatusState');
-              if (stateEl) stateEl.textContent = '⏸️ En Pausa';
-              flushTvSave();
-              if (socket && !isApplyingTvServerState) {
-                socket.emit('tvPause', { currentTime: Math.floor(tvGetExactSecond()) });
-              }
-            } else if (data.info.playerState === 1) {
-              tvIsPaused = false;
-              tvLastPlayStartRealTime = performance.now();
-              const btn = document.getElementById('tvPlayPauseBtn');
-              if (btn) btn.textContent = 'PAUSAR ⏸️';
-              const stateEl = document.getElementById('tvStatusState');
-              if (stateEl) stateEl.textContent = '🟢 Reproduciendo';
-              if (socket && !isApplyingTvServerState) {
-                socket.emit('tvPlay', { currentTime: Math.floor(tvGetExactSecond()) });
-              }
-            }
+            handleYtStateChange(data.info.playerState);
           }
 
-          if (data.event === 'onStateChange') {
-            if (data.info === 2) {
-              tvIsPaused = true;
-              flushTvSave();
-              if (socket && !isApplyingTvServerState) {
-                socket.emit('tvPause', { currentTime: Math.floor(tvGetExactSecond()) });
-              }
-            } else if (data.info === 1) {
-              tvIsPaused = false;
-              tvLastPlayStartRealTime = performance.now();
-              if (socket && !isApplyingTvServerState) {
-                socket.emit('tvPlay', { currentTime: Math.floor(tvGetExactSecond()) });
-              }
-            }
+          if (data.event === 'onStateChange' && typeof data.info === 'number') {
+            handleYtStateChange(data.info);
           }
         } catch (e) { }
       });
@@ -442,19 +528,24 @@
         const btn = document.getElementById('tvPlayPauseBtn');
         if (btn) btn.textContent = 'PAUSAR ⏸️';
 
+        if (stateEl) stateEl.textContent = '🔄 Cargando...';
+        showToast(cleanStart > 0 ? `📺 Reanudando en ${formatTimestamp(cleanStart)}...` : '📺 Cargando vídeo en TV 3D...');
+
+        const muteParam = tvIsMuted ? 1 : 0;
+        const originParam = getValidOriginParam();
+        const startParam = cleanStart > 0 ? `&start=${cleanStart}` : '';
+        const embedUrl = `https://www.youtube.com/embed/${tvVideoId}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=1&playsinline=1&rel=0&vq=hd2160&hd=1${startParam}${originParam}`;
+
         const iframe = document.getElementById('tvIframeElement');
         if (iframe) {
-          if (stateEl) stateEl.textContent = '🔄 Cargando...';
-          showToast(cleanStart > 0 ? `📺 Reanudando en ${formatTimestamp(cleanStart)}...` : '📺 Cargando vídeo en TV 3D...');
-
-          const muteParam = tvIsMuted ? 1 : 0;
-          const originParam = getValidOriginParam();
-          const startParam = cleanStart > 0 ? `&start=${cleanStart}` : '';
-          const embedUrl = `https://www.youtube-nocookie.com/embed/${tvVideoId}?enablejsapi=1&autoplay=1&mute=${muteParam}&controls=1&playsinline=1&rel=0&vq=hd2160&hd=1${startParam}${originParam}`;
-
           iframe.src = embedUrl;
+          ytPlayerReady = false;
+          ytPlayer = null;
 
           setTimeout(() => {
+            if (window.YT && window.YT.Player) {
+              try { initYTPlayer(tvVideoId, cleanStart); } catch (e) { }
+            }
             sendYtCommand('setPlaybackQuality', ['hd2160']);
             sendYtCommand('setPlaybackQuality', ['highres']);
             sendYtCommand('addEventListener', ['onStateChange']);
@@ -542,7 +633,7 @@
           }
 
           const currentLocalSec = tvGetExactSecond();
-          const threshold = isPlaying ? 2.0 : 0.6;
+          const threshold = isPlaying ? 1.8 : 0.5;
           if (Math.abs(currentLocalSec - targetTime) > threshold) {
             executeDirectTvSeek(targetTime);
           }
@@ -550,7 +641,7 @@
 
         setTimeout(() => {
           isApplyingTvServerState = false;
-        }, 500);
+        }, 600);
       }
 
       function onFirstUserGesture() {
