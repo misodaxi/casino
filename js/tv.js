@@ -517,17 +517,39 @@
       window.addEventListener('keydown', onFirstUserGesture, { once: true });
 
       // Update Spatial Audio & 3D Projection in Animation Loop
+      // Pre-cached DOM element references for zero GC overhead
+      let _tvIframeOverlayEl = null;
+      let _tvModalEl = null;
+      let _tvDistEl = null;
+      let _tvVolEl = null;
+      let _tvFilterEl = null;
+      let _isTvModalOpen = false;
+      let _lastSpatialAudioCalcTime = 0;
+
+      function getCachedTvDom() {
+        if (!_tvIframeOverlayEl) _tvIframeOverlayEl = document.getElementById('tvIframeOverlay');
+        if (!_tvModalEl) _tvModalEl = document.getElementById('tvModal');
+        if (!_tvDistEl) _tvDistEl = document.getElementById('tvStatusDist');
+        if (!_tvVolEl) _tvVolEl = document.getElementById('tvStatusVol');
+        if (!_tvFilterEl) _tvFilterEl = document.getElementById('tvStatusFilter');
+      }
+
+      // Update Spatial Audio & 3D Projection in Animation Loop (Optimized for 60 FPS)
       function updateTVSpatialAudioAndProjection() {
-        const iframeOverlay = document.getElementById('tvIframeOverlay');
+        getCachedTvDom();
         if (state.mode !== 'casino' && state.mode !== 'cinema') {
-          if (iframeOverlay) iframeOverlay.style.display = 'none';
+          if (_tvIframeOverlayEl && _tvIframeOverlayEl.style.display !== 'none') _tvIframeOverlayEl.style.display = 'none';
           return;
         }
 
-        if (iframeOverlay) {
-          iframeOverlay.style.display = 'block';
-          iframeOverlay.style.opacity = '1';
+        if (_tvIframeOverlayEl && _tvIframeOverlayEl.style.display !== 'block') {
+          _tvIframeOverlayEl.style.display = 'block';
+          _tvIframeOverlayEl.style.opacity = '1';
         }
+
+        const now = performance.now();
+        if (now - _lastSpatialAudioCalcTime < 120) return; // 8 Hz calculation is perfectly responsive for smooth spatial audio
+        _lastSpatialAudioCalcTime = now;
 
         let volPercent = masterVolume;
 
@@ -538,7 +560,6 @@
           const dz = state.player.z - tvZ;
           const dist = Math.hypot(dx, dz);
 
-          // Distancias recalibradas para la pantalla 4x más grande y más alejada
           const minDist = 20;
           const maxDist = 90;
           let volRatio = 1.0;
@@ -550,45 +571,32 @@
 
           volPercent = Math.round(volRatio * masterVolume);
 
-          const nowVolTime = performance.now();
-          if (Math.abs(volPercent - lastTvVolPercent) >= 2 && (nowVolTime - lastTvVolTime) > 200) {
+          if (Math.abs(volPercent - lastTvVolPercent) >= 2) {
             lastTvVolPercent = volPercent;
-            lastTvVolTime = nowVolTime;
             if (!tvIsMuted) sendYtCommand('setVolume', [volPercent]);
           }
 
-          // Refrescar indicadores de estado del modal de TV solo si está visible
-          const tvModal = document.getElementById('tvModal') || document.getElementById('tvSettingsModal');
-          if (tvModal && (tvModal.classList.contains('show') || tvModal.style.display === 'flex' || tvModal.style.display === 'block')) {
-            const distEl = document.getElementById('tvStatusDist');
-            const volEl = document.getElementById('tvStatusVol');
-            const filterEl = document.getElementById('tvStatusFilter');
-            if (distEl) distEl.textContent = 'Distancia: ' + Math.round(dist) + 'm';
-            if (volEl) volEl.textContent = 'Volumen 3D: ' + volPercent + '% (máx ' + masterVolume + '%)';
-            if (filterEl) {
-              if (volRatio > 0.66) filterEl.textContent = 'Filtro Acústico: Transparente (20kHz)';
-              else if (volRatio > 0.3) filterEl.textContent = 'Filtro Acústico: Amortiguado (8kHz)';
-              else if (volRatio > 0.05) filterEl.textContent = 'Filtro Acústico: Muy amortiguado (2kHz)';
-              else filterEl.textContent = 'Filtro Acústico: Inaudible';
+          if (_isTvModalOpen) {
+            if (_tvDistEl) _tvDistEl.textContent = 'Distancia: ' + Math.round(dist) + 'm';
+            if (_tvVolEl) _tvVolEl.textContent = 'Volumen 3D: ' + volPercent + '% (máx ' + masterVolume + '%)';
+            if (_tvFilterEl) {
+              if (volRatio > 0.66) _tvFilterEl.textContent = 'Filtro Acústico: Transparente (20kHz)';
+              else if (volRatio > 0.3) _tvFilterEl.textContent = 'Filtro Acústico: Amortiguado (8kHz)';
+              else if (volRatio > 0.05) _tvFilterEl.textContent = 'Filtro Acústico: Muy amortiguado (2kHz)';
+              else _tvFilterEl.textContent = 'Filtro Acústico: Inaudible';
             }
           }
         } else {
-          // MODO CINE: sentado en las butacas frente a la pantalla (100% de volumen y calidad acústica)
-          const nowVolTime = performance.now();
-          if (Math.abs(volPercent - lastTvVolPercent) >= 1 && (nowVolTime - lastTvVolTime) > 100) {
+          // MODO CINE: sentado en las butacas frente a la pantalla (100% de volumen)
+          if (Math.abs(volPercent - lastTvVolPercent) >= 1) {
             lastTvVolPercent = volPercent;
-            lastTvVolTime = nowVolTime;
             if (!tvIsMuted) sendYtCommand('setVolume', [volPercent]);
           }
 
-          const tvModal = document.getElementById('tvModal') || document.getElementById('tvSettingsModal');
-          if (tvModal && (tvModal.classList.contains('show') || tvModal.style.display === 'flex' || tvModal.style.display === 'block')) {
-            const distEl = document.getElementById('tvStatusDist');
-            const volEl = document.getElementById('tvStatusVol');
-            const filterEl = document.getElementById('tvStatusFilter');
-            if (distEl) distEl.textContent = 'Distancia: Butaca VIP Cine (0m)';
-            if (volEl) volEl.textContent = 'Volumen Cine: ' + volPercent + '%';
-            if (filterEl) filterEl.textContent = 'Acústica: Dolby Atmos Cine 3D';
+          if (_isTvModalOpen) {
+            if (_tvDistEl) _tvDistEl.textContent = 'Distancia: Butaca VIP Cine (0m)';
+            if (_tvVolEl) _tvVolEl.textContent = 'Volumen Cine: ' + volPercent + '%';
+            if (_tvFilterEl) _tvFilterEl.textContent = 'Acústica: Dolby Atmos Cine 3D';
           }
         }
       }
@@ -634,17 +642,35 @@
       }
 
       // TV Modal Event Listeners
-      const tvModal = document.getElementById('tvModal');
       function openTVModal() {
-        updateTvLastVideoCardUI();
-        tvModal.classList.add('show');
+        _isTvModalOpen = true;
+        getCachedTvDom();
+        if (typeof updateTvLastVideoCardUI === 'function') updateTvLastVideoCardUI();
+        if (_tvModalEl) _tvModalEl.classList.add('show');
       }
-      function closeTVModal() { tvModal.classList.remove('show'); }
+      function closeTVModal() {
+        _isTvModalOpen = false;
+        getCachedTvDom();
+        if (_tvModalEl) _tvModalEl.classList.remove('show');
+      }
+      window.openTVModal = openTVModal;
+      window.closeTVModal = closeTVModal;
 
-      document.getElementById('tvBtn').addEventListener('click', openTVModal);
+      const tvBtnEl = document.getElementById('tvBtn');
+      if (tvBtnEl) tvBtnEl.addEventListener('click', openTVModal);
       const tvChangeBtnEl = document.getElementById('tvChangeBtn');
       if (tvChangeBtnEl) tvChangeBtnEl.addEventListener('click', openTVModal);
-      document.getElementById('closeTvModalBtn').addEventListener('click', closeTVModal);
+      const closeTvModalBtnEl = document.getElementById('closeTvModalBtn');
+      if (closeTvModalBtnEl) closeTvModalBtnEl.addEventListener('click', closeTVModal);
+
+      // Cerrar al hacer clic fuera del modal (solo si está abierto)
+      window.addEventListener('click', e => {
+        if (_isTvModalOpen && _tvModalEl) {
+          if (!_tvModalEl.contains(e.target) && !e.target.closest('#tvBtn, #tvChangeBtn, #closeTvModalBtn')) {
+            closeTVModal();
+          }
+        }
+      });
 
       const tvUseLastVideoBtnEl = document.getElementById('tvUseLastVideoBtn');
       if (tvUseLastVideoBtnEl) {

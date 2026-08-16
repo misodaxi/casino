@@ -59,8 +59,8 @@
 
     <!-- top right -->
     <div class="top-right">
-      <button class="tv-change-btn" id="tvChangeBtn">📺 CAMBIAR VÍDEO / CANAL</button>
-      <div class="icon-btn" id="tvBtn" title="Reproductor TV Casino 3D (YouTube)">📺</div>
+      <button class="tv-change-btn" id="tvChangeBtn" onclick="openTVModal()">📺 CAMBIAR VÍDEO / CANAL</button>
+      <div class="icon-btn" id="tvBtn" onclick="openTVModal()" title="Reproductor TV Casino 3D (YouTube)">📺</div>
       <div class="icon-btn" id="fullscreenBtn" title="Pantalla Completa (F11)">⛶</div>
       <div class="icon-btn" id="soundBtn">🔊</div>
       <div class="icon-btn" id="settingsBtn">⚙️</div>
@@ -583,7 +583,7 @@
   <div class="tv-modal" id="tvModal">
     <div class="tv-modal-title">
       <span>📺 REPRODUCTOR TV CASINO 3D</span>
-      <button class="icon-btn" id="closeTvModalBtn" style="width:30px;height:30px;">✕</button>
+      <button class="icon-btn" id="closeTvModalBtn" onclick="closeTVModal()" style="width:32px; height:32px; cursor:pointer; font-size:16px;" title="Cerrar reproductor [ESC]">✕</button>
     </div>
 
     <div style="font-size:12px; color:var(--dim); line-height:1.4;">

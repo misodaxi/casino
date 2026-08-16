@@ -187,6 +187,7 @@
       window.addEventListener('keydown', e => {
         if (state.isTypingChat || document.activeElement === chatInput) return;
         state.keys[e.key.toLowerCase()] = true;
+        if (e.code) state.keys[e.code.toLowerCase()] = true;
         if (e.key.toLowerCase() === 'e') tryInteract();
         if (e.key === 'Escape') {
           const jukeModal = document.getElementById('jukeboxModalOverlay');
@@ -198,6 +199,7 @@
       window.addEventListener('keyup', e => {
         if (state.isTypingChat || document.activeElement === chatInput) return;
         state.keys[e.key.toLowerCase()] = false;
+        if (e.code) state.keys[e.code.toLowerCase()] = false;
       });
 
       function updatePlayer(dt) {
@@ -234,7 +236,11 @@
         const len = Math.hypot(mx, mz);
         if (len > 1) { mx /= len; mz /= len; }
 
-        const speed = 8.0;
+        // Sprint con Shift: +20% de velocidad de movimiento (9.6 m/s)
+        const isSprinting = !!(state.keys['shift'] || state.keys['shiftleft'] || state.keys['shiftright']);
+        const baseSpeed = 8.0;
+        const speed = isSprinting ? baseSpeed * 1.20 : baseSpeed;
+
         state.player.vx += (mx * speed - state.player.vx) * Math.min(1, dt * 10);
         state.player.vz += (mz * speed - state.player.vz) * Math.min(1, dt * 10);
         state.player.x += state.player.vx * dt;
@@ -1252,9 +1258,21 @@
       window.exitActiveGame = exitActiveGame;
       function closeGameOverlay(gameId) { exitActiveGame(); }
 
-      // Atajo universal de teclado ESC para salir de cualquier mesa o juego
+      // Atajo universal de teclado ESC para salir de cualquier mesa o juego y cerrar modales
       window.addEventListener('keydown', e => {
         if (e.key === 'Escape' || e.code === 'Escape') {
+          const tvModal = document.getElementById('tvModal');
+          if (tvModal && tvModal.classList.contains('show')) {
+            if (typeof closeTVModal === 'function') closeTVModal();
+            else tvModal.classList.remove('show');
+            return;
+          }
+          const jukeOverlay = document.getElementById('jukeboxModalOverlay');
+          if (jukeOverlay && jukeOverlay.classList.contains('show')) {
+            if (typeof closeJukeboxModal === 'function') closeJukeboxModal();
+            else jukeOverlay.classList.remove('show');
+            return;
+          }
           exitActiveGame();
         }
       });
