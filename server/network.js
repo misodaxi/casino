@@ -274,6 +274,29 @@ function setupSocketIO(io) {
       socket.emit('jukeboxStateUpdate', getSyncedJukeboxState());
     });
 
+    socket.on('jukeboxSearchTrack', (data, callback) => {
+      const query = (data && data.query) ? data.query.trim() : '';
+      if (!query || typeof callback !== 'function') return;
+
+      const https = require('https');
+      const searchUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query);
+      const req = https.get(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } }, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          const match = body.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
+          callback({ videoId: match ? match[1] : null });
+        });
+      });
+      req.on('error', () => {
+        callback({ videoId: null });
+      });
+      req.setTimeout(4000, () => {
+        req.destroy();
+        callback({ videoId: null });
+      });
+    });
+
     socket.on('jukeboxPlayTrack', (data) => {
       if (data && data.track) {
         jukeboxState.currentTrack = data.track;

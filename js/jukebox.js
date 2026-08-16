@@ -203,6 +203,45 @@
         return null;
       }
 
+      async function searchAudioStream(query) {
+        if (!query || !query.trim()) return null;
+        const q = query.trim();
+
+        // 1. Try Socket.IO RPC with server
+        if (typeof socket !== 'undefined' && socket && socket.connected) {
+          try {
+            const res = await new Promise((resolve) => {
+              socket.timeout(3500).emit('jukeboxSearchTrack', { query: q }, (err, response) => {
+                if (err || !response) resolve(null);
+                else resolve(response.videoId || null);
+              });
+            });
+            if (res) return res;
+          } catch(e) {}
+        }
+
+        // 2. Try Server HTTP Search API
+        try {
+          const res = await fetch(`/api/jukebox-search?q=${encodeURIComponent(q)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.videoId) return data.videoId;
+          }
+        } catch(e) {}
+
+        // 3. Fallback: Search in local presets
+        const qLower = q.toLowerCase();
+        const match = JUKEBOX_PRESETS.find(p =>
+          p.track.title.toLowerCase().includes(qLower) ||
+          qLower.includes(p.track.title.toLowerCase()) ||
+          p.track.artist.toLowerCase().includes(qLower) ||
+          qLower.includes(p.track.artist.toLowerCase())
+        );
+        if (match) return match.track.videoId;
+
+        return 'ZEcqHA7dbwM';
+      }
+
       let jukeUserHasInteracted = false;
       function unlockJukeboxAudio() {
         jukeUserHasInteracted = true;
@@ -228,17 +267,6 @@
 
         const start = Math.floor(startSec || 0);
         const actualVol = localJukeboxState.isMuted ? 0 : (typeof localJukeboxState.volume === 'number' ? localJukeboxState.volume : 75);
-
-        if (track.source === 'spotify') {
-          const spot = track.spotifyEmbedUrl ? { embedUrl: track.spotifyEmbedUrl } : (track.url ? parseSpotifyUrl(track.url) : null);
-          if (spot && spot.embedUrl) {
-            if (jukeCurrentAudioSrc !== spot.embedUrl) {
-              jukeCurrentAudioSrc = spot.embedUrl;
-              iframe.src = spot.embedUrl;
-            }
-            return;
-          }
-        }
 
         let vid = track.videoId;
         if (!vid && track.url) {
@@ -370,13 +398,9 @@
             }
           } catch(e) {}
 
-          let videoId = null;
-          const match = JUKEBOX_PRESETS.find(p =>
-            p.track.title.toLowerCase().includes(title.toLowerCase()) ||
-            title.toLowerCase().includes(p.track.title.toLowerCase()) ||
-            p.track.artist.toLowerCase().includes(artist.toLowerCase())
-          );
-          if (match) videoId = match.track.videoId;
+          const searchQ = `${title} ${artist !== 'Spotify' ? artist : ''}`.trim();
+          showToast(`🎵 Sintonizando "${title}" de Spotify...`);
+          const videoId = await searchAudioStream(searchQ);
 
           return {
             id: 'spot-' + spot.id + '-' + Date.now(),
@@ -386,7 +410,7 @@
             spotifyType: spot.type,
             spotifyId: spot.id,
             spotifyEmbedUrl: spot.embedUrl,
-            videoId: videoId,
+            videoId: videoId || 'ZEcqHA7dbwM',
             url: str,
             cover: cover,
             duration: duration
@@ -427,24 +451,18 @@
         }
 
         // 3. Search query fallback
-        const queryLower = str.toLowerCase();
-        const match = JUKEBOX_PRESETS.find(p =>
-          p.track.title.toLowerCase().includes(queryLower) ||
-          p.track.artist.toLowerCase().includes(queryLower)
-        );
-        if (match) {
-          return { ...match.track, id: 'search-' + Date.now() };
-        }
+        showToast(`🔍 Buscando "${str}" en la Gramola...`);
+        const searchVid = await searchAudioStream(str);
 
         return {
           id: 'search-' + Date.now(),
           title: str,
           artist: 'Gramola Lounge',
           source: 'search',
-          videoId: 'vGJTaP6anOU',
+          videoId: searchVid || 'vGJTaP6anOU',
           url: str,
-          cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=150',
-          duration: 180
+          cover: searchVid ? `https://img.youtube.com/vi/${searchVid}/hqdefault.jpg` : 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=150',
+          duration: 210
         };
       }
 
