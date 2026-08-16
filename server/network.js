@@ -277,6 +277,14 @@ function setupSocketIO(io) {
     socket.on('jukeboxPlayTrack', (data) => {
       if (data && data.track) {
         jukeboxState.currentTrack = data.track;
+        if (!Array.isArray(jukeboxState.playlist)) jukeboxState.playlist = [];
+        const exists = jukeboxState.playlist.some(t => t.id === data.track.id || (t.url && t.url === data.track.url));
+        if (!exists) {
+          jukeboxState.playlist.unshift(data.track);
+          jukeboxState.currentIndex = 0;
+        } else {
+          jukeboxState.currentIndex = jukeboxState.playlist.findIndex(t => t.id === data.track.id || (t.url && t.url === data.track.url));
+        }
         jukeboxState.playing = true;
         jukeboxState.currentTime = 0;
         jukeboxState.updatedAt = Date.now();

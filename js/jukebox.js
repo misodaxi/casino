@@ -173,6 +173,36 @@
         }
       }
 
+      function extractYouTubeVideoId(input) {
+        if (!input || typeof input !== 'string') return null;
+        const clean = input.trim();
+        const match = clean.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|music\.youtube\.com\/watch\?v=))([a-zA-Z0-9_-]{11})/i);
+        if (match) return match[1];
+        if (/^[a-zA-Z0-9_-]{11}$/.test(clean)) return clean;
+        return null;
+      }
+
+      function extractYouTubePlaylistId(input) {
+        if (!input || typeof input !== 'string') return null;
+        const clean = input.trim();
+        const match = clean.match(/[?&]list=([a-zA-Z0-9_-]+)/i);
+        return match ? match[1] : null;
+      }
+
+      function parseSpotifyUrl(input) {
+        if (!input || typeof input !== 'string') return null;
+        const clean = input.trim();
+        const match = clean.match(/spotify(?:\.com|\:)(?:\/(?:intl-[a-z]{2}\/)?|\:)(track|playlist|album)[\/:]([a-zA-Z0-9]+)/i);
+        if (match) {
+          return {
+            type: match[1].toLowerCase(),
+            id: match[2],
+            embedUrl: `https://open.spotify.com/embed/${match[1].toLowerCase()}/${match[2]}?utm_source=generator&theme=0&autoplay=1`
+          };
+        }
+        return null;
+      }
+
       let jukeUserHasInteracted = false;
       function unlockJukeboxAudio() {
         jukeUserHasInteracted = true;
@@ -180,7 +210,7 @@
         if (iframe && iframe.contentWindow) {
           try {
             iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'unMute' }), '*');
-            const actualVol = localJukeboxState.isMuted ? 0 : localJukeboxState.volume;
+            const actualVol = localJukeboxState.isMuted ? 0 : (typeof localJukeboxState.volume === 'number' ? localJukeboxState.volume : 75);
             iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [actualVol] }), '*');
             if (localJukeboxState.playing) {
               iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo' }), '*');
@@ -196,23 +226,56 @@
         const iframe = document.getElementById('jukeboxIframe');
         if (!iframe) return;
 
+        const start = Math.floor(startSec || 0);
+        const actualVol = localJukeboxState.isMuted ? 0 : (typeof localJukeboxState.volume === 'number' ? localJukeboxState.volume : 75);
+
+        if (track.source === 'spotify') {
+          const spot = track.spotifyEmbedUrl ? { embedUrl: track.spotifyEmbedUrl } : (track.url ? parseSpotifyUrl(track.url) : null);
+          if (spot && spot.embedUrl) {
+            if (jukeCurrentAudioSrc !== spot.embedUrl) {
+              jukeCurrentAudioSrc = spot.embedUrl;
+              iframe.src = spot.embedUrl;
+            }
+            return;
+          }
+        }
+
         let vid = track.videoId;
         if (!vid && track.url) {
           vid = extractYouTubeVideoId(track.url);
         }
-        if (!vid) vid = 'ZEcqHA7dbwM';
+        const listId = track.playlistId || (track.url ? extractYouTubePlaylistId(track.url) : null);
 
-        const start = Math.floor(startSec);
+        let targetUrl = '';
+        if (listId && !vid) {
+          targetUrl = `https://www.youtube-nocookie.com/embed/videoseries?list=${listId}&enablejsapi=1&autoplay=${autoPlay ? 1 : 0}&start=${start}&controls=0&disablekb=1&fs=0&playsinline=1&rel=0&iv_load_policy=3`;
+        } else if (listId && vid) {
+          targetUrl = `https://www.youtube-nocookie.com/embed/${vid}?list=${listId}&enablejsapi=1&autoplay=${autoPlay ? 1 : 0}&start=${start}&controls=0&disablekb=1&fs=0&playsinline=1&rel=0&iv_load_policy=3`;
+        } else {
+          if (!vid) vid = 'ZEcqHA7dbwM';
+          targetUrl = `https://www.youtube-nocookie.com/embed/${vid}?enablejsapi=1&autoplay=${autoPlay ? 1 : 0}&start=${start}&controls=0&disablekb=1&fs=0&playsinline=1&rel=0&iv_load_policy=3`;
+        }
 
-        if (jukeCurrentAudioSrc !== vid) {
-          jukeCurrentAudioSrc = vid;
-          iframe.src = `https://www.youtube-nocookie.com/embed/${vid}?enablejsapi=1&autoplay=${autoPlay ? 1 : 0}&start=${start}&controls=0&disablekb=1&fs=0&playsinline=1&rel=0&iv_load_policy=3`;
+        const srcKey = (vid || '') + '_' + (listId || '');
+        if (jukeCurrentAudioSrc !== srcKey) {
+          jukeCurrentAudioSrc = srcKey;
+          iframe.src = targetUrl;
+          setTimeout(() => {
+            try {
+              iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [actualVol] }), '*');
+              if (actualVol > 0) {
+                iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'unMute' }), '*');
+              }
+              if (autoPlay) {
+                iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo' }), '*');
+              }
+            } catch(e) {}
+          }, 900);
         } else {
           try {
             iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [start, true] }), '*');
             if (autoPlay) {
               iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'unMute' }), '*');
-              const actualVol = localJukeboxState.isMuted ? 0 : localJukeboxState.volume;
               iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [actualVol] }), '*');
               iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo' }), '*');
             }
@@ -280,67 +343,103 @@
         if (!rawInput || !rawInput.trim()) return null;
         const str = rawInput.trim();
 
-        // 1. Spotify URL parsing
-        if (str.includes('spotify.com/')) {
+        // 1. Spotify parsing (Tracks, Playlists, Albums)
+        const spot = parseSpotifyUrl(str);
+        if (spot) {
+          let title = spot.type === 'playlist' ? 'Spotify Playlist' : (spot.type === 'album' ? 'Spotify Album' : 'Spotify Track');
+          let artist = 'Spotify';
+          let cover = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=150';
+          let duration = 210;
+
           try {
             const oEmbedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(str)}`;
             const res = await fetch(oEmbedUrl);
             if (res.ok) {
               const data = await res.json();
-              const fullTitle = data.title || 'Spotify Track';
-              const cover = data.thumbnail_url || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=150';
-
-              let songName = fullTitle;
-              let artist = 'Spotify Music';
-              if (fullTitle.includes(' - ')) {
-                const parts = fullTitle.split(' - ');
-                artist = parts[0];
-                songName = parts[1];
+              if (data.title) {
+                const fullTitle = data.title;
+                if (fullTitle.includes(' - ')) {
+                  const parts = fullTitle.split(' - ');
+                  artist = parts[0].trim();
+                  title = parts.slice(1).join(' - ').trim();
+                } else {
+                  title = fullTitle;
+                }
               }
-
-              let videoId = 'ZEcqHA7dbwM';
-              const match = JUKEBOX_PRESETS.find(p => p.track.title.toLowerCase().includes(songName.toLowerCase()) || songName.toLowerCase().includes(p.track.title.toLowerCase()));
-              if (match) videoId = match.track.videoId;
-
-              return {
-                id: 'spot-' + Date.now(),
-                title: songName,
-                artist: artist,
-                source: 'spotify',
-                videoId: videoId,
-                url: str,
-                cover: cover,
-                duration: 210
-              };
+              if (data.thumbnail_url) cover = data.thumbnail_url;
             }
-          } catch(e) {
-            console.warn('Spotify oEmbed fetch fallback:', e);
-          }
-        }
+          } catch(e) {}
 
-        // 2. YouTube URL parsing
-        const ytid = extractYouTubeVideoId(str);
-        if (ytid) {
+          let videoId = null;
+          const match = JUKEBOX_PRESETS.find(p =>
+            p.track.title.toLowerCase().includes(title.toLowerCase()) ||
+            title.toLowerCase().includes(p.track.title.toLowerCase()) ||
+            p.track.artist.toLowerCase().includes(artist.toLowerCase())
+          );
+          if (match) videoId = match.track.videoId;
+
           return {
-            id: 'yt-' + ytid,
-            title: 'Canción (' + ytid + ')',
-            artist: 'YouTube Music',
-            source: 'youtube',
-            videoId: ytid,
+            id: 'spot-' + spot.id + '-' + Date.now(),
+            title: title,
+            artist: artist,
+            source: 'spotify',
+            spotifyType: spot.type,
+            spotifyId: spot.id,
+            spotifyEmbedUrl: spot.embedUrl,
+            videoId: videoId,
             url: str,
-            cover: `https://img.youtube.com/vi/${ytid}/hqdefault.jpg`,
-            duration: 220
+            cover: cover,
+            duration: duration
           };
         }
 
-        // 3. Search query
-        const match = JUKEBOX_PRESETS.find(p => p.track.title.toLowerCase().includes(str.toLowerCase()) || p.track.artist.toLowerCase().includes(str.toLowerCase()));
-        if (match) return { ...match.track, id: 'search-' + Date.now() };
+        // 2. YouTube URL (Video and/or Playlist)
+        const ytid = extractYouTubeVideoId(str);
+        const listId = extractYouTubePlaylistId(str);
+
+        if (ytid || listId) {
+          let title = ytid ? `YouTube Track` : `YouTube Playlist`;
+          let artist = 'YouTube';
+          let cover = ytid ? `https://img.youtube.com/vi/${ytid}/hqdefault.jpg` : 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=150';
+          let duration = 240;
+
+          try {
+            const reqUrl = ytid ? `https://noembed.com/embed?url=https://www.youtube.com/watch?v=${ytid}` : `https://noembed.com/embed?url=https://www.youtube.com/playlist?list=${listId}`;
+            const res = await fetch(reqUrl);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.title) title = data.title;
+              if (data.author_name) artist = data.author_name;
+            }
+          } catch(e) {}
+
+          return {
+            id: 'yt-' + (ytid || listId) + '-' + Date.now(),
+            title: title,
+            artist: artist,
+            source: 'youtube',
+            videoId: ytid || null,
+            playlistId: listId || null,
+            url: str,
+            cover: cover,
+            duration: duration
+          };
+        }
+
+        // 3. Search query fallback
+        const queryLower = str.toLowerCase();
+        const match = JUKEBOX_PRESETS.find(p =>
+          p.track.title.toLowerCase().includes(queryLower) ||
+          p.track.artist.toLowerCase().includes(queryLower)
+        );
+        if (match) {
+          return { ...match.track, id: 'search-' + Date.now() };
+        }
 
         return {
-          id: 'custom-' + Date.now(),
+          id: 'search-' + Date.now(),
           title: str,
-          artist: 'Búsqueda Gramola',
+          artist: 'Gramola Lounge',
           source: 'search',
           videoId: 'vGJTaP6anOU',
           url: str,
