@@ -91,24 +91,7 @@
           syncClock();
 
           if (data.tvState) {
-            if (data.tvState.lastWatched && data.tvState.lastWatched.url) {
-              serverTvLastWatched = data.tvState.lastWatched;
-              localStorage.setItem('casino_tv_last_url', data.tvState.lastWatched.url);
-              if (typeof updateTvLastVideoCardUI === 'function') {
-                updateTvLastVideoCardUI(data.tvState.lastWatched);
-              }
-            }
-            if (data.tvState.videoId && data.tvState.playing) {
-              applyTvServerState(data.tvState);
-            } else {
-              tvVideoId = '';
-              tvVideoUrl = '';
-              tvIsPaused = true;
-              const iframe = document.getElementById('tvIframeElement');
-              if (iframe) iframe.src = 'about:blank';
-              const stateEl = document.getElementById('tvStatusState');
-              if (stateEl) stateEl.textContent = '⏹️ Pantalla en espera';
-            }
+            applyTvServerState(data.tvState);
           }
 
           if (data.jukeboxState) {

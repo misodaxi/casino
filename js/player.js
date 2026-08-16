@@ -763,8 +763,13 @@
             state.mode = gameId;
             const wrap = document.getElementById(gameId + 'Wrap');
             if (wrap) wrap.classList.add('show');
-            if (gameId === 'cinema' && typeof updateCinemaVideoTitleDisplay === 'function') {
-              updateCinemaVideoTitleDisplay();
+            if (gameId === 'cinema') {
+              if (typeof updateCinemaVideoTitleDisplay === 'function') {
+                updateCinemaVideoTitleDisplay();
+              }
+              if (typeof socket !== 'undefined' && socket && socket.connected) {
+                socket.emit('tvSyncReq');
+              }
             }
 
             const pivot = (gameId === 'cinema' && state.cinemaPivot) ? state.cinemaPivot : toLook;

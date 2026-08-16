@@ -311,8 +311,11 @@
           sendYtCommand('getCurrentTime');
           const exactSec = tvGetExactSecond();
           saveTvLastWatched(tvVideoId, tvVideoUrl, exactSec, false);
+          if (socket && !isApplyingTvServerState && state.mode === 'cinema') {
+            socket.emit('tvProgress', { currentTime: Math.floor(exactSec) });
+          }
         }
-      }, 500);
+      }, 1200);
 
       window.addEventListener('message', (event) => {
         try {
@@ -325,11 +328,19 @@
           }
 
           if (data.info && typeof data.info.currentTime === 'number') {
+            const currentEstimated = tvGetExactSecond();
+            const serverDrift = Math.abs(data.info.currentTime - currentEstimated);
             tvCurrentPlaybackSeconds = data.info.currentTime;
             tvPlayAnchorSecond = data.info.currentTime;
             tvLastPlayStartRealTime = performance.now();
             saveTvLastWatched(tvVideoId, tvVideoUrl, data.info.currentTime, false);
+
+            // Si el usuario saltó en la barra nativa de YouTube (>3.0s de diferencia)
+            if (serverDrift > 3.0 && socket && !isApplyingTvServerState) {
+              socket.emit('tvSeek', { currentTime: Math.floor(data.info.currentTime) });
+            }
           }
+
           if (data.info && data.info.playerState !== undefined) {
             if (data.info.playerState === 2) {
               tvIsPaused = true;
@@ -338,6 +349,9 @@
               const stateEl = document.getElementById('tvStatusState');
               if (stateEl) stateEl.textContent = '⏸️ En Pausa';
               flushTvSave();
+              if (socket && !isApplyingTvServerState) {
+                socket.emit('tvPause', { currentTime: Math.floor(tvGetExactSecond()) });
+              }
             } else if (data.info.playerState === 1) {
               tvIsPaused = false;
               tvLastPlayStartRealTime = performance.now();
@@ -345,15 +359,25 @@
               if (btn) btn.textContent = 'PAUSAR ⏸️';
               const stateEl = document.getElementById('tvStatusState');
               if (stateEl) stateEl.textContent = '🟢 Reproduciendo';
+              if (socket && !isApplyingTvServerState) {
+                socket.emit('tvPlay', { currentTime: Math.floor(tvGetExactSecond()) });
+              }
             }
           }
+
           if (data.event === 'onStateChange') {
             if (data.info === 2) {
               tvIsPaused = true;
               flushTvSave();
+              if (socket && !isApplyingTvServerState) {
+                socket.emit('tvPause', { currentTime: Math.floor(tvGetExactSecond()) });
+              }
             } else if (data.info === 1) {
               tvIsPaused = false;
               tvLastPlayStartRealTime = performance.now();
+              if (socket && !isApplyingTvServerState) {
+                socket.emit('tvPlay', { currentTime: Math.floor(tvGetExactSecond()) });
+              }
             }
           }
         } catch (e) { }
@@ -442,12 +466,15 @@
         }
 
         const targetId = serverState.videoId || '';
-        const playing = !!serverState.playing;
-        const targetTime = Math.max(0, serverState.currentTime || 0);
+        const isPlaying = !!serverState.playing;
+        const targetTime = Math.max(0, Math.floor(serverState.currentTime || 0));
 
-        // Si no hay vídeo activo en el servidor, la pantalla queda vacía en espera
-        if (!targetId || !playing) {
-          if (tvVideoId && !targetId) {
+        const btn = document.getElementById('tvPlayPauseBtn');
+        const stateEl = document.getElementById('tvStatusState');
+
+        // Caso 1: Pantalla vacía sin vídeo
+        if (!targetId) {
+          if (tvVideoId) {
             tvVideoId = '';
             tvVideoUrl = '';
             tvVideoTitle = '';
@@ -455,44 +482,40 @@
             tvIsPaused = true;
             const iframe = document.getElementById('tvIframeElement');
             if (iframe) iframe.src = 'about:blank';
-            const stateEl = document.getElementById('tvStatusState');
-            if (stateEl) stateEl.textContent = '⏹️ Pantalla en espera';
-          } else if (tvVideoId && !playing) {
-            tvIsPaused = true;
-            const btn = document.getElementById('tvPlayPauseBtn');
             if (btn) btn.textContent = 'REPRODUCIR ▶️';
-            const stateEl = document.getElementById('tvStatusState');
-            if (stateEl) stateEl.textContent = '⏸️ En Pausa';
-            sendYtCommand('pauseVideo');
+            if (stateEl) stateEl.textContent = '⏹️ Pantalla en espera';
           }
           setTimeout(() => { isApplyingTvServerState = false; }, 500);
           return;
         }
 
-        // Si hay un vídeo activo reproduciéndose
+        // Caso 2: El vídeo cambió respecto al local
         if (tvVideoId !== targetId) {
           tvVideoTitle = PRESET_TITLES[targetId] || '';
           updateCinemaVideoTitleDisplay();
           loadYoutubeVideo(targetId, false, targetTime);
+          tvIsPaused = !isPlaying;
+          if (btn) btn.textContent = tvIsPaused ? 'REPRODUCIR ▶️' : 'PAUSAR ⏸️';
+          if (stateEl) stateEl.textContent = tvIsPaused ? '⏸️ En Pausa' : '🟢 Reproduciendo';
+          if (!isPlaying) {
+            setTimeout(() => { sendYtCommand('pauseVideo'); }, 950);
+          }
         } else {
-          // 1. Sincronizar estado Play / Pause
-          if (tvIsPaused === playing) {
-            tvIsPaused = !playing;
-            const btn = document.getElementById('tvPlayPauseBtn');
+          // Caso 3: Mismo vídeo -> Sincronizar Play / Pause y Marca de Tiempo (Seek)
+          if (tvIsPaused !== (!isPlaying)) {
+            tvIsPaused = !isPlaying;
             if (btn) btn.textContent = tvIsPaused ? 'REPRODUCIR ▶️' : 'PAUSAR ⏸️';
-            const stateEl = document.getElementById('tvStatusState');
             if (stateEl) stateEl.textContent = tvIsPaused ? '⏸️ En Pausa' : '🟢 Reproduciendo';
-
-            if (playing) {
+            if (isPlaying) {
               sendYtCommand('playVideo');
             } else {
               sendYtCommand('pauseVideo');
             }
           }
 
-          // 2. Sincronizar Seek (si alguien adelantó o retrocedió)
           const currentLocalSec = tvGetExactSecond();
-          if (targetTime >= 0 && Math.abs(currentLocalSec - targetTime) > 2) {
+          const threshold = isPlaying ? 2.2 : 0.8;
+          if (Math.abs(currentLocalSec - targetTime) > threshold) {
             tvCurrentPlaybackSeconds = targetTime;
             tvPlayAnchorSecond = targetTime;
             tvLastPlayStartRealTime = performance.now();
