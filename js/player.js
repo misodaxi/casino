@@ -570,10 +570,14 @@
         return bestSeat;
       }
 
+      let currentCamTransitionId = 0;
+
       function openGameOverlay(gameId) {
+        const transId = ++currentCamTransitionId;
         state.savedCasinoCam = { pos: camera.position.clone(), look: state.camFollowLook.clone() };
         state.mode = 'transition';
         document.getElementById('prompt').classList.remove('show');
+        document.querySelectorAll('.game-overlay').forEach(wrap => wrap.classList.remove('show'));
 
         // Ocultar etiquetas flotantes para no obstaculizar la visión 3D
         Object.values(zoneMeshes).forEach(zm => {
@@ -761,12 +765,19 @@
 
         const start = performance.now();
         function step(now) {
+          if (transId !== currentCamTransitionId) return;
           let t = Math.min(1, (now - start) / 900);
           camera.position.lerpVectors(state.savedCasinoCam.pos, toPos, t);
           camera.lookAt(new THREE.Vector3().lerpVectors(state.savedCasinoCam.look, toLook, t));
           if (t < 1) requestAnimationFrame(step);
           else {
+            if (transId !== currentCamTransitionId) return;
+            if (state.mode === 'casino') {
+              document.querySelectorAll('.game-overlay').forEach(w => w.classList.remove('show'));
+              return;
+            }
             state.mode = gameId;
+            document.querySelectorAll('.game-overlay').forEach(w => w.classList.remove('show'));
             const wrap = document.getElementById(gameId + 'Wrap');
             if (wrap) wrap.classList.add('show');
             if (gameId === 'cinema') {
@@ -1147,9 +1158,10 @@
       }
 
       function exitActiveGame() {
+        const transId = ++currentCamTransitionId;
+        document.querySelectorAll('.game-overlay').forEach(wrap => wrap.classList.remove('show'));
         if (state.mode === 'casino') return;
         const previousMode = state.mode;
-        document.querySelectorAll('.game-overlay').forEach(wrap => wrap.classList.remove('show'));
         state.mode = 'transition';
 
         // Clear local seat occupancy and leave game rooms
@@ -1240,20 +1252,22 @@
         const fromLook = state.camFollowLook.clone();
 
         function step(now) {
+          if (transId !== currentCamTransitionId) return;
           let t = Math.min(1, (now - start) / 750);
           camera.position.lerpVectors(fromPos, targetPos, t);
           state.camFollowLook.lerpVectors(fromLook, targetLook, t);
           camera.lookAt(state.camFollowLook);
           if (t < 1) requestAnimationFrame(step);
           else {
+            if (transId !== currentCamTransitionId) return;
             state.mode = 'casino';
+            document.querySelectorAll('.game-overlay').forEach(wrap => wrap.classList.remove('show'));
             state.cinemaPivot = null;
             state.seatedPivot = null;
             userMovedDiceCam = false;
             diceCinematicCamActive = false;
             // Resincroniza yaw/pitch/distancia del orbit-cam del mundo con el encuadre
             // final de la transición, para que no salte al reanudar el control WASD
-            // (por ejemplo si el ratón se movió mientras se orbitaba el cine o una mesa).
             const dx = targetPos.x - state.player.x;
             const dz = targetPos.z - state.player.z;
             const horiz = Math.max(0.001, Math.hypot(dx, dz));
