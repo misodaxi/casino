@@ -306,8 +306,33 @@
         }
       });
 
+      let _lastSeekExecutionTime = 0;
+      let _isSeekingLock = false;
+
+      function executeDirectTvSeek(targetSec) {
+        if (!tvVideoId) return;
+        const cleanSec = Math.max(0, Math.floor(targetSec));
+        tvCurrentPlaybackSeconds = cleanSec;
+        tvPlayAnchorSecond = cleanSec;
+        tvLastPlayStartRealTime = performance.now();
+        _lastSeekExecutionTime = performance.now();
+        _isSeekingLock = true;
+
+        sendYtCommand('seekTo', [cleanSec, true]);
+        setTimeout(() => {
+          sendYtCommand('seekTo', [cleanSec, true]);
+        }, 150);
+
+        saveTvLastWatched(tvVideoId, tvVideoUrl, cleanSec, true);
+
+        setTimeout(() => {
+          _isSeekingLock = false;
+        }, 1800);
+      }
+      window.executeDirectTvSeek = executeDirectTvSeek;
+
       setInterval(() => {
-        if (tvVideoId && !tvIsPaused) {
+        if (tvVideoId && !tvIsPaused && !_isSeekingLock && (performance.now() - _lastSeekExecutionTime >= 1800)) {
           sendYtCommand('getCurrentTime');
           const exactSec = tvGetExactSecond();
           saveTvLastWatched(tvVideoId, tvVideoUrl, exactSec, false);
@@ -328,6 +353,9 @@
           }
 
           if (data.info && typeof data.info.currentTime === 'number') {
+            if (_isSeekingLock || (performance.now() - _lastSeekExecutionTime < 1800)) {
+              return;
+            }
             const currentEstimated = tvGetExactSecond();
             const serverDrift = Math.abs(data.info.currentTime - currentEstimated);
             tvCurrentPlaybackSeconds = data.info.currentTime;
@@ -514,12 +542,9 @@
           }
 
           const currentLocalSec = tvGetExactSecond();
-          const threshold = isPlaying ? 2.2 : 0.8;
+          const threshold = isPlaying ? 2.0 : 0.6;
           if (Math.abs(currentLocalSec - targetTime) > threshold) {
-            tvCurrentPlaybackSeconds = targetTime;
-            tvPlayAnchorSecond = targetTime;
-            tvLastPlayStartRealTime = performance.now();
-            sendYtCommand('seekTo', [targetTime, true]);
+            executeDirectTvSeek(targetTime);
           }
         }
 
@@ -715,13 +740,9 @@
           if (!tvVideoId) return;
           const cur = tvGetExactSecond();
           const targetSec = Math.max(0, Math.floor(cur - 10));
-          tvCurrentPlaybackSeconds = targetSec;
-          tvPlayAnchorSecond = targetSec;
-          tvLastPlayStartRealTime = performance.now();
-          sendYtCommand('seekTo', [targetSec, true]);
+          executeDirectTvSeek(targetSec);
           showToast(`⏪ -10s (${formatTimestamp(targetSec)})`);
-          saveTvLastWatched(tvVideoId, tvVideoUrl, targetSec, true);
-          if (socket && !isApplyingTvServerState) {
+          if (socket && socket.connected) {
             socket.emit('tvSeek', { currentTime: targetSec });
           }
         });
@@ -733,13 +754,9 @@
           if (!tvVideoId) return;
           const cur = tvGetExactSecond();
           const targetSec = Math.max(0, Math.floor(cur + 10));
-          tvCurrentPlaybackSeconds = targetSec;
-          tvPlayAnchorSecond = targetSec;
-          tvLastPlayStartRealTime = performance.now();
-          sendYtCommand('seekTo', [targetSec, true]);
+          executeDirectTvSeek(targetSec);
           showToast(`⏩ +10s (${formatTimestamp(targetSec)})`);
-          saveTvLastWatched(tvVideoId, tvVideoUrl, targetSec, true);
-          if (socket && !isApplyingTvServerState) {
+          if (socket && socket.connected) {
             socket.emit('tvSeek', { currentTime: targetSec });
           }
         });

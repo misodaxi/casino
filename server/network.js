@@ -239,16 +239,29 @@ function setupSocketIO(io) {
 
     socket.on('tvProgress', (data) => {
       if (data && typeof data.currentTime === 'number') {
+        const now = Date.now();
+        // Si hubo un salto de tiempo reciente (<2200ms), ignorar reportes desactualizados
+        if (now - tvState.updatedAt < 2200 && Math.abs(data.currentTime - tvState.currentTime) > 2.5) {
+          return;
+        }
         tvState.currentTime = data.currentTime;
-        tvState.updatedAt = Date.now();
+        tvState.updatedAt = now;
+        tvLastWatched.currentTime = data.currentTime;
+        tvLastWatched.updatedAt = now;
       }
     });
 
     socket.on('tvSeek', (data) => {
       if (data && typeof data.currentTime === 'number') {
-        tvState.currentTime = data.currentTime;
+        const targetSec = Math.max(0, Math.floor(data.currentTime));
+        tvState.currentTime = targetSec;
         tvState.updatedAt = Date.now();
-        io.emit('tvStateUpdate', getSyncedTvState());
+        tvLastWatched.currentTime = targetSec;
+        tvLastWatched.updatedAt = Date.now();
+
+        const synced = getSyncedTvState();
+        io.emit('tvStateUpdate', synced);
+        io.emit('tvForceSeek', { currentTime: targetSec, serverTime: Date.now() });
       }
     });
 

@@ -234,6 +234,15 @@
           applyTvServerState(s);
         });
 
+        socket.on('tvForceSeek', (data) => {
+          window.netMetrics.msgIn++;
+          if (data && typeof data.currentTime === 'number') {
+            if (typeof executeDirectTvSeek === 'function') {
+              executeDirectTvSeek(data.currentTime);
+            }
+          }
+        });
+
         socket.on('jukeboxStateUpdate', (s) => {
           window.netMetrics.msgIn++;
           applyJukeboxServerState(s);
