@@ -50,10 +50,11 @@
         tvCtx.fillText('Haz clic en la TV o pulsa (📺) para cambiar de canal', 640, 420);
         const tvTex = new THREE.CanvasTexture(tvCanvas);
 
-        const tvScreenMat = new THREE.MeshBasicMaterial({ map: tvTex });
+        const tvScreenMat = new THREE.MeshBasicMaterial({ map: tvTex, transparent: true, opacity: 0 });
         const tvScreenW = 7.0 * TV_SCALE, tvScreenH = 4.0 * TV_SCALE;
         const tvScreenMesh = new THREE.Mesh(new THREE.PlaneGeometry(tvScreenW, tvScreenH), tvScreenMat);
         tvScreenMesh.position.z = 0.16 * TV_SCALE;
+        tvScreenMesh.visible = false;
         tvScreenMesh.name = 'tvScreen3DMesh';
         tvGroup.add(tvScreenMesh);
         tvScreenMeshRef = tvScreenMesh;
@@ -901,22 +902,6 @@
           if (socket && !isApplyingTvServerState) {
             socket.emit('tvPlay', { currentTime: Math.floor(exactSec) });
           }
-        }
-      });
-
-      // Click 3D TV Screen Raycaster
-      window.addEventListener('click', e => {
-        if (state.mode !== 'casino') return;
-        if (e.target.tagName !== 'CANVAS') return;
-        const ray = new THREE.Raycaster();
-        const mouseVec = new THREE.Vector2(
-          (e.clientX / window.innerWidth) * 2 - 1,
-          -(e.clientY / window.innerHeight) * 2 + 1
-        );
-        ray.setFromCamera(mouseVec, camera);
-        if (tvScreenMeshRef) {
-          const hits = ray.intersectObject(tvScreenMeshRef);
-          if (hits.length > 0) openTVModal();
         }
       });
 

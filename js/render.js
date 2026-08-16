@@ -51,15 +51,24 @@
 
       applyQualityTier(currentQuality);
       renderer.setSize(window.innerWidth, window.innerHeight);
+      if (renderer.domElement && renderer.domElement.style) {
+        renderer.domElement.style.position = 'absolute';
+        renderer.domElement.style.top = '0';
+        renderer.domElement.style.left = '0';
+        renderer.domElement.style.zIndex = '0';
+      }
       host.appendChild(renderer.domElement);
 
-      // Official Three.js CSS3DRenderer Engine
+      // Official Three.js CSS3DRenderer Engine (Capa interactiva sobre el mundo 3D)
       var cssRenderer = new THREE.CSS3DRenderer();
       cssRenderer.setSize(window.innerWidth, window.innerHeight);
-      cssRenderer.domElement.style.position = 'absolute';
-      cssRenderer.domElement.style.top = '0';
-      cssRenderer.domElement.style.left = '0';
-      cssRenderer.domElement.style.pointerEvents = 'none';
+      if (cssRenderer.domElement && cssRenderer.domElement.style) {
+        cssRenderer.domElement.style.position = 'absolute';
+        cssRenderer.domElement.style.top = '0';
+        cssRenderer.domElement.style.left = '0';
+        cssRenderer.domElement.style.zIndex = '5';
+        cssRenderer.domElement.style.pointerEvents = 'none';
+      }
       host.appendChild(cssRenderer.domElement);
 
       window.addEventListener('resize', () => {
