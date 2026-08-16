@@ -29,27 +29,64 @@ app.use('/js', express.static(path.join(__dirname, 'js')));
 
 const https = require('https');
 
-app.get('/api/jukebox-search', (req, res) => {
-  const query = req.query.q || '';
-  if (!query || !query.trim()) return res.json({ videoId: null });
-
+function searchYouTubeTrack(query, callback) {
+  if (!query || !query.trim()) return callback(null);
   const searchUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query.trim());
-  const request = https.get(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } }, (response) => {
-    let data = '';
-    response.on('data', chunk => data += chunk);
-    response.on('end', () => {
-      const match = data.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
-      res.json({ videoId: match ? match[1] : null });
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
+  };
+
+  const req = https.get(searchUrl, { headers }, (res) => {
+    let html = '';
+    res.on('data', chunk => html += chunk);
+    res.on('end', () => {
+      const vidMatch = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+      const vid = vidMatch ? vidMatch[1] : null;
+      if (!vid) return callback(null);
+
+      const titleRegex = new RegExp('"videoId":"' + vid + '"[\\s\\S]*?"title":\\{"runs":\\[\\{"text":"(.*?)"\\}');
+      const titleMatch = html.match(titleRegex);
+      const title = titleMatch ? titleMatch[1] : query.trim();
+
+      const artistRegex = new RegExp('"videoId":"' + vid + '"[\\s\\S]*?"ownerText":\\{"runs":\\[\\{"text":"(.*?)"');
+      const artistMatch = html.match(artistRegex);
+      const artist = artistMatch ? artistMatch[1] : 'YouTube Music';
+
+      const durRegex = new RegExp('"videoId":"' + vid + '"[\\s\\S]*?"lengthText":\\{"simpleText":"(.*?)"');
+      const durMatch = html.match(durRegex);
+      let duration = 210;
+      if (durMatch && durMatch[1]) {
+        const parts = durMatch[1].split(':');
+        if (parts.length === 2) duration = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        else if (parts.length === 3) duration = parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseInt(parts[2], 10);
+      }
+
+      callback({
+        videoId: vid,
+        title: title,
+        artist: artist,
+        duration: duration,
+        cover: `https://img.youtube.com/vi/${vid}/hqdefault.jpg`
+      });
     });
   });
-  request.on('error', () => {
-    res.json({ videoId: null });
+
+  req.on('error', () => callback(null));
+  req.setTimeout(5000, () => {
+    req.destroy();
+    callback(null);
   });
-  request.setTimeout(4000, () => {
-    request.destroy();
-    res.json({ videoId: null });
+}
+
+app.get('/api/jukebox-search', (req, res) => {
+  const query = req.query.q || '';
+  searchYouTubeTrack(query, (result) => {
+    res.json(result || { videoId: null });
   });
 });
+
+module.exports.searchYouTubeTrack = searchYouTubeTrack;
 
 // Attach Socket.IO Network & Game Handlers
 setupSocketIO(io);

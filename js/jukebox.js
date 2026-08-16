@@ -211,12 +211,12 @@
         if (typeof socket !== 'undefined' && socket && socket.connected) {
           try {
             const res = await new Promise((resolve) => {
-              socket.timeout(3500).emit('jukeboxSearchTrack', { query: q }, (err, response) => {
+              socket.timeout(4500).emit('jukeboxSearchTrack', { query: q }, (err, response) => {
                 if (err || !response) resolve(null);
-                else resolve(response.videoId || null);
+                else resolve(response);
               });
             });
-            if (res) return res;
+            if (res && res.videoId) return res;
           } catch(e) {}
         }
 
@@ -225,7 +225,7 @@
           const res = await fetch(`/api/jukebox-search?q=${encodeURIComponent(q)}`);
           if (res.ok) {
             const data = await res.json();
-            if (data && data.videoId) return data.videoId;
+            if (data && data.videoId) return data;
           }
         } catch(e) {}
 
@@ -237,9 +237,9 @@
           p.track.artist.toLowerCase().includes(qLower) ||
           qLower.includes(p.track.artist.toLowerCase())
         );
-        if (match) return match.track.videoId;
+        if (match) return { videoId: match.track.videoId, title: match.track.title, artist: match.track.artist, duration: match.track.duration, cover: match.track.cover };
 
-        return 'ZEcqHA7dbwM';
+        return { videoId: 'ZEcqHA7dbwM', title: q, artist: 'YouTube Music', duration: 210, cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=150' };
       }
 
       let jukeUserHasInteracted = false;
@@ -400,7 +400,8 @@
 
           const searchQ = `${title} ${artist !== 'Spotify' ? artist : ''}`.trim();
           showToast(`🎵 Sintonizando "${title}" de Spotify...`);
-          const videoId = await searchAudioStream(searchQ);
+          const spotSearch = await searchAudioStream(searchQ);
+          const spotVid = (spotSearch && spotSearch.videoId) ? spotSearch.videoId : 'ZEcqHA7dbwM';
 
           return {
             id: 'spot-' + spot.id + '-' + Date.now(),
@@ -410,10 +411,10 @@
             spotifyType: spot.type,
             spotifyId: spot.id,
             spotifyEmbedUrl: spot.embedUrl,
-            videoId: videoId || 'ZEcqHA7dbwM',
+            videoId: spotVid,
             url: str,
             cover: cover,
-            duration: duration
+            duration: (spotSearch && spotSearch.duration) ? spotSearch.duration : duration
           };
         }
 
@@ -450,19 +451,24 @@
           };
         }
 
-        // 3. Search query fallback
-        showToast(`🔍 Buscando "${str}" en la Gramola...`);
-        const searchVid = await searchAudioStream(str);
+        // 3. Search query fallback -> Exclusively YouTube search
+        showToast(`🔍 Buscando "${str}" en YouTube...`);
+        const searchResult = await searchAudioStream(str);
+        const vid = (searchResult && searchResult.videoId) ? searchResult.videoId : 'vGJTaP6anOU';
+        const trackTitle = (searchResult && searchResult.title) ? searchResult.title : str;
+        const trackArtist = (searchResult && searchResult.artist) ? searchResult.artist : 'YouTube Music';
+        const trackCover = (searchResult && searchResult.cover) ? searchResult.cover : `https://img.youtube.com/vi/${vid}/hqdefault.jpg`;
+        const trackDur = (searchResult && searchResult.duration) ? searchResult.duration : 210;
 
         return {
-          id: 'search-' + Date.now(),
-          title: str,
-          artist: 'Gramola Lounge',
-          source: 'search',
-          videoId: searchVid || 'vGJTaP6anOU',
-          url: str,
-          cover: searchVid ? `https://img.youtube.com/vi/${searchVid}/hqdefault.jpg` : 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=150',
-          duration: 210
+          id: 'yt-search-' + vid + '-' + Date.now(),
+          title: trackTitle,
+          artist: trackArtist,
+          source: 'youtube',
+          videoId: vid,
+          url: `https://www.youtube.com/watch?v=${vid}`,
+          cover: trackCover,
+          duration: trackDur
         };
       }
 
