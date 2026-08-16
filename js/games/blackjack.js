@@ -74,7 +74,7 @@
         const isRed = cardObj ? (cardObj.s === '♥' || cardObj.s === '♦') : false;
         const mainColor = isRed ? '#dc2626' : '#111827';
 
-        if (cardObj) {
+        if (cardObj && !cardObj.hidden && cardObj.v !== '?') {
           fCtx.font = '900 48px Segoe UI, Arial';
           fCtx.fillStyle = mainColor;
           fCtx.textAlign = 'left';
@@ -576,6 +576,13 @@
           if (!data || data.blackjackId !== 'blackjack') return;
           const targetMesh = bjDealerHiddenMesh || bjDealt3DMeshes[2];
           if (targetMesh) {
+            if (data.card && data.card.v && data.card.v !== '?') {
+              const realFrontMat = getCardFrontMaterial(data.card);
+              if (Array.isArray(targetMesh.material)) {
+                targetMesh.material[2] = realFrontMat;
+                targetMesh.material[2].needsUpdate = true;
+              }
+            }
             flipCard3D(targetMesh, () => {
               const dealerScoreEl = document.getElementById('dealerScore');
               if (dealerScoreEl) {
