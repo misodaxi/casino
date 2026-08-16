@@ -255,6 +255,39 @@
       let lastTvProgressEmitTime = 0;
       var serverTvLastWatched = null;
       let tvVideoTitle = '';
+      let tvVideoDuration = 0;
+      let _isUserScrubbing = false;
+
+      function tvGetDuration() {
+        if (ytPlayer && ytPlayerReady && typeof ytPlayer.getDuration === 'function') {
+          try {
+            const d = ytPlayer.getDuration();
+            if (typeof d === 'number' && !isNaN(d) && d > 0) {
+              tvVideoDuration = d;
+              return d;
+            }
+          } catch (e) { }
+        }
+        return tvVideoDuration || 0;
+      }
+
+      function updateTvScrubberUI() {
+        const tvTimeSliderEl = document.getElementById('tvTimeSlider');
+        const tvTimeCurrentEl = document.getElementById('tvTimeCurrent');
+        const tvTimeDurationEl = document.getElementById('tvTimeDuration');
+        if (!tvTimeSliderEl || _isUserScrubbing) return;
+
+        const cur = tvGetExactSecond();
+        const dur = tvGetDuration() || (cur > 120 ? Math.floor(cur * 1.25) : 300);
+
+        if (tvTimeCurrentEl) tvTimeCurrentEl.textContent = formatTimestamp(cur);
+        if (tvTimeDurationEl) tvTimeDurationEl.textContent = formatTimestamp(dur);
+
+        tvTimeSliderEl.max = Math.max(10, Math.floor(dur));
+        tvTimeSliderEl.value = Math.floor(cur);
+        const pct = Math.min(100, Math.max(0, (cur / Math.max(1, dur)) * 100));
+        tvTimeSliderEl.style.setProperty('--fillpct', pct + '%');
+      }
 
       const PRESET_TITLES = {
         'jfKfPfyJRdk': '🎵 Lofi Chill Lounge',
@@ -436,7 +469,10 @@
             socket.emit('tvProgress', { currentTime: Math.floor(exactSec) });
           }
         }
-      }, 1200);
+        if (_isTvModalOpen) {
+          updateTvScrubberUI();
+        }
+      }, 1000);
 
       function handleYtStateChange(stateCode) {
         if (stateCode === 1) { // PLAYING
@@ -460,6 +496,7 @@
             socket.emit('tvPause', { currentTime: Math.floor(tvGetExactSecond()) });
           }
         }
+        updateTvScrubberUI();
       }
 
       window.addEventListener('message', (event) => {
@@ -472,6 +509,11 @@
             updateCinemaVideoTitleDisplay();
           }
 
+          if (data.info && typeof data.info.duration === 'number' && data.info.duration > 0) {
+            tvVideoDuration = data.info.duration;
+            updateTvScrubberUI();
+          }
+
           if (data.info && typeof data.info.currentTime === 'number') {
             if (_isSeekingLock || (performance.now() - _lastSeekExecutionTime < 1800)) {
               return;
@@ -482,6 +524,7 @@
             tvPlayAnchorSecond = data.info.currentTime;
             tvLastPlayStartRealTime = performance.now();
             saveTvLastWatched(tvVideoId, tvVideoUrl, data.info.currentTime, false);
+            updateTvScrubberUI();
 
             if (serverDrift > 3.0 && socket && !isApplyingTvServerState) {
               socket.emit('tvSeek', { currentTime: Math.floor(data.info.currentTime) });
@@ -786,6 +829,7 @@
         _isTvModalOpen = true;
         getCachedTvDom();
         if (typeof updateTvLastVideoCardUI === 'function') updateTvLastVideoCardUI();
+        if (typeof updateTvScrubberUI === 'function') updateTvScrubberUI();
         if (_tvModalEl) _tvModalEl.classList.add('show');
       }
       function closeTVModal() {
@@ -795,6 +839,35 @@
       }
       window.openTVModal = openTVModal;
       window.closeTVModal = closeTVModal;
+
+      const tvTimeSliderEl = document.getElementById('tvTimeSlider');
+      const tvTimeCurrentEl = document.getElementById('tvTimeCurrent');
+      const tvTimeHoverPreviewEl = document.getElementById('tvTimeHoverPreview');
+
+      if (tvTimeSliderEl) {
+        tvTimeSliderEl.addEventListener('input', (e) => {
+          _isUserScrubbing = true;
+          const scrubVal = parseInt(e.target.value, 10) || 0;
+          const cur = tvGetExactSecond();
+          const dur = tvGetDuration() || (scrubVal > 120 ? Math.floor(scrubVal * 1.25) : 300);
+          const pct = Math.min(100, Math.max(0, (scrubVal / Math.max(1, dur)) * 100));
+          tvTimeSliderEl.style.setProperty('--fillpct', pct + '%');
+          if (tvTimeCurrentEl) tvTimeCurrentEl.textContent = formatTimestamp(scrubVal);
+          if (tvTimeHoverPreviewEl) tvTimeHoverPreviewEl.textContent = 'Minuto: ' + formatTimestamp(scrubVal);
+        });
+
+        tvTimeSliderEl.addEventListener('change', (e) => {
+          _isUserScrubbing = false;
+          if (tvTimeHoverPreviewEl) tvTimeHoverPreviewEl.textContent = '';
+          if (!tvVideoId) return;
+          const targetSec = parseInt(e.target.value, 10) || 0;
+          executeDirectTvSeek(targetSec);
+          showToast(`⏱️ Minuto fijado en ${formatTimestamp(targetSec)}`);
+          if (socket && socket.connected) {
+            socket.emit('tvSeek', { currentTime: targetSec });
+          }
+        });
+      }
 
       const tvBtnEl = document.getElementById('tvBtn');
       if (tvBtnEl) tvBtnEl.addEventListener('click', openTVModal);

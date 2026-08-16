@@ -614,6 +614,24 @@
       <button id="loadYoutubeBtn">CARGAR 📺</button>
     </div>
 
+    <!-- Scrubber Slider de Minuto / Posición -->
+    <div class="tv-scrubber-row">
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:800;">
+        <span style="color:#EDE7F6; display:flex; align-items:center; gap:6px;">⏱️ POSICIÓN / MINUTO DEL VÍDEO</span>
+        <div style="display:flex; gap:4px; font-family:monospace; font-size:12px; font-weight:700;">
+          <span id="tvTimeCurrent" style="color:#38bdf8;">0:00</span>
+          <span style="color:var(--dim);">/</span>
+          <span id="tvTimeDuration" style="color:var(--dim);">0:00</span>
+        </div>
+      </div>
+      <input type="range" class="tv-scrubber-slider" id="tvTimeSlider" min="0" max="100" value="0" step="1"
+        style="--fillpct:0%;" title="Arrastra para saltar de minuto">
+      <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--dim); line-height:1.2;">
+        <span>Arrastra para saltar de minuto en toda la sala</span>
+        <span id="tvTimeHoverPreview" style="color:#fbdf24; font-weight:700;"></span>
+      </div>
+    </div>
+
     <div class="tv-volume-row">
       <div class="tv-volume-label">
         <span>🔊 VOLUMEN MANUAL (referencia máxima)</span>
