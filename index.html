@@ -126,7 +126,14 @@
       <div class="row"><span>Draw Calls / Triangles:</span><span class="val" id="debugDrawCalls">0 / 0</span></div>
       <div class="row"><span>Resolution / DPR:</span><span class="val" id="debugDpr">1.35x DPR</span></div>
     </div>
-    <button class="debug-toggle-btn" id="debugToggleBtn" title="Alternar panel de diagnóstico (F3)">⚡ DEBUG (F3)</button>
+    <div class="debug-bottom-bar">
+      <button class="debug-toggle-btn" id="debugToggleBtn" title="Alternar panel de diagnóstico (F3)">⚡ DEBUG (F3)</button>
+      <div class="fps-counter-badge fps-good" id="fpsCounterBadge" title="Contador de FPS en tiempo real">
+        <span class="fps-dot"></span>
+        <span class="fps-num" id="fpsCounterVal">60</span>
+        <span class="fps-label">FPS</span>
+      </div>
+    </div>
   </div>
 
   <!-- ================= ROULETTE OVERLAY ================= -->

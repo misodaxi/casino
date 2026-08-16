@@ -21,6 +21,8 @@
       const debugHudEl = document.getElementById('debugPerfHud');
       const debugToggleBtn = document.getElementById('debugToggleBtn');
       const debugFpsEl = document.getElementById('debugFps');
+      const fpsCounterBadgeEl = document.getElementById('fpsCounterBadge');
+      const fpsCounterValEl = document.getElementById('fpsCounterVal');
       const debugPingEl = document.getElementById('debugPing');
       const debugClockOffsetEl = document.getElementById('debugClockOffset');
       const debugZoneEl = document.getElementById('debugZone');
@@ -55,6 +57,13 @@
           currentFps = Math.round((frameCount * 1000) / (now - fpsCalcTime));
           frameCount = 0;
           fpsCalcTime = now;
+
+          if (fpsCounterValEl) {
+            fpsCounterValEl.textContent = currentFps;
+          }
+          if (fpsCounterBadgeEl) {
+            fpsCounterBadgeEl.className = 'fps-counter-badge ' + (currentFps >= 54 ? 'fps-good' : (currentFps >= 30 ? 'fps-medium' : 'fps-low'));
+          }
 
           // Dynamic Adaptive Quality Hysteresis
           if (currentFps < 34) {
