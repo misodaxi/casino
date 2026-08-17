@@ -49,27 +49,6 @@
       }
       window.applyQualityTier = applyQualityTier;
 
-      const _rackChipLabelMatCache = {};
-      function getRackChipLabelMaterial(str) {
-        if (!_rackChipLabelMatCache[str]) {
-          const labelCanvas = document.createElement('canvas');
-          labelCanvas.width = 128; labelCanvas.height = 64;
-          const lCtx = labelCanvas.getContext('2d');
-          lCtx.fillStyle = '#0f081d';
-          if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
-          lCtx.fill();
-          lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
-          lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
-          lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
-          lCtx.fillText(str, 64, 32);
-
-          const labelTex = new THREE.CanvasTexture(labelCanvas);
-          _rackChipLabelMatCache[str] = new THREE.SpriteMaterial({ map: labelTex, depthTest: false });
-        }
-        return _rackChipLabelMatCache[str];
-      }
-      window.getRackChipLabelMaterial = getRackChipLabelMaterial;
-
       applyQualityTier(currentQuality);
       renderer.setSize(window.innerWidth, window.innerHeight);
       if (renderer.domElement && renderer.domElement.style) {
@@ -102,19 +81,8 @@
 
       /* lights */
       scene.add(new THREE.AmbientLight(0x3e3260, 1.2));
-      var moonLight = new THREE.DirectionalLight(0x9b8cff, 0.65);
-      moonLight.position.set(-20, 35, -10);
-      moonLight.castShadow = true;
-      moonLight.shadow.mapSize.width = 1024;
-      moonLight.shadow.mapSize.height = 1024;
-      moonLight.shadow.camera.left = -55;
-      moonLight.shadow.camera.right = 55;
-      moonLight.shadow.camera.top = 55;
-      moonLight.shadow.camera.bottom = -55;
-      moonLight.shadow.camera.near = 1;
-      moonLight.shadow.camera.far = 120;
-      moonLight.shadow.bias = -0.0005;
-      moonLight.shadow.normalBias = 0.02;
+      var moonLight = new THREE.DirectionalLight(0x9b8cff, 0.6);
+      moonLight.position.set(-20, 30, -10);
       scene.add(moonLight);
 
       /* floor grid */
@@ -228,6 +196,28 @@
       const VIP_CANDLE_MAT = new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 1.8 });
       const VIP_CUSHION_MAT = new THREE.MeshStandardMaterial({ color: 0x140b24, roughness: 0.4 });
 
+      // ─── GLOBAL SHARED GOLD MATERIALS ────────────────────────────────────────────────
+      // Replaces ~25 local goldMat variables that created new material instances.
+      // GPU saves a shader state change per duplicate material eliminated.
+      // Use GOLD_MAT_HIGH (metalness 0.95) for polished structural gold.
+      // Use GOLD_MAT_MED  (metalness 0.92) for slightly warmer accents.
+      const GOLD_MAT_HIGH = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
+      const GOLD_MAT_MED  = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.92, roughness: 0.15 });
+      // LAMP_GOLD_MAT / VIP_GOLD_MAT are already GOLD_MAT_HIGH — kept for backward compat, same object below:
+      // (no change needed — they are identical)
+
+      // ─── GLOBAL SHARED STANCHION GEOMETRIES ─────────────────────────────────────────
+      // Replaces per-zone new CylinderGeometry/SphereGeometry inside forEach (4 geos x N zones).
+      const STANCHION_POST_GEO = new THREE.CylinderGeometry(0.06, 0.08, 1.1, 16);
+      const STANCHION_BALL_GEO = new THREE.SphereGeometry(0.11, 16, 16);
+      const STANCHION_BASE_GEO = new THREE.CylinderGeometry(0.18, 0.22, 0.08, 16);
+      // ─── GLOBAL SHARED DARK MATERIALS ─────────────────────────────────────────────────
+      // chip tray base: appears identically 5× in BJ/Dice/Roulette/BJ2/Coin zones
+      const DARK_TRAY_MAT  = new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 });
+      // dark metallic shelf/monitor base: appears identically 2× in bowling/sport zones
+      const DARK_SHELF_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0514, metalness: 0.8, roughness: 0.2 });
+      // ────────────────────────────────────────────────────────────────────────────────────
+
       const _vipChairMatCache = {};
       function getVipChairMaterial(chairColorHex) {
         if (!_vipChairMatCache[chairColorHex]) {
@@ -291,7 +281,8 @@
         const g = new THREE.Group();
         g.rotation.y = rotY;
         const leatherMat = new THREE.MeshStandardMaterial({ color: 0x120c1f, roughness: 0.35, metalness: 0.1 });
-        const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
+        // Use shared GOLD_MAT_HIGH (was: local goldMat = new THREE.MeshStandardMaterial identical to LAMP_GOLD_MAT)
+        const goldMat = GOLD_MAT_HIGH;
 
         // Long Sofa Segment
         const longSofa = new THREE.Mesh(new THREE.BoxGeometry(w, 0.42, 1.1), leatherMat);
@@ -468,14 +459,21 @@
             g.add(divEnd);
           }
 
-          // 4. Pinsetter Pit & 10 Regulation Bowling Pins at Deep End (z = -24.5) (Optimized Single Mesh Pins)
+          // 4. Pinsetter Pit & 10 Regulation Bowling Pins at Deep End (z = -24.5)
           const pinRows = [[0], [-0.22, 0.22], [-0.44, 0, 0.44], [-0.66, -0.22, 0.22, 0.66]];
           pinRows.forEach((rowPins, rIdx) => {
             const pinZ = -24.5 - rIdx * 0.38;
             rowPins.forEach(px => {
-              const pin = new THREE.Mesh(BOWLING_PIN_BODY_GEO, BOWLING_PIN_MAT);
-              pin.position.set(laneX + px, 0.30, pinZ);
-              g.add(pin);
+              const pinGrp = new THREE.Group();
+              const pinBody = new THREE.Mesh(BOWLING_PIN_BODY_GEO, BOWLING_PIN_MAT);
+              pinBody.position.y = 0.32;
+              const pinHead = new THREE.Mesh(BOWLING_PIN_HEAD_GEO, BOWLING_PIN_MAT);
+              pinHead.position.y = 0.56;
+              const pinStripe = new THREE.Mesh(BOWLING_PIN_STRIPE_GEO, BOWLING_PIN_RED_MAT);
+              pinStripe.position.y = 0.48;
+              pinGrp.add(pinBody, pinHead, pinStripe);
+              pinGrp.position.set(laneX + px, 0, pinZ);
+              g.add(pinGrp);
             });
           });
 
@@ -685,7 +683,6 @@
           cabCanvas.height = 512;
           const ctx = cabCanvas.getContext('2d');
           const cabTex = new THREE.CanvasTexture(cabCanvas);
-          cabTex.generateMipmaps = false;
           cabTex.minFilter = THREE.LinearFilter;
           cabTex.magFilter = THREE.LinearFilter;
 
@@ -840,10 +837,7 @@
 
         g.add(dais, daisGoldRim, floorInlay, floorNeonHex);
 
-        // Common Luxury Materials & Shared Geometries Pool for Thrones
-        const TUFT_BUTTON_GEO = new THREE.SphereGeometry(0.018, 8, 8);
-        const TUFT_RIM_GEO = new THREE.TorusGeometry(0.020, 0.004, 6, 10);
-
+        // Common Luxury Materials
         const crimsonVelvetMat = new THREE.MeshStandardMaterial({
           color: 0x881337, // Royal Deep Imperial Crimson Velvet
           roughness: 0.72,
@@ -1041,7 +1035,7 @@
 
           backGroup.add(backFrameLower, backFrameShoulder, backFrameArch, velvetLower, velvetShoulder, velvetArch, goldBackBezel);
 
-          // C. Diamond Button Tufting (Capitoné) with Gold Stud Rims (Shared Geometries Pool)
+          // C. Diamond Button Tufting (Capitoné) with Gold Stud Rims
           const tuftPattern = [
             [-0.18, 0.62], [0.18, 0.62],
             [-0.26, 0.84], [0.00, 0.84], [0.26, 0.84],
@@ -1051,9 +1045,9 @@
             [0.00, 1.60]
           ];
           tuftPattern.forEach(([tx, ty]) => {
-            const button = new THREE.Mesh(TUFT_BUTTON_GEO, tuftButtonMat);
+            const button = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 8), tuftButtonMat);
             button.position.set(tx, ty, 0.065);
-            const buttonRim = new THREE.Mesh(TUFT_RIM_GEO, royalGoldMat);
+            const buttonRim = new THREE.Mesh(new THREE.TorusGeometry(0.020, 0.004, 6, 10), royalGoldMat);
             buttonRim.position.set(tx, ty, 0.064);
             backGroup.add(button, buttonRim);
           });
@@ -1424,13 +1418,13 @@
         // 6. Luxury 2-Tiered Mahogany & Gold 3D Dealer Chip Box mounted ON TOP of the wide outer back rail
         const trayBase = new THREE.Mesh(
           new THREE.BoxGeometry(1.72, 0.035, 0.44),
-          new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 })
+          DARK_TRAY_MAT  // shared: was new MeshStandardMaterial(0x14091e×5)
         );
         trayBase.position.set(0, 1.345, -1.34);
 
         const trayGoldBorder = new THREE.Mesh(
           new THREE.BoxGeometry(1.76, 0.025, 0.48),
-          new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 })
+          GOLD_MAT_HIGH  // shared: was new MeshStandardMaterial(0xd4af37×N)
         );
         trayGoldBorder.position.set(0, 1.335, -1.34);
 
@@ -1459,8 +1453,20 @@
             stack.add(chipM);
           }
 
-          // Floating 3D Value Label with gold border (Pooled Material)
-          const labelSpr = new THREE.Sprite(getRackChipLabelMaterial(cDef.str));
+          // Floating 3D Value Label with gold border
+          const labelCanvas = document.createElement('canvas');
+          labelCanvas.width = 128; labelCanvas.height = 64;
+          const lCtx = labelCanvas.getContext('2d');
+          lCtx.fillStyle = '#0f081d';
+          if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
+          lCtx.fill();
+          lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
+          lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
+          lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
+          lCtx.fillText(cDef.str, 64, 32);
+
+          const labelTex = new THREE.CanvasTexture(labelCanvas);
+          const labelSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex, depthTest: false }));
           labelSpr.scale.set(0.16, 0.08, 1);
           labelSpr.position.set(0, 0.125, 0);
           stack.add(labelSpr);
@@ -1834,14 +1840,14 @@
         const walnutWoodMat = new THREE.MeshStandardMaterial({
           color: 0x220c04, // Deep rich polished dark walnut / mahogany
           roughness: 0.25,
-          metalness: 0.15,
-          side: THREE.DoubleSide
+          metalness: 0.15
+          // FrontSide (default): cabinet only viewed from exterior, DoubleSide wastes fragment shader
         });
         const interiorWallMat = new THREE.MeshStandardMaterial({
           color: 0x2e1408, // Interior chamber wood finish
           roughness: 0.35,
-          metalness: 0.12,
-          side: THREE.DoubleSide
+          metalness: 0.12
+          // FrontSide (default): outer panels face outward only
         });
         const amberGlowMat = new THREE.MeshStandardMaterial({
           color: 0xf59e0b,
@@ -2500,45 +2506,30 @@
         return tex;
       }
 
-      let _cachedCoinEdgeMat = null;
-      let _cachedCoinCaraMat = null;
-      let _cachedCoinCruzMat = null;
-      const _cachedCoinGeoMap = {};
-
       function makeCoinMesh(radius = 0.48, thickness = 0.08) {
-        if (!_cachedCoinEdgeMat) {
-          _cachedCoinEdgeMat = new THREE.MeshStandardMaterial({
-            map: makeCoinEdgeTexture(),
-            color: 0xffd700,
-            metalness: 0.98,
-            roughness: 0.12
-          });
-        }
-        if (!_cachedCoinCaraMat) {
-          _cachedCoinCaraMat = new THREE.MeshStandardMaterial({
-            map: makeCoinFaceTexture('CARA', '👑'),
-            color: 0xffd700,
-            metalness: 0.96,
-            roughness: 0.14
-          });
-        }
-        if (!_cachedCoinCruzMat) {
-          _cachedCoinCruzMat = new THREE.MeshStandardMaterial({
-            map: makeCoinFaceTexture('CRUZ', '⚡'),
-            color: 0xffd700,
-            metalness: 0.96,
-            roughness: 0.14
-          });
-        }
-
-        const geoKey = radius + '_' + thickness;
-        if (!_cachedCoinGeoMap[geoKey]) {
-          _cachedCoinGeoMap[geoKey] = new THREE.CylinderGeometry(radius, radius, thickness, 48);
-        }
+        // 100% Pure 24K Gold Materials (Deep metallic luster & crisp reflections)
+        const edgeMat = new THREE.MeshStandardMaterial({
+          map: makeCoinEdgeTexture(),
+          color: 0xffd700,
+          metalness: 0.98,
+          roughness: 0.12
+        });
+        const caraFaceMat = new THREE.MeshStandardMaterial({
+          map: makeCoinFaceTexture('CARA', '👑'),
+          color: 0xffd700,
+          metalness: 0.96,
+          roughness: 0.14
+        });
+        const cruzFaceMat = new THREE.MeshStandardMaterial({
+          map: makeCoinFaceTexture('CRUZ', '⚡'),
+          color: 0xffd700,
+          metalness: 0.96,
+          roughness: 0.14
+        });
 
         const mesh = new THREE.Mesh(
-          _cachedCoinGeoMap[geoKey],
-          [_cachedCoinEdgeMat, _cachedCoinCaraMat, _cachedCoinCruzMat]
+          new THREE.CylinderGeometry(radius, radius, thickness, 64),
+          [edgeMat, caraFaceMat, cruzFaceMat]
         );
         mesh.castShadow = true;
         mesh.receiveShadow = true;
@@ -2700,13 +2691,13 @@
 
         const trayBase = new THREE.Mesh(
           new THREE.BoxGeometry(1.76, 0.025, 0.48),
-          new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 })
+          DARK_TRAY_MAT  // shared: was new MeshStandardMaterial(0x14091e×5)
         );
         trayBase.position.set(0, railTopY, -1.40);
 
         const trayGoldBorder = new THREE.Mesh(
           new THREE.BoxGeometry(1.80, 0.020, 0.52),
-          new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 })
+          GOLD_MAT_HIGH  // shared
         );
         trayGoldBorder.position.set(0, railTopY - 0.005, -1.40);
 
@@ -2737,8 +2728,20 @@
             stack.add(chipM);
           }
 
-          // Floating 3D Value Label with gold border (Pooled Material)
-          const labelSpr = new THREE.Sprite(getRackChipLabelMaterial(cDef.str));
+          // Floating 3D Value Label with gold border (EXACTLY matching user image)
+          const labelCanvas = document.createElement('canvas');
+          labelCanvas.width = 128; labelCanvas.height = 64;
+          const lCtx = labelCanvas.getContext('2d');
+          lCtx.fillStyle = '#0f081d';
+          if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
+          lCtx.fill();
+          lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
+          lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
+          lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
+          lCtx.fillText(cDef.str, 64, 32);
+
+          const labelTex = new THREE.CanvasTexture(labelCanvas);
+          const labelSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex, depthTest: false }));
           labelSpr.scale.set(0.16, 0.08, 1);
           labelSpr.position.set(0, 0.125, 0);
           labelSpr.userData = { chipVal: cDef.v };
@@ -3061,6 +3064,44 @@
         return mesh;
       }
 
+      // ============================================================
+      // SHARED GEOMETRIES & MATERIALS FOR STOOLS (prevent per-seat duplication)
+      // Used across all zones: ~15 zones x avg 5 seats = 75+ duplicate sets eliminated
+      // ============================================================
+      const STOOL_FOOT_GEO   = new THREE.CylinderGeometry(0.30, 0.34, 0.04, 20);
+      const STOOL_STEM_GEO   = new THREE.CylinderGeometry(0.05, 0.05, 0.42, 16);
+      const STOOL_FREST_GEO  = new THREE.TorusGeometry(0.18, 0.018, 12, 24);
+      const STOOL_CUSH_GEO   = new THREE.CylinderGeometry(0.34, 0.32, 0.10, 24);
+      const STOOL_RIM_GEO    = new THREE.TorusGeometry(0.34, 0.016, 12, 24);
+      const STOOL_GOLD_MAT   = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 });
+      // Cushion materials are per-zone (zone color), cached here to avoid duplicates within the same zone
+      const _stoolCushMatCache = {};
+      function getStoolCushionMat(zoneColor) {
+        if (!_stoolCushMatCache[zoneColor]) {
+          _stoolCushMatCache[zoneColor] = new THREE.MeshStandardMaterial({
+            color: 0x22123a,
+            roughness: 0.45,
+            metalness: 0.20,
+            emissive: new THREE.Color(zoneColor),
+            emissiveIntensity: 0.15
+          });
+        }
+        return _stoolCushMatCache[zoneColor];
+      }
+
+      // Shared Plinko peg material (avoids ~75 duplicate MeshStandardMaterial instances)
+      const PLINKO_PEG_MAT = new THREE.MeshStandardMaterial({
+        color: 0xf59e0b, metalness: 0.9, roughness: 0.1, emissive: 0xf59e0b, emissiveIntensity: 0.2
+      });
+      window.PLINKO_PEG_MAT = PLINKO_PEG_MAT;
+
+      // Shared Mines tile material (avoids 25 duplicate MeshStandardMaterial instances)
+      // Individual tiles get their own clones only when revealed (to change color/emissive)
+      const MINES_TILE_MAT = new THREE.MeshStandardMaterial({
+        color: 0x241a3d, emissive: 0x8b5cf6, emissiveIntensity: 0.25, metalness: 0.6, roughness: 0.25
+      });
+      window.MINES_TILE_MAT = MINES_TILE_MAT;
+
       ZONES.forEach(z => {
         const g = new THREE.Group();
         g.position.set(z.x, 0, z.z);
@@ -3134,7 +3175,7 @@
           g.add(goldFrame1, goldFrame2);
 
           // 4 Brass Stanchion Pillars with VIP Velvet Ropes
-          const stanchionMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.1 });
+          // Use shared geometries + GOLD_MAT_HIGH (was: new material + new geometries per zone)
           const stanchionPositions = [
             [-(platW / 2 - 0.4), -(platD / 2 - 0.4)],
             [(platW / 2 - 0.4), -(platD / 2 - 0.4)],
@@ -3142,64 +3183,46 @@
             [(platW / 2 - 0.4), (platD / 2 - 0.4)]
           ];
           stanchionPositions.forEach(([sx, sz]) => {
-            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.1, 16), stanchionMat);
+            const post = new THREE.Mesh(STANCHION_POST_GEO, GOLD_MAT_HIGH);
             post.position.set(sx, 0.55, sz);
-            const ballTop = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 16), stanchionMat);
+            const ballTop = new THREE.Mesh(STANCHION_BALL_GEO, GOLD_MAT_HIGH);
             ballTop.position.set(sx, 1.15, sz);
-            const baseCap = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.08, 16), stanchionMat);
+            const baseCap = new THREE.Mesh(STANCHION_BASE_GEO, GOLD_MAT_HIGH);
             baseCap.position.set(sx, 0.04, sz);
             g.add(post, ballTop, baseCap);
           });
         }
 
-        /* 3D seats around table / zone (Clean unified luxury casino stools resting directly on platform) */
+        /* 3D seats around table / zone — shared geometries & materials (zero per-seat duplication) */
         if (z.id !== 'jackpot') {
+          const zoneCushMat = getStoolCushionMat(z.color);
           z.seats.forEach(seat => {
-          const stoolGroup = new THREE.Group();
-          stoolGroup.position.set(seat.x - z.x, platY + platH / 2, seat.z - z.z);
-          stoolGroup.rotation.y = seat.r;
+            const stoolGroup = new THREE.Group();
+            stoolGroup.position.set(seat.x - z.x, platY + platH / 2, seat.z - z.z);
+            stoolGroup.rotation.y = seat.r;
 
-          const stoolFoot = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.30, 0.34, 0.04, 20),
-            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
-          );
-          stoolFoot.position.y = 0.02;
+            const stoolFoot = new THREE.Mesh(STOOL_FOOT_GEO, STOOL_GOLD_MAT);
+            stoolFoot.position.y = 0.02;
 
-          const stoolStem = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.05, 0.05, 0.42, 16),
-            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
-          );
-          stoolStem.position.y = 0.23;
+            const stoolStem = new THREE.Mesh(STOOL_STEM_GEO, STOOL_GOLD_MAT);
+            stoolStem.position.y = 0.23;
 
-          const stoolFootrest = new THREE.Mesh(
-            new THREE.TorusGeometry(0.18, 0.018, 12, 24),
-            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
-          );
-          stoolFootrest.rotation.x = Math.PI / 2;
-          stoolFootrest.position.y = 0.15;
+            const stoolFootrest = new THREE.Mesh(STOOL_FREST_GEO, STOOL_GOLD_MAT);
+            stoolFootrest.rotation.x = Math.PI / 2;
+            stoolFootrest.position.y = 0.15;
 
-          const cushionMat = new THREE.MeshStandardMaterial({
-            color: 0x22123a,
-            roughness: 0.45,
-            metalness: 0.20,
-            emissive: new THREE.Color(z.color),
-            emissiveIntensity: 0.15
+            const stoolCushion = new THREE.Mesh(STOOL_CUSH_GEO, zoneCushMat);
+            stoolCushion.position.y = 0.46;
+            stoolCushion.castShadow = true;
+
+            const stoolGoldRim = new THREE.Mesh(STOOL_RIM_GEO, STOOL_GOLD_MAT);
+            stoolGoldRim.rotation.x = Math.PI / 2;
+            stoolGoldRim.position.y = 0.46;
+
+            stoolGroup.add(stoolFoot, stoolStem, stoolFootrest, stoolCushion, stoolGoldRim);
+            g.add(stoolGroup);
           });
-          const stoolCushion = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.32, 0.10, 24), cushionMat);
-          stoolCushion.position.y = 0.46;
-          stoolCushion.castShadow = true;
-
-          const stoolGoldRim = new THREE.Mesh(
-            new THREE.TorusGeometry(0.34, 0.016, 12, 24),
-            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
-          );
-          stoolGoldRim.rotation.x = Math.PI / 2;
-          stoolGoldRim.position.y = 0.46;
-
-          stoolGroup.add(stoolFoot, stoolStem, stoolFootrest, stoolCushion, stoolGoldRim);
-          g.add(stoolGroup);
-        });
-      }
+        }
 
         /* Centerpiece 3D Model construction */
         let centerpiece;
@@ -3657,8 +3680,8 @@
           feltMesh.name = 'rouletteFelt3D';
           rGroup.add(feltMesh);
 
-          // 3.3. PHYSICAL HIGH-RELIEF 3D GOLD MOLDED GRID (Visible from all standing angles & distances!)
-          const goldRibGroup = new THREE.Group();
+          // 3.3. PHYSICAL HIGH-RELIEF 3D GOLD MOLDED GRID
+          // MERGED into ONE BufferGeometry: ~38 draw calls → 1 draw call
           const goldRibMat = new THREE.MeshStandardMaterial({
             color: 0xffd700,
             metalness: 0.96,
@@ -3667,77 +3690,91 @@
             emissiveIntensity: 0.32
           });
 
-          const ribH = 0.032; // 32mm High-relief 3D height above felt (Visible from all camera angles!)
-          const ribThickness = 0.020; // 20mm bold solid divider bar
-          const ribY = 0.811; // Sits with top at y = 0.827m
+          const ribH = 0.032;
+          const ribThickness = 0.020;
+          const ribY = 0.811;
 
-          function addGoldHLine(cx1, cx2, cy, h = ribH, thick = ribThickness) {
+          // Collect rib specs (no Mesh creation yet)
+          const _goldRibSpecs = [];
+          function _collectHLine(cx1, cx2, cy, h, thick) {
+            const bh = (h !== undefined) ? h : ribH;
+            const bt = (thick !== undefined) ? thick : ribThickness;
             const x1 = ((cx1 / 2048) - 0.5) * 3.6;
             const x2 = ((cx2 / 2048) - 0.5) * 3.6;
-            const z = 0.40 + ((cy / 1024) - 0.5) * 2.2;
-            const len = Math.abs(x2 - x1) + thick;
-            const midX = (x1 + x2) / 2;
-            const rib = new THREE.Mesh(new THREE.BoxGeometry(len, h, thick), goldRibMat);
-            rib.position.set(midX, ribY, z);
-            rib.castShadow = true; rib.receiveShadow = true;
-            goldRibGroup.add(rib);
+            const z  = 0.40 + ((cy / 1024) - 0.5) * 2.2;
+            _goldRibSpecs.push({ x: (x1 + x2) / 2, y: ribY, z, w: Math.abs(x2 - x1) + bt, bh, d: bt });
           }
-
-          function addGoldVLine(cx, cy1, cy2, h = ribH, thick = ribThickness) {
-            const x = ((cx / 2048) - 0.5) * 3.6;
+          function _collectVLine(cx, cy1, cy2, h, thick) {
+            const bh = (h !== undefined) ? h : ribH;
+            const bt = (thick !== undefined) ? thick : ribThickness;
+            const x  = ((cx / 2048) - 0.5) * 3.6;
             const z1 = 0.40 + ((cy1 / 1024) - 0.5) * 2.2;
             const z2 = 0.40 + ((cy2 / 1024) - 0.5) * 2.2;
-            const len = Math.abs(z2 - z1) + thick;
-            const midZ = (z1 + z2) / 2;
-            const rib = new THREE.Mesh(new THREE.BoxGeometry(thick, h, len), goldRibMat);
-            rib.position.set(x, ribY, midZ);
-            rib.castShadow = true; rib.receiveShadow = true;
-            goldRibGroup.add(rib);
+            _goldRibSpecs.push({ x, y: ribY, z: (z1 + z2) / 2, w: bt, bh, d: Math.abs(z2 - z1) + bt });
           }
 
           // 1. Outer Perimeter High-Relief Gold Frame
-          const borderH = 0.038;
-          const borderThick = 0.026;
-          addGoldHLine(30, 2018, 20, borderH, borderThick);
-          addGoldHLine(30, 2018, 1004, borderH, borderThick);
-          addGoldVLine(30, 20, 1004, borderH, borderThick);
-          addGoldVLine(2018, 20, 1004, borderH, borderThick);
+          const borderH = 0.038, borderThick = 0.026;
+          _collectHLine(30, 2018, 20, borderH, borderThick);
+          _collectHLine(30, 2018, 1004, borderH, borderThick);
+          _collectVLine(30, 20, 1004, borderH, borderThick);
+          _collectVLine(2018, 20, 1004, borderH, borderThick);
 
           // 2. Zero Cell
-          addGoldHLine(50, 240, 30);
-          addGoldHLine(50, 240, 660);
-          addGoldVLine(50, 30, 660);
-          addGoldVLine(240, 30, 660);
+          _collectHLine(50, 240, 30);
+          _collectHLine(50, 240, 660);
+          _collectVLine(50, 30, 660);
+          _collectVLine(240, 30, 660);
 
           // 3. Numbers Grid 3x12 (1 to 36)
-          for (let r = 0; r <= 3; r++) {
-            addGoldHLine(240, 1752, 30 + r * 210);
-          }
-          for (let c = 0; c <= 12; c++) {
-            addGoldVLine(240 + c * 126, 30, 660);
-          }
+          for (let r = 0; r <= 3; r++) _collectHLine(240, 1752, 30 + r * 210);
+          for (let c = 0; c <= 12; c++) _collectVLine(240 + c * 126, 30, 660);
 
           // 4. 2:1 Column Bets (Right Flank)
-          for (let r = 0; r <= 3; r++) {
-            addGoldHLine(1752, 1920, 30 + r * 210);
-          }
-          addGoldVLine(1920, 30, 660);
+          for (let r = 0; r <= 3; r++) _collectHLine(1752, 1920, 30 + r * 210);
+          _collectVLine(1920, 30, 660);
 
           // 5. Dozens Row (1st 12, 2nd 12, 3rd 12)
-          addGoldHLine(240, 1752, 660);
-          addGoldHLine(240, 1752, 810);
-          for (let d = 0; d <= 3; d++) {
-            addGoldVLine(240 + d * 504, 660, 810);
-          }
+          _collectHLine(240, 1752, 660);
+          _collectHLine(240, 1752, 810);
+          for (let d = 0; d <= 3; d++) _collectVLine(240 + d * 504, 660, 810);
 
           // 6. Outside Bets Row (1 A 18, PAR, ROJO, NEGRO, IMPAR, 19 A 36)
-          addGoldHLine(240, 1752, 810);
-          addGoldHLine(240, 1752, 990);
-          for (let o = 0; o <= 6; o++) {
-            addGoldVLine(240 + o * 252, 810, 990);
-          }
+          _collectHLine(240, 1752, 810);
+          _collectHLine(240, 1752, 990);
+          for (let o = 0; o <= 6; o++) _collectVLine(240 + o * 252, 810, 990);
 
-          rGroup.add(goldRibGroup);
+          // Merge all collected specs into ONE BufferGeometry = ONE draw call
+          {
+            const _allPos = [], _allNorm = [], _allUv = [], _allIdx = [];
+            let _vOff = 0;
+            for (const s of _goldRibSpecs) {
+              const g = new THREE.BoxGeometry(s.w, s.bh, s.d);
+              const pa = g.attributes.position.array;
+              const na = g.attributes.normal.array;
+              const ua = g.attributes.uv.array;
+              const ia = g.index.array;
+              for (let i = 0; i < pa.length; i += 3) {
+                _allPos.push(pa[i] + s.x, pa[i + 1] + s.y, pa[i + 2] + s.z);
+              }
+              for (let i = 0; i < na.length; i++) _allNorm.push(na[i]);
+              for (let i = 0; i < ua.length; i++) _allUv.push(ua[i]);
+              for (let i = 0; i < ia.length; i++) _allIdx.push(ia[i] + _vOff);
+              _vOff += pa.length / 3;
+              g.dispose();
+            }
+            const _mergedRibGeo = new THREE.BufferGeometry();
+            _mergedRibGeo.setAttribute('position', new THREE.Float32BufferAttribute(_allPos, 3));
+            _mergedRibGeo.setAttribute('normal',   new THREE.Float32BufferAttribute(_allNorm, 3));
+            _mergedRibGeo.setAttribute('uv',       new THREE.Float32BufferAttribute(_allUv, 2));
+            _mergedRibGeo.setIndex(_allIdx);
+            _mergedRibGeo.computeBoundingSphere();
+            const goldRibMesh = new THREE.Mesh(_mergedRibGeo, goldRibMat);
+            // Decorative static grid — no shadow contribution needed
+            goldRibMesh.castShadow = false;
+            goldRibMesh.receiveShadow = false;
+            rGroup.add(goldRibMesh);
+          }
 
           // 4. LATERAL FLANKING 3D CHIP RACKS (Elevated to y = 0.798!)
           const controlGroup = new THREE.Group();
@@ -3746,19 +3783,15 @@
           const chip3DMeshes = [];
 
           // Left Lateral Groove & Tray (x = -2.10m)
-          const trayLeft = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.02, 2.25),
-            new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 }));
+          const trayLeft = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.02, 2.25), DARK_TRAY_MAT);  // shared
           trayLeft.position.set(-2.10, 0, 0);
-          const trayLeftGold = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.01, 2.27),
-            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.15 }));
+          const trayLeftGold = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.01, 2.27), GOLD_MAT_MED);  // shared
           trayLeftGold.position.set(-2.10, 0.010, 0);
 
           // Right Lateral Groove & Tray (x = +2.10m)
-          const trayRight = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.02, 2.25),
-            new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 }));
+          const trayRight = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.02, 2.25), DARK_TRAY_MAT);  // shared
           trayRight.position.set(2.10, 0, 0);
-          const trayRightGold = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.01, 2.27),
-            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.15 }));
+          const trayRightGold = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.01, 2.27), GOLD_MAT_MED);  // shared
           trayRightGold.position.set(2.10, 0.010, 0);
           controlGroup.add(trayLeft, trayLeftGold, trayRight, trayRightGold);
 
@@ -3802,8 +3835,19 @@
               stack.add(chipM);
             }
 
-            // Floating 3D Value Label (Pooled Material)
-            const labelSpr = new THREE.Sprite(getRackChipLabelMaterial(cDef.str));
+            // Floating 3D Value Label
+            const labelCanvas = document.createElement('canvas'); labelCanvas.width = 128; labelCanvas.height = 64;
+            const lCtx = labelCanvas.getContext('2d');
+            lCtx.fillStyle = '#0f081d';
+            if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
+            lCtx.fill();
+            lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
+            lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
+            lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
+            lCtx.fillText(cDef.str, 64, 32);
+
+            const labelTex = new THREE.CanvasTexture(labelCanvas);
+            const labelSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex, depthTest: false }));
             labelSpr.scale.set(0.20, 0.10, 1);
             labelSpr.position.set(0, 0.14, 0);
             stack.add(labelSpr);
@@ -3817,12 +3861,9 @@
           rGroup.add(placedChips3DGroup);
 
           function update3DPlacedChips() {
-            if (typeof safeClear3DGroup === 'function') {
-              safeClear3DGroup(placedChips3DGroup);
-            } else {
-              while (placedChips3DGroup.children.length > 0) {
-                placedChips3DGroup.remove(placedChips3DGroup.children[0]);
-              }
+            while (placedChips3DGroup.children.length > 0) {
+              const child = placedChips3DGroup.children[0];
+              placedChips3DGroup.remove(child);
             }
 
             const betsMap = (typeof rState !== 'undefined' && rState && rState.bets) ? rState.bets : {};
@@ -3973,9 +4014,10 @@
           rightWall.rotation.x = -0.16;
           plinkoGroup.add(leftWall, rightWall);
 
-          // 2. Pyramid of 3D Pegs (10 Rows)
+          // 2. Pyramid of 3D Pegs (10 Rows) — shared pegMat via PLINKO_PEG_MAT
           const pegs3DMeshes = [];
           const pegGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.18, 12);
+          const _pegHeadGeo = new THREE.SphereGeometry(0.06, 12, 12);
 
           for (let row = 0; row < 10; row++) {
             const numPegs = row + 3;
@@ -3985,14 +4027,13 @@
 
             for (let p = 0; p < numPegs; p++) {
               const px = startX + p * 0.36;
-              const pegMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9, roughness: 0.1, emissive: 0xf59e0b, emissiveIntensity: 0.2 });
-              const pegMesh = new THREE.Mesh(pegGeo, pegMat);
+              const pegMesh = new THREE.Mesh(pegGeo, PLINKO_PEG_MAT);
               pegMesh.rotation.x = Math.PI / 2 - 0.16;
               const pz = -0.05 + (5.0 - py) * Math.sin(0.16);
               pegMesh.position.set(px, py, pz);
 
-              // Shiny sphere head on peg
-              const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), pegMat);
+              // Shiny sphere head on peg (shared material)
+              const headMesh = new THREE.Mesh(_pegHeadGeo, PLINKO_PEG_MAT);
               headMesh.position.set(0, 0.10, 0);
               pegMesh.add(headMesh);
 
@@ -4007,16 +4048,20 @@
           const bucketWidth = 3.9 / 11;
           const bucketMeshes = [];
 
+          const _bucketGeo = new THREE.BoxGeometry(bucketWidth - 0.04, 0.45, 0.24);
+          const _divGeo    = new THREE.BoxGeometry(0.02, 0.55, 0.28);
+          const _divMat    = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8 });
+
           plinkoMults.forEach((m, idx) => {
             const bx = -1.95 + idx * bucketWidth + bucketWidth / 2;
             const bMat = new THREE.MeshStandardMaterial({ color: multColors[idx], roughness: 0.3, emissive: multColors[idx], emissiveIntensity: 0.3 });
-            const bucketBox = new THREE.Mesh(new THREE.BoxGeometry(bucketWidth - 0.04, 0.45, 0.24), bMat);
+            const bucketBox = new THREE.Mesh(_bucketGeo, bMat);
             bucketBox.position.set(bx, 0.45, 0.02);
             plinkoGroup.add(bucketBox);
 
-            // Divider wall
+            // Divider wall (shared geo + shared mat)
             if (idx > 0) {
-              const divMesh = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.55, 0.28), new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8 }));
+              const divMesh = new THREE.Mesh(_divGeo, _divMat);
               divMesh.position.set(-1.95 + idx * bucketWidth, 0.48, 0.02);
               plinkoGroup.add(divMesh);
             }
@@ -4072,17 +4117,16 @@
           minesGroup.add(neonEdge);
 
           // Cuadrícula 5x5 de fichas físicas interactuables sobre la mesa
+          // Shared material (MINES_TILE_MAT) — game logic clones per-tile only on reveal
           const tileSize = 0.32, gap = 0.05, cols = 5;
           const totalW = cols * tileSize + (cols - 1) * gap;
           const start0 = -totalW / 2 + tileSize / 2;
+          const _tileMeshGeo = new THREE.BoxGeometry(tileSize, 0.1, tileSize);
           minesTileMeshes = [];
           for (let row = 0; row < 5; row++) {
             for (let col = 0; col < 5; col++) {
               const idx = row * 5 + col;
-              const tMat = new THREE.MeshStandardMaterial({
-                color: 0x241a3d, emissive: 0x8B5CF6, emissiveIntensity: 0.25, roughness: 0.5, metalness: 0.15
-              });
-              const tMesh = new THREE.Mesh(new THREE.BoxGeometry(tileSize, 0.1, tileSize), tMat);
+              const tMesh = new THREE.Mesh(_tileMeshGeo, MINES_TILE_MAT);
               tMesh.position.set(start0 + col * (tileSize + gap), baseY + 0.11, start0 + row * (tileSize + gap));
               tMesh.userData.mineIdx = idx;
               tMesh.userData.baseY = tMesh.position.y;
@@ -4263,13 +4307,13 @@
           // 5. Luxury 2-Tiered Mahogany & Gold Dealer Chip Tray with 16 3D Chip Stacks (2 Rows of 8)
           const trayBase = new THREE.Mesh(
             new THREE.BoxGeometry(1.40, 0.024, 0.38),
-            new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 })
+            DARK_TRAY_MAT  // shared: was new MeshStandardMaterial(0x14091e×5)
           );
           trayBase.position.set(0, 0.835, 0.20);
 
           const trayGoldBorder = new THREE.Mesh(
             new THREE.BoxGeometry(1.42, 0.015, 0.40),
-            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 })
+            GOLD_MAT_HIGH  // shared
           );
           trayGoldBorder.position.set(0, 0.828, 0.20);
 
@@ -4298,8 +4342,20 @@
               stack.add(chipM);
             }
 
-            // Floating 3D Value Label with gold border (Pooled Material)
-            const labelSpr = new THREE.Sprite(getRackChipLabelMaterial(cDef.str));
+            // Floating 3D Value Label with gold border
+            const labelCanvas = document.createElement('canvas');
+            labelCanvas.width = 128; labelCanvas.height = 64;
+            const lCtx = labelCanvas.getContext('2d');
+            lCtx.fillStyle = '#0f081d';
+            if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
+            lCtx.fill();
+            lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
+            lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
+            lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
+            lCtx.fillText(cDef.str, 64, 32);
+
+            const labelTex = new THREE.CanvasTexture(labelCanvas);
+            const labelSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex, depthTest: false }));
             labelSpr.scale.set(0.16, 0.08, 1);
             labelSpr.position.set(0, 0.115, 0);
             stack.add(labelSpr);
@@ -4422,13 +4478,10 @@
         }
         g.add(centerpiece);
 
-        // Consolidated Ambiance PointLights (Skip duplicate lights for zones with dedicated fixtures)
-        const hasDedicatedFixture = ['bowling', 'tvcasino', 'jackpot', 'dice', 'coin', 'jukebox', 'bar'].includes(z.id);
-        if (!hasDedicatedFixture) {
-          const light = new THREE.PointLight(z.color, 1.2, 10, 2);
-          light.position.set(0, 2.5, 0);
-          g.add(light);
-        }
+        const light = new THREE.PointLight(z.color, 1.2, 8);
+        light.position.set(0, 2.5, 0);
+        if (z.id === 'jukebox') light.intensity = 0; // Jukebox already has its own custom warm point light!
+        g.add(light);
 
         const label = makeLabelSprite(z.name, z.icon, z.color);
         if (z.id === 'jukebox') {
@@ -4442,15 +4495,11 @@
         }
         g.add(label);
 
-        if (g && typeof g.traverse === 'function') {
-          g.traverse(m => {
-            if (m && m.isMesh && m.geometry) {
-              if (typeof m.geometry.computeBoundingSphere === 'function' && !m.geometry.boundingSphere) {
-                m.geometry.computeBoundingSphere();
-              }
-            }
-          });
-        }
+        // Frustum culling ENABLED (Three.js default = true).
+        // Sprites (zone labels, nametags) use depthTest:false and remain
+        // correctly handled by Three.js built-in frustum culling.
+        // DO NOT disable frustumCulled globally — it forces every mesh in
+        // the entire casino to be rendered every frame regardless of visibility.
 
         scene.add(g);
         zoneMeshes[z.id] = { group: g, ring, label, pulse: Math.random() * Math.PI * 2 };
@@ -4460,13 +4509,6 @@
       createFloorNeonTracks(scene);
       createCasinoWalls(scene);
       createCasinoCeilingSpeakers(scene);
-
-      // Pre-compile and pre-warm all WebGL shader programs to eliminate in-game stutter
-      try {
-        if (renderer && scene && camera && typeof renderer.compile === 'function') {
-          renderer.compile(scene, camera);
-        }
-      } catch (e) { }
 
 // --- Explicit Global Window Bindings ---
 if (typeof host !== 'undefined') window.host = host;

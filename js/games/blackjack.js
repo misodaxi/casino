@@ -231,8 +231,7 @@
       function renderAllBlackjackChips() {
         if (!window.bj3DRefs || !window.bj3DRefs.chipsGroup) return;
         const grp = window.bj3DRefs.chipsGroup;
-        if (typeof safeClear3DGroup === 'function') safeClear3DGroup(grp);
-        else while (grp.children && grp.children.length > 0) grp.remove(grp.children[0]);
+        while (grp.children && grp.children.length > 0) grp.remove(grp.children[0]);
 
         const seatBets = {};
 
@@ -439,8 +438,7 @@
 
           if (data.sequence === 1 && window.bj3DRefs && window.bj3DRefs.cardsGroup) {
             const grp = window.bj3DRefs.cardsGroup;
-            if (typeof safeClear3DGroup === 'function') safeClear3DGroup(grp);
-            else while (grp.children.length > 0) grp.remove(grp.children[0]);
+            while (grp.children.length > 0) grp.remove(grp.children[0]);
             bjDealt3DMeshes = {};
             bjDealerHiddenMesh = null;
           }
@@ -520,8 +518,7 @@
           // Animar visualmente la separación de las cartas de Mano 1 y Mano 2
           if (window.bj3DRefs && window.bj3DRefs.cardsGroup) {
             const grp = window.bj3DRefs.cardsGroup;
-            if (typeof safeClear3DGroup === 'function') safeClear3DGroup(grp);
-            else while (grp.children.length > 0) grp.remove(grp.children[0]);
+            while (grp.children.length > 0) grp.remove(grp.children[0]);
             bjDealt3DMeshes = {};
           }
 
@@ -730,8 +727,7 @@
         }
         if (window.bj3DRefs && window.bj3DRefs.cardsGroup) {
           const grp = window.bj3DRefs.cardsGroup;
-          if (typeof safeClear3DGroup === 'function') safeClear3DGroup(grp);
-          else while (grp.children.length > 0) grp.remove(grp.children[0]);
+          while (grp.children.length > 0) grp.remove(grp.children[0]);
         }
         bjState.isSplit = false;
         bjState.splitHand = [];

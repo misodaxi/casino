@@ -1,27 +1,23 @@
 /* ============================================================
-   CANVAS PARTICLE FX SYSTEM (ZERO-GC CONFETTI OBJECT POOL)
-============================================================ */
+         CANVAS PARTICLE FX SYSTEM (CONFETTI, SPARKS) — POOLED
+      ============================================================ */
       var fxCanvas = document.getElementById('fx-canvas');
       var fxCtx = fxCanvas.getContext('2d');
-      const MAX_CONFETTI_POOL = 160;
-      const confettiColors = ['#8B5CF6', '#E11FD1', '#FB923C', '#22c55e', '#38bdf8', '#FBBF24'];
+      var particles = [];
 
-      // Pre-allocated static particle pool (Zero GC allocations during celebrations)
-      const confettiPool = [];
-      for (let i = 0; i < MAX_CONFETTI_POOL; i++) {
-        confettiPool.push({
-          active: false,
-          x: 0, y: 0,
-          vx: 0, vy: 0,
-          size: 8,
-          color: '#8B5CF6',
-          life: 0,
-          decay: 0.015,
-          rot: 0,
-          vRot: 0
-        });
+      // --- Object Pool: eliminates per-particle GC (60 allocs/confetti → 0) ---
+      const _PART_POOL = [];
+      const _PART_POOL_SIZE = 120;
+      for (let _pi = 0; _pi < _PART_POOL_SIZE; _pi++) {
+        _PART_POOL.push({ x: 0, y: 0, vx: 0, vy: 0, size: 0, color: '', life: 0, decay: 0, rot: 0, vRot: 0 });
       }
-      let activeConfettiCount = 0;
+      function _acquireParticle() {
+        return _PART_POOL.length > 0 ? _PART_POOL.pop()
+          : { x: 0, y: 0, vx: 0, vy: 0, size: 0, color: '', life: 0, decay: 0, rot: 0, vRot: 0 };
+      }
+      function _releaseParticle(p) {
+        _PART_POOL.push(p);
+      }
 
       function resizeFxCanvas() {
         fxCanvas.width = window.innerWidth;
@@ -30,74 +26,56 @@
       window.addEventListener('resize', resizeFxCanvas);
       resizeFxCanvas();
 
+      const _CONFETTI_COLORS = ['#8B5CF6', '#E11FD1', '#FB923C', '#22c55e', '#38bdf8', '#FBBF24'];
+      const _CC_LEN = _CONFETTI_COLORS.length;
+
       function triggerConfetti() {
         playSound('win');
         const maxP = (window.currentQuality && window.currentQuality.maxParticles) ? window.currentQuality.maxParticles : 60;
-        const countToSpawn = Math.min(maxP, MAX_CONFETTI_POOL);
-        const centerX = window.innerWidth / 2;
-        const centerY = window.innerHeight / 2 - 50;
-
-        let spawned = 0;
-        for (let i = 0; i < MAX_CONFETTI_POOL && spawned < countToSpawn; i++) {
-          const p = confettiPool[i];
-          if (!p.active) {
-            p.active = true;
-            p.x = centerX;
-            p.y = centerY;
-            p.vx = (Math.random() - 0.5) * 18;
-            p.vy = (Math.random() - 0.8) * 16;
-            p.size = 6 + Math.random() * 8;
-            p.color = confettiColors[Math.floor(Math.random() * confettiColors.length)];
-            p.life = 1.0;
-            p.decay = 0.012 + Math.random() * 0.01;
-            p.rot = Math.random() * Math.PI * 2;
-            p.vRot = (Math.random() - 0.5) * 0.2;
-            spawned++;
-            activeConfettiCount++;
-          }
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2 - 50;
+        for (let i = 0; i < maxP; i++) {
+          const p = _acquireParticle();
+          p.x     = cx;
+          p.y     = cy;
+          p.vx    = (Math.random() - 0.5) * 18;
+          p.vy    = (Math.random() - 0.8) * 16;
+          p.size  = 6 + Math.random() * 8;
+          p.color = _CONFETTI_COLORS[Math.floor(Math.random() * _CC_LEN)];
+          p.life  = 1;
+          p.decay = 0.012 + Math.random() * 0.01;
+          p.rot   = Math.random() * Math.PI * 2;
+          p.vRot  = (Math.random() - 0.5) * 0.2;
+          particles.push(p);
         }
       }
-      function spawnConfetti() { triggerConfetti(); }
 
       function updateParticles() {
-        if (activeConfettiCount <= 0) return; // 0 CPU cost when idle
+        if (particles.length === 0) return; // 0 CPU cost when idle
         fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
-        let stillActive = 0;
-
-        for (let i = 0; i < MAX_CONFETTI_POOL; i++) {
-          const p = confettiPool[i];
-          if (!p.active) continue;
-
-          p.x += p.vx;
-          p.y += p.vy;
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x  += p.vx;
+          p.y  += p.vy;
           p.vy += 0.35;
           p.rot += p.vRot;
           p.life -= p.decay;
 
           if (p.life <= 0) {
-            p.active = false;
+            _releaseParticle(p);   // Return to pool (zero GC)
+            particles.splice(i, 1);
             continue;
           }
 
-          stillActive++;
-
-          // Ultra-fast 2D matrix transformation (eliminates expensive save/restore state copies)
-          const cos = Math.cos(p.rot);
-          const sin = Math.sin(p.rot);
-          const half = p.size / 2;
-
-          fxCtx.setTransform(cos, sin, -sin, cos, p.x, p.y);
+          fxCtx.save();
+          fxCtx.translate(p.x, p.y);
+          fxCtx.rotate(p.rot);
           fxCtx.globalAlpha = p.life;
           fxCtx.fillStyle = p.color;
-          fxCtx.fillRect(-half, -half, p.size, p.size);
+          fxCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+          fxCtx.restore();
         }
-
-        // Reset canvas matrix transform once after the batch
-        fxCtx.setTransform(1, 0, 0, 1, 0, 0);
-        fxCtx.globalAlpha = 1.0;
-
-        activeConfettiCount = stillActive;
-        if (activeConfettiCount === 0) {
+        if (particles.length === 0) {
           fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
         }
       }

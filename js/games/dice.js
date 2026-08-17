@@ -6,8 +6,7 @@
       function update3DDiceChips(betAmount) {
         if (!dice3DRefs || !dice3DRefs.chipsGroup) return;
         const grp = dice3DRefs.chipsGroup;
-        if (typeof safeClear3DGroup === 'function') safeClear3DGroup(grp);
-        else while (grp.children && grp.children.length > 0) grp.remove(grp.children[0]);
+        while (grp.children && grp.children.length > 0) grp.remove(grp.children[0]);
         const amt = Math.max(0, betAmount || 0);
         if (amt > 0) {
           // Detectar dinámicamente en qué asiento está sentado el jugador (0 = Asiento Izquierdo, 1 = Asiento Derecho)

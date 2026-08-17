@@ -20,31 +20,11 @@ const { setupBlackjackSocketEvents, handleBlackjackDisconnect } = require('./gam
 const { setupDiceSocketEvents, handleDiceVersusDisconnect } = require('./games/dice');
 const { setupCoinSocketEvents, handleCoinVersusDisconnect } = require('./games/coin');
 
-const CASINO_SPATIAL_ZONES_MAP = {};
-CASINO_SPATIAL_ZONES.forEach(z => {
-  CASINO_SPATIAL_ZONES_MAP[z.id] = {
-    x: z.x,
-    z: z.z,
-    radSq: z.radius * z.radius
-  };
-});
-
-function getZoneForPosition(x, z, currentZoneId = null) {
-  // O(1) Fast Path: if player is still within their current zone radius, return currentZone immediately
-  if (currentZoneId && CASINO_SPATIAL_ZONES_MAP[currentZoneId]) {
-    const cur = CASINO_SPATIAL_ZONES_MAP[currentZoneId];
-    const dx = x - cur.x;
-    const dz = z - cur.z;
-    if (dx * dx + dz * dz <= cur.radSq) {
-      return currentZoneId;
-    }
-  }
-
+function getZoneForPosition(x, z) {
   let closestZone = 'lobby';
   let minDistanceSq = Infinity;
 
-  for (let i = 0; i < CASINO_SPATIAL_ZONES.length; i++) {
-    const zone = CASINO_SPATIAL_ZONES[i];
+  for (const zone of CASINO_SPATIAL_ZONES) {
     const dx = x - zone.x;
     const dz = z - zone.z;
     const distSq = dx * dx + dz * dz;
@@ -124,6 +104,13 @@ function setupSocketIO(io) {
     });
 
     // High-Frequency Compact Transform Update (pTransform)
+    // Broadcast throttle: max 20Hz per socket (50ms), skip if position unchanged
+    let _lastBroadcastT = 0;
+    let _lastBroadcastX = initialX;
+    let _lastBroadcastZ = initialZ;
+    const BROADCAST_INTERVAL_MS = 50;  // 20 Hz max broadcast rate
+    const BROADCAST_DELTA_SQ    = 0.0009; // ~3cm threshold (0.03^2)
+
     socket.on('pTransform', (data) => {
       const p = players[socket.id];
       if (!p || !data) return;
@@ -138,7 +125,7 @@ function setupSocketIO(io) {
       p.rotY = typeof data.rotY === 'number' ? data.rotY : p.rotY;
       p.lastActive = Date.now();
 
-      const newZone = getZoneForPosition(p.x, p.z, socket.currentZone);
+      const newZone = getZoneForPosition(p.x, p.z);
       if (newZone !== socket.currentZone) {
         socket.leave('zone:' + socket.currentZone);
         socket.to('zone:' + socket.currentZone).emit('playerLeft', socket.id);
@@ -153,7 +140,20 @@ function setupSocketIO(io) {
           zone: newZone,
           players: newRelevantPlayers
         });
+        // Force a broadcast on zone change regardless of throttle
+        _lastBroadcastT = 0;
       }
+
+      // Throttle broadcast: only emit if enough time has passed AND position changed enough
+      const now = Date.now();
+      const dx = p.x - _lastBroadcastX;
+      const dz = p.z - _lastBroadcastZ;
+      const deltaSq = dx * dx + dz * dz;
+      if (now - _lastBroadcastT < BROADCAST_INTERVAL_MS && deltaSq < BROADCAST_DELTA_SQ) return;
+
+      _lastBroadcastT = now;
+      _lastBroadcastX = p.x;
+      _lastBroadcastZ = p.z;
 
       socket.to('zone:' + socket.currentZone).emit('pTransform', {
         id: socket.id,
@@ -161,11 +161,11 @@ function setupSocketIO(io) {
         z: p.z,
         rotY: p.rotY,
         seq: p.lastSeq,
-        t: data.t || Date.now()
+        t: data.t || now
       });
     });
 
-    // Backwards-Compatible Transform Handler
+    // Backwards-Compatible Transform Handler (legacy — new clients use pTransform)
     socket.on('updateTransform', (data) => {
       const p = players[socket.id];
       if (!p || !data) return;
@@ -179,6 +179,7 @@ function setupSocketIO(io) {
         if (cleanName !== p.name) {
           p.name = cleanName;
           ipNames[clientIp] = cleanName;
+          // Zone-scoped name change (was global io.emit)
           io.to('zone:' + socket.currentZone).emit('playerNameChanged', { id: socket.id, name: cleanName });
         }
       }
@@ -192,14 +193,20 @@ function setupSocketIO(io) {
       if (newZone !== socket.currentZone) {
         socket.leave('zone:' + socket.currentZone);
         socket.to('zone:' + socket.currentZone).emit('playerLeft', socket.id);
-
         socket.currentZone = newZone;
         p.zone = newZone;
         socket.join('zone:' + newZone);
         socket.to('zone:' + newZone).emit('playerJoined', p);
       }
 
-      socket.to('zone:' + socket.currentZone).emit('playerMoved', p);
+      // Compact payload: avoid sending full player object (has lastActive, lastSeq, etc.)
+      socket.to('zone:' + socket.currentZone).emit('playerMoved', {
+        id: socket.id,
+        x: p.x,
+        z: p.z,
+        rotY: p.rotY,
+        seat: p.seat
+      });
     });
 
     // Discrete Name Change Event
@@ -209,7 +216,9 @@ function setupSocketIO(io) {
         const cleanName = data.name.trim().substring(0, 24);
         p.name = cleanName;
         ipNames[clientIp] = cleanName;
-        io.emit('playerNameChanged', { id: socket.id, name: cleanName });
+        // Zone-scoped: only players who can see this avatar need the name update
+        // (was io.emit = global broadcast to ALL players regardless of location)
+        io.to('zone:' + socket.currentZone).emit('playerNameChanged', { id: socket.id, name: cleanName });
       }
     });
 
@@ -444,11 +453,15 @@ function setupSocketIO(io) {
         const p = players[socket.id];
         const senderName = p ? p.name : (data.name || 'Jugador');
         const cleanMsg = data.text.trim().substring(0, 160);
+        // Avoid new Date() + toLocaleTimeString() on each message (creates Date object + locale processing)
+        const _n = new Date();
+        const _h = _n.getHours().toString().padStart(2, '0');
+        const _m = _n.getMinutes().toString().padStart(2, '0');
         io.emit('chatMessage', {
           id: socket.id,
           name: senderName,
           text: cleanMsg,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          time: _h + ':' + _m
         });
       }
     });

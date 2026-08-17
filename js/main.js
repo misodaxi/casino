@@ -18,6 +18,11 @@
       let lowFpsStreak = 0;
       let highFpsStreak = 0;
 
+      // Pre-allocated vectors for camera updates (zero GC per frame)
+      const _cineDesiredPos = new THREE.Vector3();
+      const _cineLookTarget = new THREE.Vector3();
+      const _seatedDesiredPos = new THREE.Vector3();
+
       // Debug HUD references
       const debugHudEl = document.getElementById('debugPerfHud');
       const debugToggleBtn = document.getElementById('debugToggleBtn');
@@ -50,13 +55,17 @@
       // Precise Frame Timing & 1% Low Percentile Tracking
       const FRAME_SAMPLE_SIZE = 120;
       const frameTimeHistory = new Float32Array(FRAME_SAMPLE_SIZE);
+      // Pre-allocated sort buffer: reused every 500ms tick (zero GC per sort)
+      const _sortedFramesBuf = new Float32Array(FRAME_SAMPLE_SIZE);
       let frameHistoryIdx = 0;
       let frameHistoryCount = 0;
       let onePercentLowFps = 60;
       let zeroPointOnePercentLowFps = 60;
       let maxFrameSpikeMs = 16.6;
 
-      const _sortedFramesScratch = new Float32Array(FRAME_SAMPLE_SIZE);
+      // Pre-cached zone mesh values array (eliminates Object.values() alloc every 100ms)
+      let _zoneMeshValues = null;
+      let _zoneMeshValuesReady = false;
 
       function animate() {
         requestAnimationFrame(animate);
@@ -76,19 +85,19 @@
           frameCount = 0;
           fpsCalcTime = now;
 
-          // Zero-allocation 1% and 0.1% low percentile computation
-          for (let fi = 0; fi < frameHistoryCount; fi++) {
-            _sortedFramesScratch[fi] = frameTimeHistory[fi];
-          }
-          const validSlice = _sortedFramesScratch.subarray(0, frameHistoryCount).sort();
-          const slowestIdx = Math.max(0, frameHistoryCount - 1);
-          const onePctIdx = Math.max(0, Math.floor(frameHistoryCount * 0.99));
-          const zeroOnePctIdx = Math.max(0, Math.floor(frameHistoryCount * 0.999));
-          const slowest1PctMs = validSlice[onePctIdx] || 16.6;
-          const slowest01PctMs = validSlice[zeroOnePctIdx] || 16.6;
+          // Compute 1% and 0.1% low from sliding window — zero-alloc using pre-allocated Float32Array
+          const _fhCount = frameHistoryCount;
+          _sortedFramesBuf.set(frameTimeHistory.subarray(0, _fhCount));
+          // Sort ascending in-place (native Float32Array sort: no JS array created)
+          _sortedFramesBuf.subarray(0, _fhCount).sort();
+          // Ascending order: worst frames are at the end
+          const onePctIdx    = Math.max(0, _fhCount - 1 - Math.floor(_fhCount * 0.01));
+          const zeroOnePctIdx = Math.max(0, _fhCount - 1 - Math.floor(_fhCount * 0.001));
+          const slowest1PctMs  = _sortedFramesBuf[onePctIdx]  || 16.6;
+          const slowest01PctMs = _sortedFramesBuf[zeroOnePctIdx] || 16.6;
           onePercentLowFps = Math.max(1, Math.round(1000 / Math.max(1, slowest1PctMs)));
           zeroPointOnePercentLowFps = Math.max(1, Math.round(1000 / Math.max(1, slowest01PctMs)));
-          maxFrameSpikeMs = validSlice[slowestIdx] || 16.6;
+          maxFrameSpikeMs = _sortedFramesBuf[_fhCount - 1] || 16.6;
 
           if (fpsCounterValEl) {
             fpsCounterValEl.textContent = currentFps;
@@ -145,7 +154,7 @@
           const dRot = Math.abs(curRotY - lastSentTransform.rotY);
           const elapsed = now - lastSentTransform.time;
 
-          if (((distSq > 0.0009 || dRot > 0.025) && elapsed >= 50) || elapsed >= 1500) {
+          if (((distSq > 0.000225 || dRot > 0.015) && elapsed >= 50) || elapsed >= 1500) {
             lastSentTransform.x = curX;
             lastSentTransform.z = curZ;
             lastSentTransform.rotY = curRotY;
@@ -187,7 +196,10 @@
           }
           if (window.casinoSpeakerMeshes && window.localJukeboxState && window.localJukeboxState.playing) {
             const sPulse = 1.0 + Math.sin(now * 0.008) * 0.04;
-            window.casinoSpeakerMeshes.forEach(spk => spk.scale.set(sPulse, sPulse, sPulse));
+            // for-loop avoids forEach closure overhead (runs every 33ms)
+            for (let _si = 0, _sLen = window.casinoSpeakerMeshes.length; _si < _sLen; _si++) {
+              window.casinoSpeakerMeshes[_si].scale.set(sPulse, sPulse, sPulse);
+            }
           }
 
           /* rotate roulette rotor & ball in winning pocket */
@@ -216,26 +228,25 @@
         }
 
         /* ----------------------------------------------------
-           4. 5–10 FPS BACKGROUND: Bot AI Decisions & Pulsations
+           4. 5–10 FPS BACKGROUND: Bot AI Decisions & Diagnostics
         ---------------------------------------------------- */
         if (now - last5HzTick >= 100) {
           const dt5 = (now - last5HzTick) / 1000;
           last5HzTick = now;
           if (typeof updateBotsAI === 'function') updateBotsAI(dt5);
 
-          if (window.zoneMeshes) {
-            const zKeys = Object.keys(window.zoneMeshes);
-            for (let zi = 0; zi < zKeys.length; zi++) {
-              const zm = window.zoneMeshes[zKeys[zi]];
-              if (!zm) continue;
-
+          // Cache zoneMeshes values once (avoids Object.values() array alloc every 100ms)
+          if (!_zoneMeshValuesReady && window.zoneMeshes) {
+            _zoneMeshValues = Object.values(window.zoneMeshes);
+            _zoneMeshValuesReady = true;
+          }
+          if (_zoneMeshValues) {
+            for (let _zi = 0, _zLen = _zoneMeshValues.length; _zi < _zLen; _zi++) {
+              const zm = _zoneMeshValues[_zi];
               zm.pulse = (zm.pulse || 0) + 0.09;
               if (zm.ring) {
                 const s = 1 + Math.sin(zm.pulse) * 0.05;
                 zm.ring.scale.set(s, 1, s);
-              }
-              if (zm.group && !zm.group.visible) {
-                zm.group.visible = true;
               }
             }
           }

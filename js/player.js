@@ -46,9 +46,7 @@
         ctx.fillText(name || 'Jugador', 256, 64);
 
         const tex = new THREE.CanvasTexture(canvas);
-        tex.generateMipmaps = false;
         tex.minFilter = THREE.LinearFilter;
-        tex.magFilter = THREE.LinearFilter;
         const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
         const sprite = new THREE.Sprite(mat);
         sprite.scale.set(2.2, 0.55, 1);
@@ -379,11 +377,11 @@
         const cy = Math.max(CAM_FLOOR_Y, pivot.y + Math.sin(camPitch) * camDist);
         const cz = pivot.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist;
 
-        camera.position.lerp(new THREE.Vector3(cx, cy, cz), Math.min(1, dt * 8));
+        camera.position.lerp(_cineDesiredPos.set(cx, cy, cz), Math.min(1, dt * 8));
 
         const lookUpFactor = Math.max(0, 0.35 - camPitch);
         const lookY = pivot.y + 3.5 + lookUpFactor * 6.5;
-        state.camFollowLook.lerp(new THREE.Vector3(pivot.x, lookY, pivot.z - 6), Math.min(1, dt * 8));
+        state.camFollowLook.lerp(_cineLookTarget.set(pivot.x, lookY, pivot.z - 6), Math.min(1, dt * 8));
         camera.lookAt(state.camFollowLook);
       }
 
@@ -455,7 +453,7 @@
         const cy = Math.max(CAM_FLOOR_Y, pivot.y + Math.sin(camPitch) * camDist);
         const cz = pivot.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist;
 
-        camera.position.lerp(new THREE.Vector3(cx, cy, cz), Math.min(1, dt * 8));
+        camera.position.lerp(_seatedDesiredPos.set(cx, cy, cz), Math.min(1, dt * 8));
         state.camFollowLook.lerp(pivot, Math.min(1, dt * 8));
         camera.lookAt(state.camFollowLook);
       }
@@ -765,14 +763,12 @@
           state.cinemaPivot = new THREE.Vector3(seat.x, 1.6, seat.z);
         }
 
-        const _tempCamLookVec = new THREE.Vector3();
         const start = performance.now();
         function step(now) {
           if (transId !== currentCamTransitionId) return;
           let t = Math.min(1, (now - start) / 900);
           camera.position.lerpVectors(state.savedCasinoCam.pos, toPos, t);
-          _tempCamLookVec.lerpVectors(state.savedCasinoCam.look, toLook, t);
-          camera.lookAt(_tempCamLookVec);
+          camera.lookAt(new THREE.Vector3().lerpVectors(state.savedCasinoCam.look, toLook, t));
           if (t < 1) requestAnimationFrame(step);
           else {
             if (transId !== currentCamTransitionId) return;
@@ -832,18 +828,12 @@
         tableMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
         tableRaycaster.setFromCamera(tableMouse, camera);
 
-        // Click on 3D Jukebox in casino mode (Spatial proximity pre-check to eliminate unnecessary deep recursive raycasts)
+        // Click on 3D Jukebox in casino mode
         if (state.mode === 'casino' && window.jukebox3DRefs && window.jukebox3DRefs.group) {
-          const camX = camera ? camera.position.x : 0;
-          const camZ = camera ? camera.position.z : 0;
-          const djx = camX - 11.8;
-          const djz = camZ - 36.0;
-          if (djx * djx + djz * djz <= 256) { // Only raycast if camera/player is within 16m of Jukebox
-            const jukeHits = tableRaycaster.intersectObject(window.jukebox3DRefs.group, true);
-            if (jukeHits.length > 0) {
-              openJukeboxModal();
-              return;
-            }
+          const jukeHits = tableRaycaster.intersectObject(window.jukebox3DRefs.group, true);
+          if (jukeHits.length > 0) {
+            openJukeboxModal();
+            return;
           }
         }
 

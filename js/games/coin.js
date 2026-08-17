@@ -24,8 +24,7 @@
       function update3DCoinChips(playerBet, rivalBet) {
         if (!coin3DRefs || !coin3DRefs.chipsGroup) return;
         const group = coin3DRefs.chipsGroup;
-        if (typeof safeClear3DGroup === 'function') safeClear3DGroup(group);
-        else while (group.children.length > 0) group.remove(group.children[0]);
+        while (group.children.length > 0) group.remove(group.children[0]);
 
         const mySeatIdx = (state.player.currentSeat && state.player.currentSeat.zone === 'coin' && typeof state.player.currentSeat.seatIndex === 'number')
           ? state.player.currentSeat.seatIndex

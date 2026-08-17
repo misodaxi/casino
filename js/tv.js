@@ -108,11 +108,14 @@
           return;
         }
 
-        const camPos = camera ? camera.position : { x: 0, y: 1.7, z: 0 };
-        if (!_tvCenterWorldPos.isSet) {
-          if (tvScreenMeshRef) tvScreenMeshRef.getWorldPosition(_tvCenterWorldPos);
-          else _tvCenterWorldPos.set(0, 7.5, -36.44);
-          _tvCenterWorldPos.isSet = true;
+        const camPos = camera.position;
+        if (tvScreenMeshRef) {
+          tvScreenMeshRef.getWorldPosition(_tvCenterWorldPos);
+        } else if (tvGroupRef) {
+          _tvCenterWorldPos.copy(tvGroupRef.position);
+          _tvCenterWorldPos.z += 0.64;
+        } else {
+          _tvCenterWorldPos.set(0, 7.5, -36.44);
         }
 
         // Si la cámara está detrás de la pantalla (z < -37), ocultar el iframe
@@ -734,27 +737,12 @@
         let volPercent = masterVolume;
 
         if (state.mode !== 'cinema') {
-          const tvX = 0;
-          const tvZ = -36.44;
+          const tvX = tvGroupRef ? tvGroupRef.position.x : 0;
+          const tvZ = tvGroupRef ? tvGroupRef.position.z : -37.0;
           const dx = state.player.x - tvX;
           const dz = state.player.z - tvZ;
-          const distSq = dx * dx + dz * dz;
+          const dist = Math.hypot(dx, dz);
 
-          // Spatial Cutoff Filter (>90m): Fast early exit when far away
-          if (distSq >= 8100) {
-            if (lastTvVolPercent !== 0) {
-              lastTvVolPercent = 0;
-              if (!tvIsMuted) sendYtCommand('setVolume', [0]);
-            }
-            if (_isTvModalOpen) {
-              if (_tvDistEl) _tvDistEl.textContent = 'Distancia: ' + Math.round(Math.sqrt(distSq)) + 'm';
-              if (_tvVolEl) _tvVolEl.textContent = 'Volumen 3D: 0% (Fuera de rango)';
-              if (_tvFilterEl) _tvFilterEl.textContent = 'Filtro Acústico: Inaudible';
-            }
-            return;
-          }
-
-          const dist = Math.sqrt(distSq);
           const minDist = 20;
           const maxDist = 90;
           let volRatio = 1.0;
