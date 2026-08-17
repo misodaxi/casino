@@ -377,11 +377,11 @@
         const cy = Math.max(CAM_FLOOR_Y, pivot.y + Math.sin(camPitch) * camDist);
         const cz = pivot.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist;
 
-        camera.position.lerp(_cineDesiredPos.set(cx, cy, cz), Math.min(1, dt * 8));
+        camera.position.lerp(new THREE.Vector3(cx, cy, cz), Math.min(1, dt * 8));
 
         const lookUpFactor = Math.max(0, 0.35 - camPitch);
         const lookY = pivot.y + 3.5 + lookUpFactor * 6.5;
-        state.camFollowLook.lerp(_cineLookTarget.set(pivot.x, lookY, pivot.z - 6), Math.min(1, dt * 8));
+        state.camFollowLook.lerp(new THREE.Vector3(pivot.x, lookY, pivot.z - 6), Math.min(1, dt * 8));
         camera.lookAt(state.camFollowLook);
       }
 
@@ -453,7 +453,7 @@
         const cy = Math.max(CAM_FLOOR_Y, pivot.y + Math.sin(camPitch) * camDist);
         const cz = pivot.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist;
 
-        camera.position.lerp(_seatedDesiredPos.set(cx, cy, cz), Math.min(1, dt * 8));
+        camera.position.lerp(new THREE.Vector3(cx, cy, cz), Math.min(1, dt * 8));
         state.camFollowLook.lerp(pivot, Math.min(1, dt * 8));
         camera.lookAt(state.camFollowLook);
       }
@@ -636,6 +636,13 @@
           bjState.active = false;
         }
 
+        if (gameId === 'poker') {
+          const seatIdx = (seat && typeof seat.seatIndex === 'number') ? seat.seatIndex : 0;
+          if (typeof initPokerTable === 'function') {
+            initPokerTable(seatIdx);
+          }
+        }
+
         // Emit updated position and seat reservation via Socket.IO
         if (typeof socket !== 'undefined' && socket && socket.connected) {
           socket.emit('updateTransform', {
@@ -731,8 +738,22 @@
             playerAvatar.visible = false;
           }
         } else if (gameId === 'poker') {
-          toPos = new THREE.Vector3(z.x, 3.4, z.z + 4.4);
-          toLook = new THREE.Vector3(z.x, 0.8, z.z);
+          // Elevated high-angle camera overlooking the seated player position and circular table center
+          const eyeY = 4.60;
+          const backDist = 0.65;
+          toPos = new THREE.Vector3(
+            seat.x - Math.sin(seat.r) * backDist,
+            eyeY,
+            seat.z - Math.cos(seat.r) * backDist
+          );
+          toLook = new THREE.Vector3(
+            z.x,
+            0.85,
+            z.z
+          );
+          if (window.poker3DRefs && window.poker3DRefs.update3DPokerChipRackSelection) {
+            window.poker3DRefs.update3DPokerChipRackSelection();
+          }
         } else if (gameId === 'jackpot') {
           toPos = new THREE.Vector3(z.x, 3.6, z.z + 4.8);
           toLook = new THREE.Vector3(z.x, 1.4, z.z);
@@ -837,7 +858,89 @@
           }
         }
 
-        if (state.mode !== 'roulette' && state.mode !== 'mines' && state.mode !== 'blackjack' && state.mode !== 'dice' && state.mode !== 'coin') return;
+        if (state.mode !== 'roulette' && state.mode !== 'mines' && state.mode !== 'blackjack' && state.mode !== 'dice' && state.mode !== 'coin' && state.mode !== 'poker') return;
+
+        // Poker 3D: interactividad con la caja de fichas del crupier y los espacios de fichas de jugador
+        if (state.mode === 'poker') {
+          if (window.poker3DRefs) {
+            // 1. Clic en las 16 pilas de la caja de fichas del crupier -> Selecciona denominación de ficha
+            if (window.poker3DRefs.chipStacks) {
+              const dealerTrayHits = tableRaycaster.intersectObjects(window.poker3DRefs.chipStacks, true);
+              if (dealerTrayHits.length > 0) {
+                let obj = dealerTrayHits[0].object;
+                while (obj && !obj.userData.chipVal && obj.parent) obj = obj.parent;
+                if (obj && obj.userData.chipVal) {
+                  playSound('chip');
+                  pokerState.selectedChip = roundMoney(obj.userData.chipVal);
+                  const selDisplay = document.getElementById('pokerSelectedChipDisplay');
+                  if (selDisplay) selDisplay.textContent = formatMoney(pokerState.selectedChip);
+                  showToast(`Ficha de ${formatMoney(pokerState.selectedChip)} seleccionada. Pulsa en tu círculo de apuesta para añadirla.`);
+                  if (window.poker3DRefs.update3DPokerChipRackSelection) {
+                    window.poker3DRefs.update3DPokerChipRackSelection();
+                  }
+                  return;
+                }
+              }
+            }
+
+            // 2. Clic en los círculos de apuesta o en el tapete de tu puesto -> Añade ficha a la apuesta aportada
+            let hitPokerBetArea = false;
+
+            // Detección en los discos sensores de los 8 círculos de apuesta
+            if (!hitPokerBetArea && window.poker3DRefs.betSpots) {
+              const spotHits = tableRaycaster.intersectObjects(window.poker3DRefs.betSpots, false);
+              if (spotHits.length > 0) hitPokerBetArea = true;
+            }
+
+            // Detección directa en fichas colocadas en la mesa
+            if (!hitPokerBetArea && window.poker3DRefs.chipsGroup) {
+              const chipsHits = tableRaycaster.intersectObjects(window.poker3DRefs.chipsGroup.children, true);
+              if (chipsHits.length > 0) hitPokerBetArea = true;
+            }
+
+            // Detección en el tapete de póker cerca de tu puesto
+            if (!hitPokerBetArea && window.poker3DRefs.felt) {
+              const feltHits = tableRaycaster.intersectObject(window.poker3DRefs.felt, false);
+              if (feltHits.length > 0) {
+                const mySeat = (state.player.currentSeat && typeof state.player.currentSeat.seatIndex === 'number') ? state.player.currentSeat.seatIndex : 0;
+                const ang = mySeat * (Math.PI / 4);
+                const betSpotX = Math.sin(ang) * 1.50;
+                const betSpotZ = Math.cos(ang) * 1.50;
+                const pt = feltHits[0].point;
+                const dist = Math.hypot(pt.x - betSpotX, pt.z - (11.0 + betSpotZ));
+                if (dist < 0.85) hitPokerBetArea = true;
+              }
+            }
+
+            if (hitPokerBetArea) {
+              if (pokerState.inHand) {
+                showToast('⏳ Espera a que termine la mano actual para cambiar tu apuesta');
+                return;
+              }
+              const addVal = roundMoney((typeof pokerState.selectedChip === 'number' && pokerState.selectedChip > 0) ? pokerState.selectedChip : 50);
+              const mySeat = (state.player.currentSeat && typeof state.player.currentSeat.seatIndex === 'number') ? state.player.currentSeat.seatIndex : 0;
+              const currentTotalBet = roundMoney(pokerState.bet || 0);
+              const nextBet = roundMoney(currentTotalBet + addVal);
+
+              if (nextBet > state.balance) {
+                showToast('⚠️ No tienes suficiente saldo para esa apuesta');
+                return;
+              }
+              playSound('chip');
+              pokerState.bet = nextBet;
+              if (pokerState.seats && pokerState.seats[mySeat]) pokerState.seats[mySeat].bet = nextBet;
+              pokerState.currentBet = nextBet;
+
+              const display = document.getElementById('pokerBetDisplay');
+              if (display) display.textContent = formatMoney(pokerState.bet);
+
+              if (typeof update3DPokerChips === 'function') update3DPokerChips();
+              showToast(`+${formatMoney(addVal)} añadido a tu apuesta (Total aportado: ${formatMoney(nextBet)})`);
+              return;
+            }
+          }
+          return;
+        }
 
         // Coin Flip 3D: seleccionar fichas en la bandeja 3D y apostar directamente en el círculo 3D de tu asiento
         if (state.mode === 'coin') {
@@ -1214,6 +1317,22 @@
           }
           if (typeof socket !== 'undefined' && socket && socket.connected) {
             socket.emit('blackjackLeave', { blackjackId: 'blackjack' });
+          }
+        } else if (previousMode === 'poker') {
+          if (typeof clearPokerBotAvatars === 'function') {
+            clearPokerBotAvatars();
+          }
+          if (window.poker3DRefs && window.poker3DRefs.cardsGroup) {
+            const grp = window.poker3DRefs.cardsGroup;
+            while (grp.children && grp.children.length > 0) grp.remove(grp.children[0]);
+          }
+          if (typeof update3DPokerChips === 'function') {
+            if (typeof pokerState !== 'undefined') {
+              pokerState.pot = 0;
+              pokerState.inHand = false;
+              if (pokerState.seats) pokerState.seats.forEach(s => s.bet = 0);
+            }
+            update3DPokerChips();
           }
         }
         state.player.currentSeat = null;

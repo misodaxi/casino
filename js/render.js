@@ -196,28 +196,6 @@
       const VIP_CANDLE_MAT = new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 1.8 });
       const VIP_CUSHION_MAT = new THREE.MeshStandardMaterial({ color: 0x140b24, roughness: 0.4 });
 
-      // ─── GLOBAL SHARED GOLD MATERIALS ────────────────────────────────────────────────
-      // Replaces ~25 local goldMat variables that created new material instances.
-      // GPU saves a shader state change per duplicate material eliminated.
-      // Use GOLD_MAT_HIGH (metalness 0.95) for polished structural gold.
-      // Use GOLD_MAT_MED  (metalness 0.92) for slightly warmer accents.
-      const GOLD_MAT_HIGH = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
-      const GOLD_MAT_MED  = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.92, roughness: 0.15 });
-      // LAMP_GOLD_MAT / VIP_GOLD_MAT are already GOLD_MAT_HIGH — kept for backward compat, same object below:
-      // (no change needed — they are identical)
-
-      // ─── GLOBAL SHARED STANCHION GEOMETRIES ─────────────────────────────────────────
-      // Replaces per-zone new CylinderGeometry/SphereGeometry inside forEach (4 geos x N zones).
-      const STANCHION_POST_GEO = new THREE.CylinderGeometry(0.06, 0.08, 1.1, 16);
-      const STANCHION_BALL_GEO = new THREE.SphereGeometry(0.11, 16, 16);
-      const STANCHION_BASE_GEO = new THREE.CylinderGeometry(0.18, 0.22, 0.08, 16);
-      // ─── GLOBAL SHARED DARK MATERIALS ─────────────────────────────────────────────────
-      // chip tray base: appears identically 5× in BJ/Dice/Roulette/BJ2/Coin zones
-      const DARK_TRAY_MAT  = new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 });
-      // dark metallic shelf/monitor base: appears identically 2× in bowling/sport zones
-      const DARK_SHELF_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0514, metalness: 0.8, roughness: 0.2 });
-      // ────────────────────────────────────────────────────────────────────────────────────
-
       const _vipChairMatCache = {};
       function getVipChairMaterial(chairColorHex) {
         if (!_vipChairMatCache[chairColorHex]) {
@@ -281,8 +259,7 @@
         const g = new THREE.Group();
         g.rotation.y = rotY;
         const leatherMat = new THREE.MeshStandardMaterial({ color: 0x120c1f, roughness: 0.35, metalness: 0.1 });
-        // Use shared GOLD_MAT_HIGH (was: local goldMat = new THREE.MeshStandardMaterial identical to LAMP_GOLD_MAT)
-        const goldMat = GOLD_MAT_HIGH;
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
 
         // Long Sofa Segment
         const longSofa = new THREE.Mesh(new THREE.BoxGeometry(w, 0.42, 1.1), leatherMat);
@@ -1418,13 +1395,13 @@
         // 6. Luxury 2-Tiered Mahogany & Gold 3D Dealer Chip Box mounted ON TOP of the wide outer back rail
         const trayBase = new THREE.Mesh(
           new THREE.BoxGeometry(1.72, 0.035, 0.44),
-          DARK_TRAY_MAT  // shared: was new MeshStandardMaterial(0x14091e×5)
+          new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 })
         );
         trayBase.position.set(0, 1.345, -1.34);
 
         const trayGoldBorder = new THREE.Mesh(
           new THREE.BoxGeometry(1.76, 0.025, 0.48),
-          GOLD_MAT_HIGH  // shared: was new MeshStandardMaterial(0xd4af37×N)
+          new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 })
         );
         trayGoldBorder.position.set(0, 1.335, -1.34);
 
@@ -1840,14 +1817,14 @@
         const walnutWoodMat = new THREE.MeshStandardMaterial({
           color: 0x220c04, // Deep rich polished dark walnut / mahogany
           roughness: 0.25,
-          metalness: 0.15
-          // FrontSide (default): cabinet only viewed from exterior, DoubleSide wastes fragment shader
+          metalness: 0.15,
+          side: THREE.DoubleSide
         });
         const interiorWallMat = new THREE.MeshStandardMaterial({
           color: 0x2e1408, // Interior chamber wood finish
           roughness: 0.35,
-          metalness: 0.12
-          // FrontSide (default): outer panels face outward only
+          metalness: 0.12,
+          side: THREE.DoubleSide
         });
         const amberGlowMat = new THREE.MeshStandardMaterial({
           color: 0xf59e0b,
@@ -2691,13 +2668,13 @@
 
         const trayBase = new THREE.Mesh(
           new THREE.BoxGeometry(1.76, 0.025, 0.48),
-          DARK_TRAY_MAT  // shared: was new MeshStandardMaterial(0x14091e×5)
+          new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 })
         );
         trayBase.position.set(0, railTopY, -1.40);
 
         const trayGoldBorder = new THREE.Mesh(
           new THREE.BoxGeometry(1.80, 0.020, 0.52),
-          GOLD_MAT_HIGH  // shared
+          new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 })
         );
         trayGoldBorder.position.set(0, railTopY - 0.005, -1.40);
 
@@ -3064,43 +3041,433 @@
         return mesh;
       }
 
-      // ============================================================
-      // SHARED GEOMETRIES & MATERIALS FOR STOOLS (prevent per-seat duplication)
-      // Used across all zones: ~15 zones x avg 5 seats = 75+ duplicate sets eliminated
-      // ============================================================
-      const STOOL_FOOT_GEO   = new THREE.CylinderGeometry(0.30, 0.34, 0.04, 20);
-      const STOOL_STEM_GEO   = new THREE.CylinderGeometry(0.05, 0.05, 0.42, 16);
-      const STOOL_FREST_GEO  = new THREE.TorusGeometry(0.18, 0.018, 12, 24);
-      const STOOL_CUSH_GEO   = new THREE.CylinderGeometry(0.34, 0.32, 0.10, 24);
-      const STOOL_RIM_GEO    = new THREE.TorusGeometry(0.34, 0.016, 12, 24);
-      const STOOL_GOLD_MAT   = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 });
-      // Cushion materials are per-zone (zone color), cached here to avoid duplicates within the same zone
-      const _stoolCushMatCache = {};
-      function getStoolCushionMat(zoneColor) {
-        if (!_stoolCushMatCache[zoneColor]) {
-          _stoolCushMatCache[zoneColor] = new THREE.MeshStandardMaterial({
-            color: 0x22123a,
-            roughness: 0.45,
-            metalness: 0.20,
-            emissive: new THREE.Color(zoneColor),
-            emissiveIntensity: 0.15
+      function createPokerTable3D() {
+        const pokerGroup = new THREE.Group();
+        const pokerR = 2.65;
+
+        // 1. Heavy Wooden Pedestal Understructure (Rich Warm Mahogany Wood matching Blackjack)
+        const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a2211, roughness: 0.42, metalness: 0.08 });
+        const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 });
+
+        // Central Fluted Mahogany Column Pedestal
+        const centralPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.78, 0.68, 36), woodMat);
+        centralPillar.position.set(0, 0.34, 0);
+        centralPillar.castShadow = true;
+
+        // Flared Stepped Heavy Plinth Base Foot
+        const basePlinth = new THREE.Mesh(new THREE.CylinderGeometry(1.65, 1.85, 0.14, 36), woodMat);
+        basePlinth.position.set(0, 0.07, 0);
+        basePlinth.castShadow = true; basePlinth.receiveShadow = true;
+
+        // Gold Trim Ring on Base Plinth
+        const baseGoldTrim = new THREE.Mesh(new THREE.TorusGeometry(1.86, 0.045, 12, 48), brassMat);
+        baseGoldTrim.rotation.x = Math.PI / 2;
+        baseGoldTrim.position.set(0, 0.14, 0);
+
+        // Gold Collar Rings on Central Column
+        const pillarCollarLower = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.035, 12, 36), brassMat);
+        pillarCollarLower.rotation.x = Math.PI / 2;
+        pillarCollarLower.position.set(0, 0.22, 0);
+
+        const pillarCollarUpper = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.035, 12, 36), brassMat);
+        pillarCollarUpper.rotation.x = Math.PI / 2;
+        pillarCollarUpper.position.set(0, 0.62, 0);
+
+        // 4 Curved Radial Mahogany Support Scroll Brackets radiating outward at 90 deg
+        for (let b = 0; b < 4; b++) {
+          const bAngle = (b / 4) * Math.PI * 2;
+          const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.28, 1.40), woodMat);
+          bracket.position.set(Math.sin(bAngle) * 1.05, 0.62, Math.cos(bAngle) * 1.05);
+          bracket.rotation.y = bAngle;
+          bracket.castShadow = true;
+          pokerGroup.add(bracket);
+        }
+
+        pokerGroup.add(centralPillar, basePlinth, baseGoldTrim, pillarCollarLower, pillarCollarUpper);
+
+        // 2. Circular Wooden Tabletop Base Board (Matching Blackjack)
+        const pokerBase = new THREE.Mesh(
+          new THREE.CylinderGeometry(pokerR + 0.12, pokerR + 0.12, 0.10, 64),
+          woodMat
+        );
+        pokerBase.position.set(0, 0.78, 0);
+        pokerBase.receiveShadow = true; pokerBase.castShadow = true;
+
+        // Gold Metallic Trim Ring beneath Tabletop
+        const tabletopGoldTrim = new THREE.Mesh(
+          new THREE.TorusGeometry(pokerR + 0.13, 0.02, 12, 64),
+          brassMat
+        );
+        tabletopGoldTrim.rotation.x = Math.PI / 2;
+        tabletopGoldTrim.position.set(0, 0.74, 0);
+
+        // 3. Continuous Padded Black Leather Armrest Rail (360° Full Circle)
+        const leatherMat = new THREE.MeshStandardMaterial({ color: 0x121216, roughness: 0.32, metalness: 0.05 });
+        const pokerRail = new THREE.Mesh(
+          new THREE.TorusGeometry(pokerR + 0.10, 0.16, 24, 64),
+          leatherMat
+        );
+        pokerRail.rotation.x = Math.PI / 2;
+        pokerRail.position.set(0, 0.81, 0);
+        pokerRail.castShadow = true;
+
+        // Inner Gold Trim Inlay between Leather Rail and Felt
+        const innerRailGoldTrim = new THREE.Mesh(
+          new THREE.TorusGeometry(pokerR - 0.02, 0.016, 12, 64),
+          brassMat
+        );
+        innerRailGoldTrim.rotation.x = Math.PI / 2;
+        innerRailGoldTrim.position.set(0, 0.815, 0);
+
+        // 4. Circular Poker Felt Canvas & High-Definition Layout (1024x1024)
+        const pokerFeltCanvas = document.createElement('canvas');
+        pokerFeltCanvas.width = 1024;
+        pokerFeltCanvas.height = 1024;
+        const pCtx = pokerFeltCanvas.getContext('2d');
+
+        // Rich Casino Imperial Emerald Felt Background with Radial Gradient
+        const pGrad = pCtx.createRadialGradient(512, 512, 40, 512, 512, 510);
+        pGrad.addColorStop(0, '#00b454');
+        pGrad.addColorStop(0.65, '#018a3f');
+        pGrad.addColorStop(1, '#025225');
+        pCtx.fillStyle = pGrad;
+        pCtx.beginPath();
+        pCtx.arc(512, 512, 512, 0, Math.PI * 2);
+        pCtx.fill();
+
+        // Subtle Felt Cloth Texture
+        pCtx.fillStyle = 'rgba(255, 255, 255, 0.022)';
+        for (let i = 0; i < 1024; i += 6) {
+          for (let j = 0; j < 1024; j += 6) {
+            if ((i + j) % 12 === 0) pCtx.fillRect(i, j, 3, 3);
+          }
+        }
+
+        // Concentric Golden Yellow Double Outer Border Rings
+        pCtx.strokeStyle = '#facc15'; pCtx.lineWidth = 5;
+        pCtx.beginPath(); pCtx.arc(512, 512, 475, 0, Math.PI * 2); pCtx.stroke();
+        pCtx.lineWidth = 2.5;
+        pCtx.beginPath(); pCtx.arc(512, 512, 445, 0, Math.PI * 2); pCtx.stroke();
+
+        // Inner Betting Line Ring (Where player bets are placed)
+        pCtx.strokeStyle = 'rgba(250, 204, 21, 0.75)'; pCtx.lineWidth = 3.5;
+        pCtx.beginPath(); pCtx.arc(512, 512, 290, 0, Math.PI * 2); pCtx.stroke();
+
+        // Center Pot & Branding Basin
+        const potGrad = pCtx.createRadialGradient(512, 512, 10, 512, 512, 135);
+        potGrad.addColorStop(0, 'rgba(0, 0, 0, 0.25)');
+        potGrad.addColorStop(1, 'rgba(0, 0, 0, 0.02)');
+        pCtx.fillStyle = potGrad;
+        pCtx.beginPath(); pCtx.arc(512, 512, 135, 0, Math.PI * 2); pCtx.fill();
+        pCtx.strokeStyle = '#facc15'; pCtx.lineWidth = 2;
+        pCtx.beginPath(); pCtx.arc(512, 512, 135, 0, Math.PI * 2); pCtx.stroke();
+
+        // Center Poker Logo & Typography
+        pCtx.textAlign = 'center'; pCtx.textBaseline = 'middle';
+        pCtx.fillStyle = '#facc15';
+        pCtx.font = '900 24px Segoe UI, Arial';
+        pCtx.fillText('★ TEXAS HOLD\'EM ★', 512, 445);
+        pCtx.font = '800 16px Segoe UI, Arial';
+        pCtx.fillStyle = '#ffffff';
+        pCtx.fillText('NO LIMIT · CASINO ROYALE', 512, 470);
+
+        pCtx.font = '800 15px Segoe UI, Arial';
+        pCtx.fillStyle = '#facc15';
+        pCtx.fillText('♠  ♥  THE POT  ♦  ♣', 512, 555);
+
+        // 5 Community Cards Outlines (FLOP 1, FLOP 2, FLOP 3, TURN, RIVER)
+        const commCardW = 54;
+        const commCardH = 76;
+        const commCardGap = 12;
+        const commStartX = 512 - (5 * commCardW + 4 * commCardGap) / 2 + commCardW / 2;
+        const commY = 512;
+        const commLabels = ['FLOP', 'FLOP', 'FLOP', 'TURN', 'RIVER'];
+
+        for (let c = 0; c < 5; c++) {
+          const ccX = commStartX + c * (commCardW + commCardGap);
+          pCtx.save();
+          pCtx.translate(ccX, commY);
+
+          // Card Outer White Outline
+          pCtx.strokeStyle = '#ffffff';
+          pCtx.lineWidth = 3;
+          pCtx.beginPath();
+          if (pCtx.roundRect) pCtx.roundRect(-commCardW / 2, -commCardH / 2, commCardW, commCardH, 7);
+          else pCtx.rect(-commCardW / 2, -commCardH / 2, commCardW, commCardH);
+          pCtx.stroke();
+
+          // Card Inner Trim
+          pCtx.strokeStyle = 'rgba(255, 255, 255, 0.40)';
+          pCtx.lineWidth = 1.2;
+          pCtx.beginPath();
+          if (pCtx.roundRect) pCtx.roundRect(-commCardW / 2 + 4, -commCardH / 2 + 4, commCardW - 8, commCardH - 8, 4);
+          else pCtx.rect(-commCardW / 2 + 4, -commCardH / 2 + 4, commCardW - 8, commCardH - 8);
+          pCtx.stroke();
+
+          // Card Label
+          pCtx.fillStyle = 'rgba(250, 204, 21, 0.85)';
+          pCtx.font = '900 10px Segoe UI, Arial';
+          pCtx.fillText(commLabels[c], 0, 0);
+
+          pCtx.restore();
+        }
+
+        // 8 Player Positions around the circular felt
+        const pokerBetSpots = [];
+        for (let i = 0; i < 8; i++) {
+          const ang = i * (Math.PI / 4); // 8 seats evenly around the 360 degree circle
+          const seatDistPx = 336;
+          const px = 512 + Math.sin(ang) * seatDistPx;
+          const py = 512 + Math.cos(ang) * seatDistPx;
+
+          pCtx.save();
+          pCtx.translate(px, py);
+          pCtx.rotate(-ang); // orient box facing the center!
+
+          // Two Player Hole Card Outline Boxes (side by side, oriented upright in portrait towards center)
+          const pCardW = 50;
+          const pCardH = 70;
+          [-32, 32].forEach(offsetCardX => {
+            pCtx.strokeStyle = '#ffffff';
+            pCtx.lineWidth = 2.5;
+            pCtx.beginPath();
+            if (pCtx.roundRect) pCtx.roundRect(offsetCardX - pCardW / 2, -pCardH / 2, pCardW, pCardH, 6);
+            else pCtx.rect(offsetCardX - pCardW / 2, -pCardH / 2, pCardW, pCardH);
+            pCtx.stroke();
+
+            pCtx.strokeStyle = 'rgba(255, 255, 255, 0.40)';
+            pCtx.lineWidth = 1.0;
+            pCtx.beginPath();
+            if (pCtx.roundRect) pCtx.roundRect(offsetCardX - pCardW / 2 + 3, -pCardH / 2 + 3, pCardW - 6, pCardH - 6, 4);
+            else pCtx.rect(offsetCardX - pCardW / 2 + 3, -pCardH / 2 + 3, pCardW - 6, pCardH - 6);
+            pCtx.stroke();
+          });
+
+          // Seat Badge
+          pCtx.fillStyle = '#facc15';
+          pCtx.font = '800 12px Segoe UI, Arial';
+          pCtx.fillText(`P${i + 1}`, 0, 42);
+
+          // Betting Circle on the betting line (towards center: -95px in local rotated coords)
+          pCtx.strokeStyle = '#facc15';
+          pCtx.lineWidth = 2.5;
+          pCtx.beginPath();
+          pCtx.arc(0, -95, 24, 0, Math.PI * 2);
+          pCtx.stroke();
+
+          pCtx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+          pCtx.lineWidth = 1.2;
+          pCtx.beginPath();
+          pCtx.arc(0, -95, 20, 0, Math.PI * 2);
+          pCtx.stroke();
+
+          pCtx.restore();
+        }
+
+        const pokerFeltTex = new THREE.CanvasTexture(pokerFeltCanvas);
+        pokerFeltTex.anisotropy = 16;
+
+        // Circular Felt Shape & Geometry (ShapeGeometry matching Blackjack)
+        const pokerFeltShape = new THREE.Shape();
+        pokerFeltShape.absarc(0, 0, pokerR - 0.04, 0, Math.PI * 2, false);
+        const pokerFeltGeo = new THREE.ShapeGeometry(pokerFeltShape, 64);
+
+        // Custom UVs for ShapeGeometry to align Canvas 1-to-1 seamlessly across the circle
+        const posAttr = pokerFeltGeo.attributes.position;
+        const uvAttr = pokerFeltGeo.attributes.uv;
+        for (let i = 0; i < posAttr.count; i++) {
+          const px = posAttr.getX(i);
+          const py = posAttr.getY(i);
+          const u = (px + pokerR) / (2 * pokerR);
+          const v = (py + pokerR) / (2 * pokerR);
+          uvAttr.setXY(i, u, 1 - v);
+        }
+        uvAttr.needsUpdate = true;
+
+        const pokerFelt = new THREE.Mesh(
+          pokerFeltGeo,
+          new THREE.MeshStandardMaterial({ color: 0xffffff, map: pokerFeltTex, roughness: 0.75, side: THREE.DoubleSide })
+        );
+        pokerFelt.rotation.x = Math.PI / 2;
+        pokerFelt.position.y = 0.825;
+        pokerFelt.receiveShadow = true;
+
+        // 5. Luxury 2-Tiered Dealer Chip Tray with 16 3D Chip Stacks (Positioned closer to center at z = -0.90)
+        const trayBase = new THREE.Mesh(
+          new THREE.BoxGeometry(1.30, 0.024, 0.36),
+          new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 })
+        );
+        trayBase.position.set(0, 0.835, -0.90);
+
+        const trayGoldBorder = new THREE.Mesh(
+          new THREE.BoxGeometry(1.32, 0.015, 0.38),
+          brassMat
+        );
+        trayGoldBorder.position.set(0, 0.828, -0.90);
+
+        const trayGroup = new THREE.Group();
+        trayGroup.add(trayBase, trayGoldBorder);
+
+        const pokerChipStacks = [];
+
+        // Row 1 (z = -0.98): Low stakes $0.1, $0.2, $0.5, $1, $2, $5, $10, $20
+        // Row 2 (z = -0.82): High stakes $50, $100, $200, $500, $1K, $2K, $5K, $10K
+        CASINO_CHIPS.forEach((cDef, cIdx) => {
+          const isHighRow = cIdx >= 8;
+          const col = isHighRow ? (cIdx - 8) : cIdx;
+          const posX = -0.490 + col * 0.140;
+          const posZ = isHighRow ? -0.82 : -0.98;
+
+          const stack = new THREE.Group();
+          stack.position.set(posX, 0.842, posZ);
+          stack.userData = { chipVal: cDef.v };
+          stack.name = 'pokerChipStack_' + cDef.v;
+
+          for (let h = 0; h < 4; h++) {
+            const chipM = create3DChipSingleMesh(cDef, 0.052, 0.014);
+            chipM.position.y = h * 0.015 + 0.007;
+            chipM.rotation.y = (h * 0.35) % (Math.PI * 2);
+            stack.add(chipM);
+          }
+
+          // Floating 3D Value Label with gold border
+          const labelCanvas = document.createElement('canvas');
+          labelCanvas.width = 128; labelCanvas.height = 64;
+          const lCtx = labelCanvas.getContext('2d');
+          lCtx.fillStyle = '#0f081d';
+          if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
+          lCtx.fill();
+          lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
+          lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
+          lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
+          lCtx.fillText(cDef.str, 64, 32);
+
+          const labelTex = new THREE.CanvasTexture(labelCanvas);
+          const labelSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex, depthTest: false }));
+          labelSpr.scale.set(0.15, 0.075, 1);
+          labelSpr.position.set(0, 0.115, 0);
+          stack.add(labelSpr);
+
+          trayGroup.add(stack);
+          pokerChipStacks.push(stack);
+        });
+
+        // 6. 3D Dealer Button Puck & Deck of Cards
+        const dealerPuck = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.10, 0.10, 0.025, 32),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 })
+        );
+        dealerPuck.position.set(0.85, 0.835, -0.90);
+        dealerPuck.castShadow = true;
+
+        const puckGoldRim = new THREE.Mesh(
+          new THREE.TorusGeometry(0.10, 0.008, 12, 32),
+          brassMat
+        );
+        puckGoldRim.rotation.x = Math.PI / 2;
+        puckGoldRim.position.set(0.85, 0.845, -0.90);
+
+        // 3D Deck Box / Staged Cards
+        const deckMesh = new THREE.Mesh(
+          new THREE.BoxGeometry(0.32, 0.08, 0.44),
+          new THREE.MeshStandardMaterial({ color: 0x1e1b4b, roughness: 0.35, metalness: 0.2 })
+        );
+        deckMesh.position.set(-0.85, 0.840, -0.90);
+        deckMesh.rotation.y = 0.25;
+
+        // 7. Containers for 3D Cards and 3D Placed Chips
+        const pokerCardsGroup = new THREE.Group();
+        pokerCardsGroup.position.set(0, 0.850, 0);
+
+        const pokerChipsGroup = new THREE.Group();
+        pokerChipsGroup.position.set(0, 0.850, 0);
+
+        // 8. Raycastable Bet Spot Trigger Discs for the 8 Player Betting Circles
+        for (let i = 0; i < 8; i++) {
+          const ang = i * (Math.PI / 4);
+          const betDist3D = 1.50; // In 3D world meters from table center
+          const spotX = Math.sin(ang) * betDist3D;
+          const spotZ = Math.cos(ang) * betDist3D;
+
+          const spotHitMesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.24, 0.24, 0.06, 16),
+            new THREE.MeshBasicMaterial({ visible: false })
+          );
+          spotHitMesh.position.set(spotX, 0.01, spotZ);
+          spotHitMesh.userData = { isPokerBetSpot: true, seatIndex: i };
+          pokerChipsGroup.add(spotHitMesh);
+          pokerBetSpots.push(spotHitMesh);
+        }
+
+        // Highlight selected 3D chip in dealer rack
+        function update3DPokerChipRackSelection() {
+          if (!pokerChipStacks) return;
+          const curVal = (typeof pokerState !== 'undefined' && pokerState && pokerState.selectedChip) ? pokerState.selectedChip : 50;
+          pokerChipStacks.forEach(stack => {
+            const val = stack.userData.chipVal;
+            const isSelected = (val === curVal);
+            stack.position.y = isSelected ? 0.865 : 0.842;
+            stack.scale.set(isSelected ? 1.20 : 1.0, isSelected ? 1.20 : 1.0, isSelected ? 1.20 : 1.0);
           });
         }
-        return _stoolCushMatCache[zoneColor];
+
+        // Tabletop assembly
+        const tabletopGroup = new THREE.Group();
+        tabletopGroup.add(
+          pokerBase, tabletopGoldTrim, pokerRail, innerRailGoldTrim, pokerFelt,
+          trayGroup, dealerPuck, puckGoldRim, deckMesh,
+          pokerCardsGroup, pokerChipsGroup
+        );
+        pokerGroup.add(tabletopGroup);
+
+        pokerGroup.position.y = 0.35;
+
+        function update3DPokerChips() {
+          if (!pokerChipsGroup) return;
+          const toRemove = pokerChipsGroup.children.filter(c => !c.userData.isPokerBetSpot);
+          toRemove.forEach(c => pokerChipsGroup.remove(c));
+
+          if (typeof pokerState === 'undefined' || !pokerState) return;
+
+          if (pokerState.seats) {
+            pokerState.seats.forEach((seat, idx) => {
+              const betAmt = seat ? (seat.bet || 0) : 0;
+              if (betAmt > 0) {
+                const ang = idx * (Math.PI / 4);
+                const betDist3D = 1.50;
+                const bx = Math.sin(ang) * betDist3D;
+                const bz = Math.cos(ang) * betDist3D;
+
+                const stack = create3DChipStackMesh(betAmt, 0.065, 0.016);
+                stack.position.set(bx, 0.008, bz);
+                pokerChipsGroup.add(stack);
+              }
+            });
+          }
+
+          const potAmt = pokerState.pot || 0;
+          if (potAmt > 0) {
+            const potStack = create3DChipStackMesh(potAmt, 0.075, 0.018);
+            potStack.position.set(0, 0.008, 0);
+            pokerChipsGroup.add(potStack);
+          }
+        }
+        window.update3DPokerChips = update3DPokerChips;
+
+        window.poker3DRefs = {
+          group: pokerGroup,
+          felt: pokerFelt,
+          dealerPuck,
+          cardsGroup: pokerCardsGroup,
+          chipsGroup: pokerChipsGroup,
+          chipStacks: pokerChipStacks,
+          betSpots: pokerBetSpots,
+          update3DPokerChipRackSelection,
+          update3DPokerChips
+        };
+
+        return pokerGroup;
       }
-
-      // Shared Plinko peg material (avoids ~75 duplicate MeshStandardMaterial instances)
-      const PLINKO_PEG_MAT = new THREE.MeshStandardMaterial({
-        color: 0xf59e0b, metalness: 0.9, roughness: 0.1, emissive: 0xf59e0b, emissiveIntensity: 0.2
-      });
-      window.PLINKO_PEG_MAT = PLINKO_PEG_MAT;
-
-      // Shared Mines tile material (avoids 25 duplicate MeshStandardMaterial instances)
-      // Individual tiles get their own clones only when revealed (to change color/emissive)
-      const MINES_TILE_MAT = new THREE.MeshStandardMaterial({
-        color: 0x241a3d, emissive: 0x8b5cf6, emissiveIntensity: 0.25, metalness: 0.6, roughness: 0.25
-      });
-      window.MINES_TILE_MAT = MINES_TILE_MAT;
 
       ZONES.forEach(z => {
         const g = new THREE.Group();
@@ -3143,6 +3510,11 @@
           platW = 9.0;
           platD = 8.5;
           cornerR = 1.4;
+        } else if (z.id === 'poker') {
+          // Mesa Circular de Poker 3D (8 jugadores)
+          platW = 10.4;
+          platD = 10.4;
+          cornerR = 1.6;
         } else if (z.id === 'bowling') {
           // Bolera real gigante de 48m de largo
           platW = 24.0;
@@ -3175,7 +3547,7 @@
           g.add(goldFrame1, goldFrame2);
 
           // 4 Brass Stanchion Pillars with VIP Velvet Ropes
-          // Use shared geometries + GOLD_MAT_HIGH (was: new material + new geometries per zone)
+          const stanchionMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.1 });
           const stanchionPositions = [
             [-(platW / 2 - 0.4), -(platD / 2 - 0.4)],
             [(platW / 2 - 0.4), -(platD / 2 - 0.4)],
@@ -3183,46 +3555,64 @@
             [(platW / 2 - 0.4), (platD / 2 - 0.4)]
           ];
           stanchionPositions.forEach(([sx, sz]) => {
-            const post = new THREE.Mesh(STANCHION_POST_GEO, GOLD_MAT_HIGH);
+            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.1, 16), stanchionMat);
             post.position.set(sx, 0.55, sz);
-            const ballTop = new THREE.Mesh(STANCHION_BALL_GEO, GOLD_MAT_HIGH);
+            const ballTop = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 16), stanchionMat);
             ballTop.position.set(sx, 1.15, sz);
-            const baseCap = new THREE.Mesh(STANCHION_BASE_GEO, GOLD_MAT_HIGH);
+            const baseCap = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.08, 16), stanchionMat);
             baseCap.position.set(sx, 0.04, sz);
             g.add(post, ballTop, baseCap);
           });
         }
 
-        /* 3D seats around table / zone — shared geometries & materials (zero per-seat duplication) */
+        /* 3D seats around table / zone (Clean unified luxury casino stools resting directly on platform) */
         if (z.id !== 'jackpot') {
-          const zoneCushMat = getStoolCushionMat(z.color);
           z.seats.forEach(seat => {
-            const stoolGroup = new THREE.Group();
-            stoolGroup.position.set(seat.x - z.x, platY + platH / 2, seat.z - z.z);
-            stoolGroup.rotation.y = seat.r;
+          const stoolGroup = new THREE.Group();
+          stoolGroup.position.set(seat.x - z.x, platY + platH / 2, seat.z - z.z);
+          stoolGroup.rotation.y = seat.r;
 
-            const stoolFoot = new THREE.Mesh(STOOL_FOOT_GEO, STOOL_GOLD_MAT);
-            stoolFoot.position.y = 0.02;
+          const stoolFoot = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.30, 0.34, 0.04, 20),
+            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
+          );
+          stoolFoot.position.y = 0.02;
 
-            const stoolStem = new THREE.Mesh(STOOL_STEM_GEO, STOOL_GOLD_MAT);
-            stoolStem.position.y = 0.23;
+          const stoolStem = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.05, 0.05, 0.42, 16),
+            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
+          );
+          stoolStem.position.y = 0.23;
 
-            const stoolFootrest = new THREE.Mesh(STOOL_FREST_GEO, STOOL_GOLD_MAT);
-            stoolFootrest.rotation.x = Math.PI / 2;
-            stoolFootrest.position.y = 0.15;
+          const stoolFootrest = new THREE.Mesh(
+            new THREE.TorusGeometry(0.18, 0.018, 12, 24),
+            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
+          );
+          stoolFootrest.rotation.x = Math.PI / 2;
+          stoolFootrest.position.y = 0.15;
 
-            const stoolCushion = new THREE.Mesh(STOOL_CUSH_GEO, zoneCushMat);
-            stoolCushion.position.y = 0.46;
-            stoolCushion.castShadow = true;
-
-            const stoolGoldRim = new THREE.Mesh(STOOL_RIM_GEO, STOOL_GOLD_MAT);
-            stoolGoldRim.rotation.x = Math.PI / 2;
-            stoolGoldRim.position.y = 0.46;
-
-            stoolGroup.add(stoolFoot, stoolStem, stoolFootrest, stoolCushion, stoolGoldRim);
-            g.add(stoolGroup);
+          const cushionMat = new THREE.MeshStandardMaterial({
+            color: 0x22123a,
+            roughness: 0.45,
+            metalness: 0.20,
+            emissive: new THREE.Color(z.color),
+            emissiveIntensity: 0.15
           });
-        }
+          const stoolCushion = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.32, 0.10, 24), cushionMat);
+          stoolCushion.position.y = 0.46;
+          stoolCushion.castShadow = true;
+
+          const stoolGoldRim = new THREE.Mesh(
+            new THREE.TorusGeometry(0.34, 0.016, 12, 24),
+            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
+          );
+          stoolGoldRim.rotation.x = Math.PI / 2;
+          stoolGoldRim.position.y = 0.46;
+
+          stoolGroup.add(stoolFoot, stoolStem, stoolFootrest, stoolCushion, stoolGoldRim);
+          g.add(stoolGroup);
+        });
+      }
 
         /* Centerpiece 3D Model construction */
         let centerpiece;
@@ -3680,8 +4070,8 @@
           feltMesh.name = 'rouletteFelt3D';
           rGroup.add(feltMesh);
 
-          // 3.3. PHYSICAL HIGH-RELIEF 3D GOLD MOLDED GRID
-          // MERGED into ONE BufferGeometry: ~38 draw calls → 1 draw call
+          // 3.3. PHYSICAL HIGH-RELIEF 3D GOLD MOLDED GRID (Visible from all standing angles & distances!)
+          const goldRibGroup = new THREE.Group();
           const goldRibMat = new THREE.MeshStandardMaterial({
             color: 0xffd700,
             metalness: 0.96,
@@ -3690,91 +4080,77 @@
             emissiveIntensity: 0.32
           });
 
-          const ribH = 0.032;
-          const ribThickness = 0.020;
-          const ribY = 0.811;
+          const ribH = 0.032; // 32mm High-relief 3D height above felt (Visible from all camera angles!)
+          const ribThickness = 0.020; // 20mm bold solid divider bar
+          const ribY = 0.811; // Sits with top at y = 0.827m
 
-          // Collect rib specs (no Mesh creation yet)
-          const _goldRibSpecs = [];
-          function _collectHLine(cx1, cx2, cy, h, thick) {
-            const bh = (h !== undefined) ? h : ribH;
-            const bt = (thick !== undefined) ? thick : ribThickness;
+          function addGoldHLine(cx1, cx2, cy, h = ribH, thick = ribThickness) {
             const x1 = ((cx1 / 2048) - 0.5) * 3.6;
             const x2 = ((cx2 / 2048) - 0.5) * 3.6;
-            const z  = 0.40 + ((cy / 1024) - 0.5) * 2.2;
-            _goldRibSpecs.push({ x: (x1 + x2) / 2, y: ribY, z, w: Math.abs(x2 - x1) + bt, bh, d: bt });
+            const z = 0.40 + ((cy / 1024) - 0.5) * 2.2;
+            const len = Math.abs(x2 - x1) + thick;
+            const midX = (x1 + x2) / 2;
+            const rib = new THREE.Mesh(new THREE.BoxGeometry(len, h, thick), goldRibMat);
+            rib.position.set(midX, ribY, z);
+            rib.castShadow = true; rib.receiveShadow = true;
+            goldRibGroup.add(rib);
           }
-          function _collectVLine(cx, cy1, cy2, h, thick) {
-            const bh = (h !== undefined) ? h : ribH;
-            const bt = (thick !== undefined) ? thick : ribThickness;
-            const x  = ((cx / 2048) - 0.5) * 3.6;
+
+          function addGoldVLine(cx, cy1, cy2, h = ribH, thick = ribThickness) {
+            const x = ((cx / 2048) - 0.5) * 3.6;
             const z1 = 0.40 + ((cy1 / 1024) - 0.5) * 2.2;
             const z2 = 0.40 + ((cy2 / 1024) - 0.5) * 2.2;
-            _goldRibSpecs.push({ x, y: ribY, z: (z1 + z2) / 2, w: bt, bh, d: Math.abs(z2 - z1) + bt });
+            const len = Math.abs(z2 - z1) + thick;
+            const midZ = (z1 + z2) / 2;
+            const rib = new THREE.Mesh(new THREE.BoxGeometry(thick, h, len), goldRibMat);
+            rib.position.set(x, ribY, midZ);
+            rib.castShadow = true; rib.receiveShadow = true;
+            goldRibGroup.add(rib);
           }
 
           // 1. Outer Perimeter High-Relief Gold Frame
-          const borderH = 0.038, borderThick = 0.026;
-          _collectHLine(30, 2018, 20, borderH, borderThick);
-          _collectHLine(30, 2018, 1004, borderH, borderThick);
-          _collectVLine(30, 20, 1004, borderH, borderThick);
-          _collectVLine(2018, 20, 1004, borderH, borderThick);
+          const borderH = 0.038;
+          const borderThick = 0.026;
+          addGoldHLine(30, 2018, 20, borderH, borderThick);
+          addGoldHLine(30, 2018, 1004, borderH, borderThick);
+          addGoldVLine(30, 20, 1004, borderH, borderThick);
+          addGoldVLine(2018, 20, 1004, borderH, borderThick);
 
           // 2. Zero Cell
-          _collectHLine(50, 240, 30);
-          _collectHLine(50, 240, 660);
-          _collectVLine(50, 30, 660);
-          _collectVLine(240, 30, 660);
+          addGoldHLine(50, 240, 30);
+          addGoldHLine(50, 240, 660);
+          addGoldVLine(50, 30, 660);
+          addGoldVLine(240, 30, 660);
 
           // 3. Numbers Grid 3x12 (1 to 36)
-          for (let r = 0; r <= 3; r++) _collectHLine(240, 1752, 30 + r * 210);
-          for (let c = 0; c <= 12; c++) _collectVLine(240 + c * 126, 30, 660);
+          for (let r = 0; r <= 3; r++) {
+            addGoldHLine(240, 1752, 30 + r * 210);
+          }
+          for (let c = 0; c <= 12; c++) {
+            addGoldVLine(240 + c * 126, 30, 660);
+          }
 
           // 4. 2:1 Column Bets (Right Flank)
-          for (let r = 0; r <= 3; r++) _collectHLine(1752, 1920, 30 + r * 210);
-          _collectVLine(1920, 30, 660);
+          for (let r = 0; r <= 3; r++) {
+            addGoldHLine(1752, 1920, 30 + r * 210);
+          }
+          addGoldVLine(1920, 30, 660);
 
           // 5. Dozens Row (1st 12, 2nd 12, 3rd 12)
-          _collectHLine(240, 1752, 660);
-          _collectHLine(240, 1752, 810);
-          for (let d = 0; d <= 3; d++) _collectVLine(240 + d * 504, 660, 810);
+          addGoldHLine(240, 1752, 660);
+          addGoldHLine(240, 1752, 810);
+          for (let d = 0; d <= 3; d++) {
+            addGoldVLine(240 + d * 504, 660, 810);
+          }
 
           // 6. Outside Bets Row (1 A 18, PAR, ROJO, NEGRO, IMPAR, 19 A 36)
-          _collectHLine(240, 1752, 810);
-          _collectHLine(240, 1752, 990);
-          for (let o = 0; o <= 6; o++) _collectVLine(240 + o * 252, 810, 990);
-
-          // Merge all collected specs into ONE BufferGeometry = ONE draw call
-          {
-            const _allPos = [], _allNorm = [], _allUv = [], _allIdx = [];
-            let _vOff = 0;
-            for (const s of _goldRibSpecs) {
-              const g = new THREE.BoxGeometry(s.w, s.bh, s.d);
-              const pa = g.attributes.position.array;
-              const na = g.attributes.normal.array;
-              const ua = g.attributes.uv.array;
-              const ia = g.index.array;
-              for (let i = 0; i < pa.length; i += 3) {
-                _allPos.push(pa[i] + s.x, pa[i + 1] + s.y, pa[i + 2] + s.z);
-              }
-              for (let i = 0; i < na.length; i++) _allNorm.push(na[i]);
-              for (let i = 0; i < ua.length; i++) _allUv.push(ua[i]);
-              for (let i = 0; i < ia.length; i++) _allIdx.push(ia[i] + _vOff);
-              _vOff += pa.length / 3;
-              g.dispose();
-            }
-            const _mergedRibGeo = new THREE.BufferGeometry();
-            _mergedRibGeo.setAttribute('position', new THREE.Float32BufferAttribute(_allPos, 3));
-            _mergedRibGeo.setAttribute('normal',   new THREE.Float32BufferAttribute(_allNorm, 3));
-            _mergedRibGeo.setAttribute('uv',       new THREE.Float32BufferAttribute(_allUv, 2));
-            _mergedRibGeo.setIndex(_allIdx);
-            _mergedRibGeo.computeBoundingSphere();
-            const goldRibMesh = new THREE.Mesh(_mergedRibGeo, goldRibMat);
-            // Decorative static grid — no shadow contribution needed
-            goldRibMesh.castShadow = false;
-            goldRibMesh.receiveShadow = false;
-            rGroup.add(goldRibMesh);
+          addGoldHLine(240, 1752, 810);
+          addGoldHLine(240, 1752, 990);
+          for (let o = 0; o <= 6; o++) {
+            addGoldVLine(240 + o * 252, 810, 990);
           }
+
+          rGroup.add(goldRibGroup);
 
           // 4. LATERAL FLANKING 3D CHIP RACKS (Elevated to y = 0.798!)
           const controlGroup = new THREE.Group();
@@ -3783,15 +4159,19 @@
           const chip3DMeshes = [];
 
           // Left Lateral Groove & Tray (x = -2.10m)
-          const trayLeft = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.02, 2.25), DARK_TRAY_MAT);  // shared
+          const trayLeft = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.02, 2.25),
+            new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 }));
           trayLeft.position.set(-2.10, 0, 0);
-          const trayLeftGold = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.01, 2.27), GOLD_MAT_MED);  // shared
+          const trayLeftGold = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.01, 2.27),
+            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.15 }));
           trayLeftGold.position.set(-2.10, 0.010, 0);
 
           // Right Lateral Groove & Tray (x = +2.10m)
-          const trayRight = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.02, 2.25), DARK_TRAY_MAT);  // shared
+          const trayRight = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.02, 2.25),
+            new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 }));
           trayRight.position.set(2.10, 0, 0);
-          const trayRightGold = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.01, 2.27), GOLD_MAT_MED);  // shared
+          const trayRightGold = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.01, 2.27),
+            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.15 }));
           trayRightGold.position.set(2.10, 0.010, 0);
           controlGroup.add(trayLeft, trayLeftGold, trayRight, trayRightGold);
 
@@ -4014,10 +4394,9 @@
           rightWall.rotation.x = -0.16;
           plinkoGroup.add(leftWall, rightWall);
 
-          // 2. Pyramid of 3D Pegs (10 Rows) — shared pegMat via PLINKO_PEG_MAT
+          // 2. Pyramid of 3D Pegs (10 Rows)
           const pegs3DMeshes = [];
           const pegGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.18, 12);
-          const _pegHeadGeo = new THREE.SphereGeometry(0.06, 12, 12);
 
           for (let row = 0; row < 10; row++) {
             const numPegs = row + 3;
@@ -4027,13 +4406,14 @@
 
             for (let p = 0; p < numPegs; p++) {
               const px = startX + p * 0.36;
-              const pegMesh = new THREE.Mesh(pegGeo, PLINKO_PEG_MAT);
+              const pegMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9, roughness: 0.1, emissive: 0xf59e0b, emissiveIntensity: 0.2 });
+              const pegMesh = new THREE.Mesh(pegGeo, pegMat);
               pegMesh.rotation.x = Math.PI / 2 - 0.16;
               const pz = -0.05 + (5.0 - py) * Math.sin(0.16);
               pegMesh.position.set(px, py, pz);
 
-              // Shiny sphere head on peg (shared material)
-              const headMesh = new THREE.Mesh(_pegHeadGeo, PLINKO_PEG_MAT);
+              // Shiny sphere head on peg
+              const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), pegMat);
               headMesh.position.set(0, 0.10, 0);
               pegMesh.add(headMesh);
 
@@ -4048,20 +4428,16 @@
           const bucketWidth = 3.9 / 11;
           const bucketMeshes = [];
 
-          const _bucketGeo = new THREE.BoxGeometry(bucketWidth - 0.04, 0.45, 0.24);
-          const _divGeo    = new THREE.BoxGeometry(0.02, 0.55, 0.28);
-          const _divMat    = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8 });
-
           plinkoMults.forEach((m, idx) => {
             const bx = -1.95 + idx * bucketWidth + bucketWidth / 2;
             const bMat = new THREE.MeshStandardMaterial({ color: multColors[idx], roughness: 0.3, emissive: multColors[idx], emissiveIntensity: 0.3 });
-            const bucketBox = new THREE.Mesh(_bucketGeo, bMat);
+            const bucketBox = new THREE.Mesh(new THREE.BoxGeometry(bucketWidth - 0.04, 0.45, 0.24), bMat);
             bucketBox.position.set(bx, 0.45, 0.02);
             plinkoGroup.add(bucketBox);
 
-            // Divider wall (shared geo + shared mat)
+            // Divider wall
             if (idx > 0) {
-              const divMesh = new THREE.Mesh(_divGeo, _divMat);
+              const divMesh = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.55, 0.28), new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8 }));
               divMesh.position.set(-1.95 + idx * bucketWidth, 0.48, 0.02);
               plinkoGroup.add(divMesh);
             }
@@ -4117,16 +4493,17 @@
           minesGroup.add(neonEdge);
 
           // Cuadrícula 5x5 de fichas físicas interactuables sobre la mesa
-          // Shared material (MINES_TILE_MAT) — game logic clones per-tile only on reveal
           const tileSize = 0.32, gap = 0.05, cols = 5;
           const totalW = cols * tileSize + (cols - 1) * gap;
           const start0 = -totalW / 2 + tileSize / 2;
-          const _tileMeshGeo = new THREE.BoxGeometry(tileSize, 0.1, tileSize);
           minesTileMeshes = [];
           for (let row = 0; row < 5; row++) {
             for (let col = 0; col < 5; col++) {
               const idx = row * 5 + col;
-              const tMesh = new THREE.Mesh(_tileMeshGeo, MINES_TILE_MAT);
+              const tMat = new THREE.MeshStandardMaterial({
+                color: 0x241a3d, emissive: 0x8B5CF6, emissiveIntensity: 0.25, roughness: 0.5, metalness: 0.15
+              });
+              const tMesh = new THREE.Mesh(new THREE.BoxGeometry(tileSize, 0.1, tileSize), tMat);
               tMesh.position.set(start0 + col * (tileSize + gap), baseY + 0.11, start0 + row * (tileSize + gap));
               tMesh.userData.mineIdx = idx;
               tMesh.userData.baseY = tMesh.position.y;
@@ -4307,13 +4684,13 @@
           // 5. Luxury 2-Tiered Mahogany & Gold Dealer Chip Tray with 16 3D Chip Stacks (2 Rows of 8)
           const trayBase = new THREE.Mesh(
             new THREE.BoxGeometry(1.40, 0.024, 0.38),
-            DARK_TRAY_MAT  // shared: was new MeshStandardMaterial(0x14091e×5)
+            new THREE.MeshStandardMaterial({ color: 0x14091e, roughness: 0.4, metalness: 0.3 })
           );
           trayBase.position.set(0, 0.835, 0.20);
 
           const trayGoldBorder = new THREE.Mesh(
             new THREE.BoxGeometry(1.42, 0.015, 0.40),
-            GOLD_MAT_HIGH  // shared
+            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 })
           );
           trayGoldBorder.position.set(0, 0.828, 0.20);
 
@@ -4495,11 +4872,13 @@
         }
         g.add(label);
 
-        // Frustum culling ENABLED (Three.js default = true).
-        // Sprites (zone labels, nametags) use depthTest:false and remain
-        // correctly handled by Three.js built-in frustum culling.
-        // DO NOT disable frustumCulled globally — it forces every mesh in
-        // the entire casino to be rendered every frame regardless of visibility.
+        if (g && typeof g.traverse === 'function') {
+          g.traverse(m => {
+            if (m && (m.isMesh || m.isSprite)) {
+              m.frustumCulled = false;
+            }
+          });
+        }
 
         scene.add(g);
         zoneMeshes[z.id] = { group: g, ring, label, pulse: Math.random() * Math.PI * 2 };

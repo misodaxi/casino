@@ -18,11 +18,6 @@
       let lowFpsStreak = 0;
       let highFpsStreak = 0;
 
-      // Pre-allocated vectors for camera updates (zero GC per frame)
-      const _cineDesiredPos = new THREE.Vector3();
-      const _cineLookTarget = new THREE.Vector3();
-      const _seatedDesiredPos = new THREE.Vector3();
-
       // Debug HUD references
       const debugHudEl = document.getElementById('debugPerfHud');
       const debugToggleBtn = document.getElementById('debugToggleBtn');
@@ -55,17 +50,11 @@
       // Precise Frame Timing & 1% Low Percentile Tracking
       const FRAME_SAMPLE_SIZE = 120;
       const frameTimeHistory = new Float32Array(FRAME_SAMPLE_SIZE);
-      // Pre-allocated sort buffer: reused every 500ms tick (zero GC per sort)
-      const _sortedFramesBuf = new Float32Array(FRAME_SAMPLE_SIZE);
       let frameHistoryIdx = 0;
       let frameHistoryCount = 0;
       let onePercentLowFps = 60;
       let zeroPointOnePercentLowFps = 60;
       let maxFrameSpikeMs = 16.6;
-
-      // Pre-cached zone mesh values array (eliminates Object.values() alloc every 100ms)
-      let _zoneMeshValues = null;
-      let _zoneMeshValuesReady = false;
 
       function animate() {
         requestAnimationFrame(animate);
@@ -85,19 +74,15 @@
           frameCount = 0;
           fpsCalcTime = now;
 
-          // Compute 1% and 0.1% low from sliding window — zero-alloc using pre-allocated Float32Array
-          const _fhCount = frameHistoryCount;
-          _sortedFramesBuf.set(frameTimeHistory.subarray(0, _fhCount));
-          // Sort ascending in-place (native Float32Array sort: no JS array created)
-          _sortedFramesBuf.subarray(0, _fhCount).sort();
-          // Ascending order: worst frames are at the end
-          const onePctIdx    = Math.max(0, _fhCount - 1 - Math.floor(_fhCount * 0.01));
-          const zeroOnePctIdx = Math.max(0, _fhCount - 1 - Math.floor(_fhCount * 0.001));
-          const slowest1PctMs  = _sortedFramesBuf[onePctIdx]  || 16.6;
-          const slowest01PctMs = _sortedFramesBuf[zeroOnePctIdx] || 16.6;
+          // Compute 1% and 0.1% low percentile metrics from sliding window
+          const sortedFrames = Array.from(frameTimeHistory.subarray(0, frameHistoryCount)).sort((a, b) => b - a);
+          const onePctIdx = Math.min(sortedFrames.length - 1, Math.max(0, Math.floor(sortedFrames.length * 0.01)));
+          const zeroOnePctIdx = Math.min(sortedFrames.length - 1, Math.max(0, Math.floor(sortedFrames.length * 0.001)));
+          const slowest1PctMs = sortedFrames[onePctIdx] || 16.6;
+          const slowest01PctMs = sortedFrames[zeroOnePctIdx] || 16.6;
           onePercentLowFps = Math.max(1, Math.round(1000 / Math.max(1, slowest1PctMs)));
           zeroPointOnePercentLowFps = Math.max(1, Math.round(1000 / Math.max(1, slowest01PctMs)));
-          maxFrameSpikeMs = _sortedFramesBuf[_fhCount - 1] || 16.6;
+          maxFrameSpikeMs = sortedFrames[0] || 16.6;
 
           if (fpsCounterValEl) {
             fpsCounterValEl.textContent = currentFps;
@@ -196,10 +181,7 @@
           }
           if (window.casinoSpeakerMeshes && window.localJukeboxState && window.localJukeboxState.playing) {
             const sPulse = 1.0 + Math.sin(now * 0.008) * 0.04;
-            // for-loop avoids forEach closure overhead (runs every 33ms)
-            for (let _si = 0, _sLen = window.casinoSpeakerMeshes.length; _si < _sLen; _si++) {
-              window.casinoSpeakerMeshes[_si].scale.set(sPulse, sPulse, sPulse);
-            }
+            window.casinoSpeakerMeshes.forEach(spk => spk.scale.set(sPulse, sPulse, sPulse));
           }
 
           /* rotate roulette rotor & ball in winning pocket */
@@ -235,20 +217,14 @@
           last5HzTick = now;
           if (typeof updateBotsAI === 'function') updateBotsAI(dt5);
 
-          // Cache zoneMeshes values once (avoids Object.values() array alloc every 100ms)
-          if (!_zoneMeshValuesReady && window.zoneMeshes) {
-            _zoneMeshValues = Object.values(window.zoneMeshes);
-            _zoneMeshValuesReady = true;
-          }
-          if (_zoneMeshValues) {
-            for (let _zi = 0, _zLen = _zoneMeshValues.length; _zi < _zLen; _zi++) {
-              const zm = _zoneMeshValues[_zi];
+          if (window.zoneMeshes) {
+            Object.values(window.zoneMeshes).forEach(zm => {
               zm.pulse = (zm.pulse || 0) + 0.09;
               if (zm.ring) {
                 const s = 1 + Math.sin(zm.pulse) * 0.05;
                 zm.ring.scale.set(s, 1, s);
               }
-            }
+            });
           }
         }
 

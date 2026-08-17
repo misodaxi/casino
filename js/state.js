@@ -242,9 +242,6 @@
         return chipGroup;
       }
 
-      // Pre-sorted chip array: avoids spread+sort allocation on every chip stack creation
-      const CASINO_CHIPS_SORTED_DESC = [...CASINO_CHIPS].sort((a, b) => b.v - a.v);
-
       function create3DChipStackMesh(amount, customRadius = 0.085, customHeight = 0.022) {
         const stackGroup = new THREE.Group();
         const amt = roundMoney(amount);
@@ -252,8 +249,7 @@
 
         let rem = amt;
         const chipsToStack = [];
-        // Use pre-sorted array (zero-alloc vs [...CASINO_CHIPS].sort() every call)
-        const sortedChips = CASINO_CHIPS_SORTED_DESC;
+        const sortedChips = [...CASINO_CHIPS].sort((a, b) => b.v - a.v);
 
         sortedChips.forEach(c => {
           while (rem >= (c.v - 0.0001) && chipsToStack.length < 8) {
@@ -352,8 +348,27 @@
 
       const rState = { selectedChip: 50, bets: {}, totalBet: 0, spinning: false };
 
+      var pokerState = {
+        selectedChip: 50,
+        currentBet: 0,
+        pot: 0,
+        seats: [
+          { id: 0, name: 'Jugador 1', chips: 1000, bet: 0, cards: [], folded: false, active: true },
+          { id: 1, name: 'Jugador 2', chips: 1000, bet: 0, cards: [], folded: false, active: true },
+          { id: 2, name: 'Jugador 3', chips: 1000, bet: 0, cards: [], folded: false, active: true },
+          { id: 3, name: 'Jugador 4', chips: 1000, bet: 0, cards: [], folded: false, active: true },
+          { id: 4, name: 'Jugador 5', chips: 1000, bet: 0, cards: [], folded: false, active: true },
+          { id: 5, name: 'Jugador 6', chips: 1000, bet: 0, cards: [], folded: false, active: true },
+          { id: 6, name: 'Jugador 7', chips: 1000, bet: 0, cards: [], folded: false, active: true },
+          { id: 7, name: 'Jugador 8', chips: 1000, bet: 0, cards: [], folded: false, active: true }
+        ],
+        communityCards: [],
+        phase: 'WAITING'
+      };
+
 // --- Explicit Global Window Bindings ---
 if (typeof state !== 'undefined') window.state = state;
+if (typeof pokerState !== 'undefined') window.pokerState = pokerState;
 if (typeof roundMoney !== 'undefined') window.roundMoney = roundMoney;
 if (typeof formatMoney !== 'undefined') window.formatMoney = formatMoney;
 if (typeof updateBalanceUI !== 'undefined') window.updateBalanceUI = updateBalanceUI;

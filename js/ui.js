@@ -1,23 +1,9 @@
 /* ============================================================
-         CANVAS PARTICLE FX SYSTEM (CONFETTI, SPARKS) — POOLED
+         CANVAS PARTICLE FX SYSTEM (CONFETTI, SPARKS)
       ============================================================ */
       var fxCanvas = document.getElementById('fx-canvas');
       var fxCtx = fxCanvas.getContext('2d');
       var particles = [];
-
-      // --- Object Pool: eliminates per-particle GC (60 allocs/confetti → 0) ---
-      const _PART_POOL = [];
-      const _PART_POOL_SIZE = 120;
-      for (let _pi = 0; _pi < _PART_POOL_SIZE; _pi++) {
-        _PART_POOL.push({ x: 0, y: 0, vx: 0, vy: 0, size: 0, color: '', life: 0, decay: 0, rot: 0, vRot: 0 });
-      }
-      function _acquireParticle() {
-        return _PART_POOL.length > 0 ? _PART_POOL.pop()
-          : { x: 0, y: 0, vx: 0, vy: 0, size: 0, color: '', life: 0, decay: 0, rot: 0, vRot: 0 };
-      }
-      function _releaseParticle(p) {
-        _PART_POOL.push(p);
-      }
 
       function resizeFxCanvas() {
         fxCanvas.width = window.innerWidth;
@@ -26,27 +12,23 @@
       window.addEventListener('resize', resizeFxCanvas);
       resizeFxCanvas();
 
-      const _CONFETTI_COLORS = ['#8B5CF6', '#E11FD1', '#FB923C', '#22c55e', '#38bdf8', '#FBBF24'];
-      const _CC_LEN = _CONFETTI_COLORS.length;
-
       function triggerConfetti() {
         playSound('win');
+        var colors = ['#8B5CF6', '#E11FD1', '#FB923C', '#22c55e', '#38bdf8', '#FBBF24'];
         const maxP = (window.currentQuality && window.currentQuality.maxParticles) ? window.currentQuality.maxParticles : 60;
-        const cx = window.innerWidth / 2;
-        const cy = window.innerHeight / 2 - 50;
         for (let i = 0; i < maxP; i++) {
-          const p = _acquireParticle();
-          p.x     = cx;
-          p.y     = cy;
-          p.vx    = (Math.random() - 0.5) * 18;
-          p.vy    = (Math.random() - 0.8) * 16;
-          p.size  = 6 + Math.random() * 8;
-          p.color = _CONFETTI_COLORS[Math.floor(Math.random() * _CC_LEN)];
-          p.life  = 1;
-          p.decay = 0.012 + Math.random() * 0.01;
-          p.rot   = Math.random() * Math.PI * 2;
-          p.vRot  = (Math.random() - 0.5) * 0.2;
-          particles.push(p);
+          particles.push({
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2 - 50,
+            vx: (Math.random() - 0.5) * 18,
+            vy: (Math.random() - 0.8) * 16,
+            size: 6 + Math.random() * 8,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            life: 1,
+            decay: 0.012 + Math.random() * 0.01,
+            rot: Math.random() * Math.PI * 2,
+            vRot: (Math.random() - 0.5) * 0.2
+          });
         }
       }
 
@@ -55,17 +37,13 @@
         fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
         for (let i = particles.length - 1; i >= 0; i--) {
           const p = particles[i];
-          p.x  += p.vx;
-          p.y  += p.vy;
+          p.x += p.vx;
+          p.y += p.vy;
           p.vy += 0.35;
           p.rot += p.vRot;
           p.life -= p.decay;
 
-          if (p.life <= 0) {
-            _releaseParticle(p);   // Return to pool (zero GC)
-            particles.splice(i, 1);
-            continue;
-          }
+          if (p.life <= 0) { particles.splice(i, 1); continue; }
 
           fxCtx.save();
           fxCtx.translate(p.x, p.y);

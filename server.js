@@ -8,7 +8,6 @@ const path = require('path');
 const { Server } = require('socket.io');
 
 const { setupSocketIO } = require('./server/network');
-const { players } = require('./server/state');
 
 const app = express();
 const server = http.createServer(app);
@@ -27,22 +26,6 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname)));
 app.use('/css', express.static(path.join(__dirname, 'css')));
 app.use('/js', express.static(path.join(__dirname, 'js')));
-
-// ─── Event-Loop Lag Monitor ─────────────────────────────────────────────────
-// Measures how much the Node.js event loop is being blocked.
-// A value > 20ms = moderate load; > 50ms = heavy; > 100ms = server saturated.
-let _elLag = 0;
-let _elLastCheck = Date.now();
-function _measureEventLoopLag() {
-  const start = Date.now();
-  setImmediate(() => {
-    _elLag = Date.now() - start;
-    _elLastCheck = Date.now();
-  });
-}
-// Sample every 2 seconds (negligible overhead)
-setInterval(_measureEventLoopLag, 2000);
-// ────────────────────────────────────────────────────────────────────────────
 
 const https = require('https');
 
@@ -103,27 +86,6 @@ app.get('/api/jukebox-search', (req, res) => {
   });
 });
 
-// ─── Server Health & Diagnostics Endpoint ───────────────────────────────────
-// GET /api/health → lightweight JSON with key server metrics
-// Use to monitor event-loop lag, memory and player count under load.
-app.get('/api/health', (req, res) => {
-  const mem = process.memoryUsage();
-  const playerCount = Object.keys(players).length;
-  res.json({
-    status: 'ok',
-    uptime: Math.floor(process.uptime()),
-    players: playerCount,
-    eventLoopLag: _elLag,           // ms — key server health metric
-    memory: {
-      rss:      Math.round(mem.rss      / 1024 / 1024),  // MB
-      heapUsed: Math.round(mem.heapUsed / 1024 / 1024),  // MB
-      heapTotal: Math.round(mem.heapTotal / 1024 / 1024) // MB
-    },
-    timestamp: Date.now()
-  });
-});
-// ────────────────────────────────────────────────────────────────────────────
-
 module.exports.searchYouTubeTrack = searchYouTubeTrack;
 
 // Attach Socket.IO Network & Game Handlers
@@ -131,5 +93,4 @@ setupSocketIO(io);
 
 server.listen(PORT, () => {
   console.log(`[MIDNIGHT CASINO] Server running on http://localhost:${PORT}`);
-  console.log(`[MIDNIGHT CASINO] Health endpoint: http://localhost:${PORT}/api/health`);
 });

@@ -126,15 +126,15 @@ window.ZONES = [
     ]
   },
   {
-    id: 'poker', name: 'POKER', icon: '♠️', x: 0, z: 11, radius: 5.2, color: 0xf59e0b, seats: [
-      { x: -2.6, z: 12.8, r: Math.PI - 0.4 },
-      { x: 0.0, z: 13.2, r: Math.PI },
-      { x: 2.6, z: 12.8, r: Math.PI + 0.4 },
-      { x: 3.4, z: 11.0, r: -Math.PI / 2 },
-      { x: 2.6, z: 9.2, r: 0.4 },
-      { x: 0.0, z: 8.8, r: 0 },
-      { x: -2.6, z: 9.2, r: -0.4 },
-      { x: -3.4, z: 11.0, r: Math.PI / 2 }
+    id: 'poker', name: 'POKER 3D', icon: '♠️', x: 0, z: 11, radius: 5.2, color: 0xf59e0b, seats: [
+      { x: 0.00, z: 14.25, r: Math.PI },
+      { x: 2.30, z: 13.30, r: (5 * Math.PI) / 4 },
+      { x: 3.25, z: 11.00, r: -Math.PI / 2 },
+      { x: 2.30, z: 8.70,  r: -Math.PI / 4 },
+      { x: 0.00, z: 7.75,  r: 0 },
+      { x: -2.30, z: 8.70, r: Math.PI / 4 },
+      { x: -3.25, z: 11.00, r: Math.PI / 2 },
+      { x: -2.30, z: 13.30, r: (3 * Math.PI) / 4 }
     ]
   },
 

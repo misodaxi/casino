@@ -557,12 +557,76 @@
   <div class="game-overlay" id="pokerWrap">
     <button class="exit-game-btn" onclick="exitActiveGame()">🚪 LEVANTARSE DE LA MESA [ESC]</button>
     <div class="table-title">
-      <h2>TEXAS HOLD'EM POKER</h2><span>MESA VIP DE POKER 3D · SHOWDOWN & ALL-IN</span>
-    </div>
-    <div class="duel-bottom">
-      <div class="bet-control">
-        <button class="action-btn" id="pokerAllInBtn" style="background:linear-gradient(135deg, #f59e0b, #d97706);">VER CARTAS / JUGAR ♠️</button>
+      <h2>TEXAS HOLD'EM POKER 3D</h2>
+      <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-top:6px; flex-wrap:wrap;">
+        <span class="poker-badge" id="pokerPhaseBadge" style="background:rgba(245,158,11,0.25); border:1px solid #f59e0b; color:#fbbf24; padding:4px 14px; border-radius:14px; font-weight:900; font-size:12px; letter-spacing:0.5px;">ETAPA: ESPERANDO</span>
+        <span class="poker-badge" id="pokerPotDisplay" style="background:rgba(34,197,94,0.25); border:1px solid #22c55e; color:#4ade80; padding:4px 14px; border-radius:14px; font-weight:900; font-size:12px; letter-spacing:0.5px;">BOTE (POT): $0</span>
+        <span class="poker-badge" id="pokerCurrentBetDisplay" style="background:rgba(139,92,246,0.25); border:1px solid #8b5cf6; color:#c084fc; padding:4px 14px; border-radius:14px; font-weight:900; font-size:12px; letter-spacing:0.5px;">APUESTA MÁX: $0</span>
       </div>
+    </div>
+
+    <!-- Center Community Cards HUD -->
+    <div id="pokerCommunityCardsWrap" style="position:fixed; top:24%; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:8px; z-index:90; pointer-events:none;">
+      <div style="font-size:11px; font-weight:900; letter-spacing:1px; color:#facc15; text-shadow:0 2px 8px rgba(0,0,0,0.8);">CARTAS COMUNITARIAS (COMMUNITY CARDS)</div>
+      <div id="pokerCommunityCardsList" style="display:flex; gap:8px;">
+        <div class="poker-card-slot back" id="commCard0">🂠</div>
+        <div class="poker-card-slot back" id="commCard1">🂠</div>
+        <div class="poker-card-slot back" id="commCard2">🂠</div>
+        <div class="poker-card-slot back" id="commCard3">🂠</div>
+        <div class="poker-card-slot back" id="commCard4">🂠</div>
+      </div>
+    </div>
+
+    <!-- Integrated Center-Bottom Poker Console (Completely clear of left chat and right panels) -->
+    <div class="duel-bottom" style="left:50%; right:auto; transform:translateX(-50%); width:auto; max-width:92vw; bottom:16px; display:flex; flex-direction:column; align-items:center; z-index:100;">
+      
+      <!-- Top Announcement / Status Bar -->
+      <div class="slot-payout-info-bar" id="pokerStatusText" style="margin-bottom:8px; background:rgba(15,8,29,0.92); padding:8px 22px; border-radius:20px; border:1px solid #f59e0b; box-shadow:0 0 15px rgba(245,158,11,0.3); font-size:12px; font-weight:700; text-align:center; white-space:nowrap; max-width:90vw; overflow:hidden; text-overflow:ellipsis;">
+        ♠️ Selecciona tu apuesta inicial en la mesa 3D y pulsa ¡ESTOY LISTO! para comenzar.
+      </div>
+      
+      <!-- Main Integrated Control Bar -->
+      <div style="display:flex; align-items:center; gap:14px; background:rgba(15,8,29,0.92); border:1px solid rgba(245,158,11,0.4); box-shadow:0 0 25px rgba(0,0,0,0.8); padding:10px 18px; border-radius:20px; flex-wrap:wrap; justify-content:center;">
+        
+        <!-- Left Sub-Panel: Player Hole Cards & Hand Rank -->
+        <div id="pokerMyHandPanel" style="display:flex; align-items:center; gap:12px; border-right:1px solid rgba(255,255,255,0.12); padding-right:14px;">
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <span style="font-size:10px; font-weight:900; color:#94a3b8;" id="pokerSeatLabel">🪑 ASIENTO: #1</span>
+            <span style="font-size:11px; font-weight:900; color:#fbbf24;" id="pokerMyChipsDisplay">FICHAS: $1,000</span>
+            <div id="pokerMyHandRank" style="font-size:10px; font-weight:900; color:#38bdf8; text-align:center; background:rgba(56,189,248,0.15); padding:3px 6px; border-radius:8px; border:1px solid rgba(56,189,248,0.3); white-space:nowrap;">
+              Mano: Esperando inicio...
+            </div>
+          </div>
+          <div style="display:flex; gap:6px;" id="pokerMyCardsList">
+            <div class="poker-card-slot my-card back" id="myCard0">🂠</div>
+            <div class="poker-card-slot my-card back" id="myCard1">🂠</div>
+          </div>
+        </div>
+
+        <!-- Right Sub-Panel: Waiting / Ready Controls -->
+        <div class="bet-control" id="pokerReadyControls" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center;">
+          <div class="total-bet-pill" style="min-width:70px;">FICHA<span class="v" id="pokerSelectedChipDisplay" style="color:#c084fc;">$50</span></div>
+          <div class="total-bet-pill" style="min-width:85px;">APUESTA TOTAL<span class="v" id="pokerBetDisplay" style="color:#4ade80;">$50</span></div>
+          <button class="action-btn" id="pokerClearBetBtn" style="background:rgba(239,68,68,0.25); border:1px solid #ef4444; color:#fca5a5; padding:8px 12px; font-size:11px;">BORRAR 🗑️</button>
+          <button class="action-btn" id="pokerReadyBtn" style="background:linear-gradient(135deg, #f59e0b, #d97706); box-shadow:0 0 20px rgba(245,158,11,0.5); padding:9px 18px;">¡ESTOY LISTO! ♠️</button>
+        </div>
+
+        <!-- Right Sub-Panel: Active Hand In-Game Action Controls -->
+        <div class="bet-control" id="pokerActionControls" style="display:none; align-items:center; gap:8px;">
+          <button class="action-btn" id="pokerFoldBtn" style="background:linear-gradient(135deg, #ef4444, #991b1b); font-size:12px; padding:10px 14px;">RETIRARSE 🏳️</button>
+          <button class="action-btn" id="pokerCheckBtn" style="background:linear-gradient(135deg, #3b82f6, #1d4ed8); font-size:12px; padding:10px 14px;">PASAR ✋</button>
+          <button class="action-btn" id="pokerCallBtn" style="background:linear-gradient(135deg, #22c55e, #15803d); font-size:12px; padding:10px 14px;">IGUALAR 🪙</button>
+          <button class="action-btn" id="pokerRaiseBtn" style="background:linear-gradient(135deg, #f59e0b, #b45309); font-size:12px; padding:10px 14px;">SUBIR +$50 📈</button>
+          <button class="action-btn" id="pokerAllInActionBtn" style="background:linear-gradient(135deg, #a855f7, #6b21a8); font-size:12px; padding:10px 14px; box-shadow:0 0 15px rgba(168,85,247,0.5);">ALL-IN 👑</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Winning Result Banner -->
+    <div id="pokerResultBanner" class="result-banner" style="z-index:200;">
+      <h2 id="pokerResultTitle">🏆 ¡GANASTE EL BOTE!</h2>
+      <p id="pokerResultDesc" style="font-size:14px; margin-top:4px;">Full House de Ases y Reyes (+$1,200)</p>
+      <button class="action-btn" id="pokerNextHandBtn" style="margin-top:12px; background:linear-gradient(135deg, #22c55e, #16a34a);">JUGAR SIGUIENTE MANO ♠️</button>
     </div>
   </div>
 
@@ -807,6 +871,7 @@
   <script src="js/games/plinko.js"></script>
   <script src="js/games/fortuneWheel.js"></script>
   <script src="js/games/coin.js"></script>
+  <script src="js/games/poker.js"></script>
   <script src="js/main.js"></script>
 </body>
 
