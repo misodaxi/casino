@@ -83,7 +83,7 @@ function getSyncedJukeboxState() {
   const dur = (jukeboxState.currentTrack && jukeboxState.currentTrack.duration) ? jukeboxState.currentTrack.duration : 180;
   if (jukeboxState.playing) {
     const elapsed = Math.max(0, (now - jukeboxState.updatedAt) / 1000);
-    liveCurrentTime = (jukeboxState.currentTime + elapsed) % dur;
+    liveCurrentTime = Math.min(dur, jukeboxState.currentTime + elapsed);
   }
   return {
     currentTrack: jukeboxState.currentTrack,

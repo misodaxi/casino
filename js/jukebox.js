@@ -290,6 +290,7 @@
           iframe.src = targetUrl;
           setTimeout(() => {
             try {
+              iframe.contentWindow.postMessage(JSON.stringify({ event: 'listening' }), '*');
               iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [actualVol] }), '*');
               if (actualVol > 0) {
                 iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'unMute' }), '*');
@@ -560,11 +561,90 @@
         });
       }
 
-      // Live Scrubber Progress Update
+      let lastJukeTrackEndTime = 0;
+      function handleJukeboxTrackEnded() {
+        const now = Date.now();
+        if (now - lastJukeTrackEndTime < 2500) return;
+        lastJukeTrackEndTime = now;
+
+        if (typeof socket !== 'undefined' && socket && socket.connected) {
+          socket.emit('jukeboxNext');
+        } else if (localJukeboxState.playlist && localJukeboxState.playlist.length > 0) {
+          localJukeboxState.currentIndex = (localJukeboxState.currentIndex + 1) % localJukeboxState.playlist.length;
+          const nextTrack = localJukeboxState.playlist[localJukeboxState.currentIndex];
+          applyJukeboxServerState({
+            currentTrack: nextTrack,
+            currentIndex: localJukeboxState.currentIndex,
+            playing: true,
+            currentTime: 0,
+            changerName: localJukeboxState.changerName
+          });
+        }
+      }
+
+      // Real-Time YouTube Iframe Message Listener for Dynamic Duration & Playback Time
+      window.addEventListener('message', (e) => {
+        try {
+          let data = e.data;
+          if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch(err) { return; }
+          }
+          if (!data || typeof data !== 'object') return;
+
+          const jukeIframe = document.getElementById('jukeboxIframe');
+          if (!jukeIframe || e.source !== jukeIframe.contentWindow) return;
+
+          if (data.event === 'infoDelivery' && data.info) {
+            const info = data.info;
+
+            // 1. Dynamic Exact Song Duration Adaptation
+            if (typeof info.duration === 'number' && info.duration > 0) {
+              const exactDur = Math.round(info.duration);
+              if (localJukeboxState.currentTrack && localJukeboxState.currentTrack.duration !== exactDur) {
+                localJukeboxState.currentTrack.duration = exactDur;
+                const timeTotEl = document.getElementById('jukeTimeTotal');
+                if (timeTotEl) timeTotEl.textContent = formatTrackTime(exactDur);
+
+                if (typeof socket !== 'undefined' && socket && socket.connected) {
+                  socket.emit('jukeboxUpdateTrackDuration', {
+                    trackId: localJukeboxState.currentTrack.id,
+                    videoId: localJukeboxState.currentTrack.videoId,
+                    duration: exactDur
+                  });
+                }
+              }
+            }
+
+            // 2. Real-Time Current Playback Time
+            if (typeof info.currentTime === 'number' && info.currentTime >= 0) {
+              localJukeboxState.currentTime = Math.floor(info.currentTime);
+              const totalSec = (localJukeboxState.currentTrack && localJukeboxState.currentTrack.duration) ? localJukeboxState.currentTrack.duration : 180;
+              const timeCurEl = document.getElementById('jukeTimeCurrent');
+              const progressFill = document.getElementById('jukeProgressFill');
+              if (timeCurEl) timeCurEl.textContent = formatTrackTime(localJukeboxState.currentTime);
+              if (progressFill) {
+                const pct = Math.min(100, Math.max(0, (localJukeboxState.currentTime / totalSec) * 100));
+                progressFill.style.width = pct + '%';
+              }
+            }
+
+            // 3. YouTube PlayerState: 0 = ENDED (canción terminada de forma natural)
+            if (info.playerState === 0) {
+              handleJukeboxTrackEnded();
+            }
+          }
+        } catch(err) {}
+      });
+
+      // Live Scrubber Progress Fallback & Time Synchronization
       setInterval(() => {
         if (localJukeboxState.playing && localJukeboxState.currentTrack) {
           const totalSec = localJukeboxState.currentTrack.duration || 180;
-          localJukeboxState.currentTime = (localJukeboxState.currentTime + 1) % totalSec;
+          if (localJukeboxState.currentTime < totalSec) {
+            localJukeboxState.currentTime++;
+          } else {
+            handleJukeboxTrackEnded();
+          }
           const timeCurEl = document.getElementById('jukeTimeCurrent');
           const progressFill = document.getElementById('jukeProgressFill');
           if (timeCurEl) timeCurEl.textContent = formatTrackTime(localJukeboxState.currentTime);

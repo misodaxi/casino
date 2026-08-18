@@ -36,18 +36,25 @@ window.ZONES = [
   },
   {
     id: 'cinema', name: 'CINE & MUSIC 3D', icon: '🎬', x: 0, z: -25, radius: 8.5, color: 0x8B5CF6, seats: [
-      { x: -6.8, z: -22.5, r: Math.PI - 0.3 },
-      { x: -5.2, z: -22.5, r: Math.PI + 0.3 },
-      { x: -2.8, z: -22.5, r: Math.PI - 0.2 },
-      { x: -1.2, z: -22.5, r: Math.PI + 0.2 },
-      { x: 1.2, z: -22.5, r: Math.PI - 0.2 },
-      { x: 2.8, z: -22.5, r: Math.PI + 0.2 },
-      { x: 5.2, z: -22.5, r: Math.PI - 0.3 },
-      { x: 6.8, z: -22.5, r: Math.PI + 0.3 },
-      { x: -4.8, z: -25.5, r: Math.PI - 0.3 },
-      { x: -3.2, z: -25.5, r: Math.PI + 0.3 },
-      { x: 3.2, z: -25.5, r: Math.PI - 0.3 },
-      { x: 4.8, z: -25.5, r: Math.PI + 0.3 }
+      // Fila 1 (Delantera / Escalon Inferior, z: -27.5)
+      { x: -3.6, z: -27.5, r:  0.30 },
+      { x: -1.2, z: -27.5, r:  0.10 },
+      { x:  1.2, z: -27.5, r: -0.10 },
+      { x:  3.6, z: -27.5, r: -0.30 },
+      // Fila 2 (Media / Escalon Central, z: -25.0)
+      { x: -6.0, z: -25.0, r:  0.45 },
+      { x: -3.6, z: -25.0, r:  0.28 },
+      { x: -1.2, z: -25.0, r:  0.10 },
+      { x:  1.2, z: -25.0, r: -0.10 },
+      { x:  3.6, z: -25.0, r: -0.28 },
+      { x:  6.0, z: -25.0, r: -0.45 },
+      // Fila 3 (Trasera / VIP Escalon Superior, z: -22.5)
+      { x: -6.0, z: -22.5, r:  0.45 },
+      { x: -3.6, z: -22.5, r:  0.28 },
+      { x: -1.2, z: -22.5, r:  0.10 },
+      { x:  1.2, z: -22.5, r: -0.10 },
+      { x:  3.6, z: -22.5, r: -0.28 },
+      { x:  6.0, z: -22.5, r: -0.45 }
     ]
   },
   {
@@ -196,14 +203,16 @@ window.ZONES = [
 
   // --- ZONA SUR (BAR & LOUNGE) ---
   {
-    id: 'bar', name: 'BAR & LOUNGE', icon: '🍸', x: 0, z: 24, radius: 7.5, color: 0xf472b6, seats: [
-      { x: -5.5, z: 25.8, r: Math.PI },
-      { x: -3.8, z: 26.5, r: Math.PI },
-      { x: -2.0, z: 26.8, r: Math.PI },
-      { x: 0.0, z: 27.0, r: Math.PI },
-      { x: 2.0, z: 26.8, r: Math.PI },
-      { x: 3.8, z: 26.5, r: Math.PI },
-      { x: 5.5, z: 25.8, r: Math.PI }
+    id: 'bar', name: 'BAR & LOUNGE', icon: '🍸', x: 0, z: 24, radius: 10.5, color: 0xf472b6, seats: [
+      { x: -6.67, z: 27.54, r:  2.059 },
+      { x: -5.48, z: 29.20, r:  2.330 },
+      { x: -3.89, z: 30.47, r:  2.601 },
+      { x: -2.02, z: 31.28, r:  2.871 },
+      { x:  0.00, z: 31.55, r:  Math.PI },
+      { x:  2.02, z: 31.28, r: -2.871 },
+      { x:  3.89, z: 30.47, r: -2.601 },
+      { x:  5.48, z: 29.20, r: -2.330 },
+      { x:  6.67, z: 27.54, r: -2.059 }
     ]
   },
   {

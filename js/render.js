@@ -359,7 +359,7 @@
 
         // South Lounges (Pink Ground Perimeter Path)
         addRoundedRectNeonTrack(-18, 25.5, 16.0, 14.0, 1.8, 0xf472b6); // West Bar Lounge
-        addRoundedRectNeonTrack(0, 24, 15.4, 11.4, 1.9, 0xf472b6);     // Bar Center
+        addRoundedRectNeonTrack(0, 24, 18.4, 16.4, 2.5, 0xf472b6);     // Bar Center
 
         sceneRef.add(neonGrp);
       }
@@ -512,39 +512,185 @@
         return g;
       }
 
-      // 7. Cine & Music 3D Tiered Amphitheater
+      // 7. Traditional Cinema Seat 3D Model (Butaca de Cine Clásica de Terciopelo Rojo con Portavasos)
+      function createTraditionalCinemaSeat(seatLabel = 'VIP', hasPopcorn = false) {
+        const seatGroup = new THREE.Group();
+
+        // Materials
+        const velvetRed = new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.55, metalness: 0.15 });
+        const velvetDarkRed = new THREE.MeshStandardMaterial({ color: 0x6e0e1e, roughness: 0.65, metalness: 0.10 });
+        const darkShellMat = new THREE.MeshStandardMaterial({ color: 0x14121a, roughness: 0.35, metalness: 0.30 });
+        const castIronMat = new THREE.MeshStandardMaterial({ color: 0x1f1e24, roughness: 0.40, metalness: 0.80 });
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
+        const popcornMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.85 });
+        const sodaCupMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.30 });
+        const strawMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.20 });
+
+        // 1. Cast Iron Floor Pedestal Base & Column
+        const baseFoot = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.03, 0.26), castIronMat);
+        baseFoot.position.set(0, 0.015, 0);
+        const baseCol = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.34, 12), castIronMat);
+        baseCol.position.set(0, 0.18, 0);
+        seatGroup.add(baseFoot, baseCol);
+
+        // 2. Velvet Folding Padded Seat Cushion (Asiento Acolchado Plegable)
+        const seatCushionGroup = new THREE.Group();
+        seatCushionGroup.position.set(0, 0.38, 0);
+        seatCushionGroup.rotation.x = -0.06; // slight ergonomic recline
+
+        const seatCushion = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.11, 0.46), velvetRed);
+        seatCushion.position.set(0, 0, 0);
+        seatCushion.castShadow = true;
+
+        const seatBullnose = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.54, 16), velvetRed);
+        seatBullnose.rotation.z = Math.PI / 2;
+        seatBullnose.position.set(0, 0, -0.23);
+
+        const seatGoldTrim = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.02, 0.47), goldMat);
+        seatGoldTrim.position.set(0, -0.05, 0);
+
+        seatCushionGroup.add(seatCushion, seatBullnose, seatGoldTrim);
+        seatGroup.add(seatCushionGroup);
+
+        // 3. High Ergonomic Velvet Backrest & Headrest (Respaldo Alto con Cabecero)
+        const backGroup = new THREE.Group();
+        backGroup.position.set(0, 0.42, 0.18);
+        backGroup.rotation.x = 0.14; // cinema ergonomic recline
+
+        // Molded Polymer Protective Back Shell
+        const backShell = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.74, 0.06), darkShellMat);
+        backShell.position.set(0, 0.38, 0.05);
+
+        // Plush Red Velvet Back Padding with Vertical Channeling
+        const backPadding = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.54, 0.09), velvetRed);
+        backPadding.position.set(0, 0.30, 0);
+
+        // Vertical Tufting Ribs on Backrest
+        [-0.13, 0.0, 0.13].forEach(vx => {
+          const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.52, 8), velvetDarkRed);
+          rib.position.set(vx, 0.30, -0.04);
+          backGroup.add(rib);
+        });
+
+        // Top Headrest Cushion (Cabecero de Lujo)
+        const headrest = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.20, 0.12), velvetRed);
+        headrest.position.set(0, 0.65, -0.01);
+
+        // Gold Embroidered Seat Number Badge
+        const badge = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.02), goldMat);
+        badge.position.set(0, 0.68, -0.07);
+
+        backGroup.add(backShell, backPadding, headrest, badge);
+        seatGroup.add(backGroup);
+
+        // 4. Stanchion Armrests with Built-in Cup Holders (Reposabrazos con Portavasos)
+        [-0.29, 0.29].forEach((ax, aIdx) => {
+          const armStanchion = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.48, 0.38), castIronMat);
+          armStanchion.position.set(ax, 0.38, 0.02);
+
+          const armPad = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.04, 0.34), velvetDarkRed);
+          armPad.position.set(ax, 0.64, 0.04);
+
+          // Built-in Cup Holder at the Front
+          const cupHolder = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.038, 0.07, 16), castIronMat);
+          cupHolder.position.set(ax, 0.62, -0.16);
+
+          const cupHolderRim = new THREE.Mesh(new THREE.TorusGeometry(0.046, 0.008, 8, 16), goldMat);
+          cupHolderRim.rotation.x = Math.PI / 2;
+          cupHolderRim.position.set(ax, 0.655, -0.16);
+
+          seatGroup.add(armStanchion, armPad, cupHolder, cupHolderRim);
+
+          // Authentic Cinema Props in Cup Holders
+          if (aIdx === 1) {
+            // Right Armrest: Cinema Soda Cup with Striped Lid & Straw
+            const sodaCup = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.026, 0.15, 16), sodaCupMat);
+            sodaCup.position.set(ax, 0.73, -0.16);
+
+            const sodaLid = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.02, 16), strawMat);
+            sodaLid.position.set(ax, 0.81, -0.16);
+
+            const straw = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.08, 8), strawMat);
+            straw.position.set(ax + 0.01, 0.85, -0.16);
+            straw.rotation.z = -0.20;
+
+            seatGroup.add(sodaCup, sodaLid, straw);
+          } else if (hasPopcorn) {
+            // Left Armrest (Alternating): Cinema Popcorn Bucket with Golden Popcorn
+            const popcornBucket = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.040, 0.14, 16), sodaCupMat);
+            popcornBucket.position.set(ax, 0.72, -0.16);
+
+            const popcornTop = new THREE.Mesh(new THREE.SphereGeometry(0.052, 12, 12), popcornMat);
+            popcornTop.position.set(ax, 0.79, -0.16);
+
+            seatGroup.add(popcornBucket, popcornTop);
+          }
+        });
+
+        return seatGroup;
+      }
+
+      // 7.5. Cine & Music 3D Tiered Amphitheater (Gradas Escalonadas de Cine de Lujo)
       function createCineMusicAmphitheater() {
         const g = new THREE.Group();
-        const tierMat = new THREE.MeshStandardMaterial({ color: 0x180e2a, roughness: 0.4 });
+        const carpetMat = new THREE.MeshStandardMaterial({ color: 0x180928, roughness: 0.75, metalness: 0.15 });
+        const riserEdgeMat = new THREE.MeshStandardMaterial({ color: 0x0c0416, roughness: 0.35, metalness: 0.30 });
         const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
+        const stepNeonMat = new THREE.MeshStandardMaterial({ color: 0x8b5cf6, emissive: 0x8b5cf6, emissiveIntensity: 2.2 });
 
-        // Tier 1 (Lower Semicircle Riser)
-        const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(7.8, 8.4, 0.22, 36, 1, false, 0, Math.PI), tierMat);
-        tier1.position.set(0, 0.11, 0); tier1.rotation.y = Math.PI / 2;
-        const tier1Rim = new THREE.Mesh(new THREE.TorusGeometry(8.4, 0.06, 12, 36, Math.PI), goldMat);
-        tier1Rim.position.set(0, 0.22, 0); tier1Rim.rotation.x = Math.PI / 2; tier1Rim.rotation.z = Math.PI / 2;
+        // 3 Tiered Stadium Risers (Gradas Escalonadas de Cine)
+        // Tier 1 (Front Row Riser, y: 0.15m, z: -2.5m)
+        const tier1 = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.18, 2.6), carpetMat);
+        tier1.position.set(0, 0.09, -2.5);
+        const tier1Rim = new THREE.Mesh(new THREE.BoxGeometry(15.3, 0.04, 0.06), goldMat);
+        tier1Rim.position.set(0, 0.18, -3.8);
+        const tier1Neon = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.02, 0.03), stepNeonMat);
+        tier1Neon.position.set(0, 0.16, -3.82);
 
-        // Tier 2 (Upper Semicircle Riser)
-        const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.8, 0.38, 36, 1, false, 0, Math.PI), tierMat);
-        tier2.position.set(0, 0.30, 0); tier2.rotation.y = Math.PI / 2;
-        const tier2Rim = new THREE.Mesh(new THREE.TorusGeometry(5.8, 0.06, 12, 36, Math.PI), goldMat);
-        tier2Rim.position.set(0, 0.49, 0); tier2Rim.rotation.x = Math.PI / 2; tier2Rim.rotation.z = Math.PI / 2;
+        // Tier 2 (Middle Row Riser, y: 0.45m, z: 0.0m)
+        const tier2 = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.48, 2.6), carpetMat);
+        tier2.position.set(0, 0.24, 0.0);
+        const tier2Rim = new THREE.Mesh(new THREE.BoxGeometry(15.3, 0.04, 0.06), goldMat);
+        tier2Rim.position.set(0, 0.48, -1.3);
+        const tier2Neon = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.02, 0.03), stepNeonMat);
+        tier2Neon.position.set(0, 0.46, -1.32);
 
-        g.add(tier1, tier1Rim, tier2, tier2Rim);
+        // Tier 3 (Back Row / VIP Riser, y: 0.75m, z: +2.5m)
+        const tier3 = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.78, 2.6), carpetMat);
+        tier3.position.set(0, 0.39, 2.5);
+        const tier3Rim = new THREE.Mesh(new THREE.BoxGeometry(15.3, 0.04, 0.06), goldMat);
+        tier3Rim.position.set(0, 0.78, 1.2);
+        const tier3Neon = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.02, 0.03), stepNeonMat);
+        tier3Neon.position.set(0, 0.76, 1.18);
 
-        // 4 VIP Cocktail Table Sets on Tiered Risers (16 Seats)
-        [-6.0, -2.0, 2.0, 6.0].forEach(tx => {
-          const t = createVipCocktailTable(4, 0x241240);
-          t.position.set(tx, 0.22, 2.5);
-          g.add(t);
+        g.add(tier1, tier1Rim, tier1Neon, tier2, tier2Rim, tier2Neon, tier3, tier3Rim, tier3Neon);
+
+        // Brass Side Aisle Handrails
+        [-7.2, 7.2].forEach(hx => {
+          const railPost1 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.90, 12), goldMat);
+          railPost1.position.set(hx, 0.60, -3.5);
+          const railPost2 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.20, 12), goldMat);
+          railPost2.position.set(hx, 0.90, 0.0);
+          const railPost3 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.50, 12), goldMat);
+          railPost3.position.set(hx, 1.20, 3.5);
+
+          const handrailBar = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 7.6, 12), goldMat);
+          handrailBar.rotation.x = 0.12;
+          handrailBar.position.set(hx, 1.35, 0.0);
+
+          g.add(railPost1, railPost2, railPost3, handrailBar);
         });
-        [-4.0, 4.0].forEach(tx => {
-          const t = createVipCocktailTable(4, 0x2c1650);
-          t.position.set(tx, 0.49, -0.5);
-          g.add(t);
+
+        // Retro Cinema Concession & Popcorn Lightboxes on Rear Flanks
+        [-6.8, 6.8].forEach(cx => {
+          const stand = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.1, 0.8), carpetMat);
+          stand.position.set(cx, 1.30, 3.2);
+          const standGold = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.05, 0.85), goldMat);
+          standGold.position.set(cx, 1.87, 3.2);
+          g.add(stand, standGold);
         });
 
-        // Corner Palms & Lamps
+        // Corner Palms
         const p1 = createCasinoPalmTree(); p1.position.set(-8.2, 0, 3.5);
         const p2 = createCasinoPalmTree(); p2.position.set(8.2, 0, 3.5);
         g.add(p1, p2);
@@ -1618,37 +1764,394 @@
         return g;
       }
 
-      // 13. Bar & Lounge Area (Full South Wing with Curved Glowing Bar & Lounges)
+      // 13. Bar & Lounge Area (Full South Wing with Imperial Baroque Curved Bar, Grand Shelving & Lounges)
       function createBarAndLoungeArea() {
         const g = new THREE.Group();
-        const barMat = new THREE.MeshStandardMaterial({ color: 0x140c24, metalness: 0.7, roughness: 0.2 });
-        const barTopMat = new THREE.MeshStandardMaterial({ color: 0x3b1d54, roughness: 0.2, metalness: 0.4 });
-        const barNeonMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, emissive: 0xf472b6, emissiveIntensity: 2.5 });
 
-        // Center Curved Bar
-        const barBase = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 6.5, 1.1, 36, 1, false, -Math.PI * 0.45, Math.PI * 0.9), barMat);
-        barBase.position.set(0, 0.55, 0);
-        const barTop = new THREE.Mesh(new THREE.CylinderGeometry(6.8, 6.8, 0.12, 36, 1, false, -Math.PI * 0.46, Math.PI * 0.92), barTopMat);
-        barTop.position.set(0, 1.15, 0);
-        const barNeon = new THREE.Mesh(new THREE.TorusGeometry(6.55, 0.05, 12, 48, Math.PI * 0.9), barNeonMat);
-        barNeon.rotation.x = Math.PI / 2; barNeon.rotation.z = Math.PI * 0.05; barNeon.position.set(0, 1.12, 0);
-        g.add(barBase, barTop, barNeon);
+        // --- Core Architectural Materials ---
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.92, roughness: 0.15 });
+        const darkGoldMat = new THREE.MeshStandardMaterial({ color: 0xb89230, metalness: 0.88, roughness: 0.22 });
+        const brassMat = new THREE.MeshStandardMaterial({ color: 0xe6ca65, metalness: 0.95, roughness: 0.10 });
+        const chromeMat = new THREE.MeshStandardMaterial({ color: 0xd0d5dd, metalness: 0.95, roughness: 0.10 });
+        const woodMat = new THREE.MeshStandardMaterial({ color: 0x160c22, roughness: 0.35, metalness: 0.20 });
+        const darkWoodMat = new THREE.MeshStandardMaterial({ color: 0x0e0616, roughness: 0.45, metalness: 0.15 });
+        const marbleMat = new THREE.MeshStandardMaterial({ color: 0x0a0612, roughness: 0.12, metalness: 0.40 });
+        const mirrorMat = new THREE.MeshStandardMaterial({ color: 0x1f1430, metalness: 0.95, roughness: 0.05 });
+        const leatherMat = new THREE.MeshStandardMaterial({ color: 0x3d101e, roughness: 0.60, metalness: 0.10 });
+        const glassMat = new THREE.MeshStandardMaterial({ color: 0xddeeff, transparent: true, opacity: 0.55, roughness: 0.05, metalness: 0.10 });
+        const neonPinkMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, emissive: 0xf472b6, emissiveIntensity: 2.5 });
+        const neonGoldMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 2.0 });
+        const neonAmberMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xf59e0b, emissiveIntensity: 1.8 });
 
-        // Glowing Liquor Back-Bar Display
-        const shelf = new THREE.Mesh(new THREE.BoxGeometry(9.2, 2.6, 0.5),
-          new THREE.MeshStandardMaterial({ color: 0x11091f, roughness: 0.5 }));
-        shelf.position.set(0, 1.7, -2.8);
-        g.add(shelf);
-        const bottleCols = [0xef4444, 0x3b82f6, 0x10b981, 0xf59e0b, 0xa855f7, 0xec4899];
-        for (let b = 0; b < 24; b++) {
-          const bx = -4.2 + b * 0.36;
-          const bMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.38, 12),
-            new THREE.MeshStandardMaterial({ color: bottleCols[b % bottleCols.length], emissive: bottleCols[b % bottleCols.length], emissiveIntensity: 0.9 }));
-          bMesh.position.set(bx, 1.7, -2.52);
-          g.add(bMesh);
+        // ============================================================
+        // 1. THE IMPERIAL CURVED BAR COUNTER (LA GRAN BARRA DE BAR)
+        // ============================================================
+        const barGroup = new THREE.Group();
+        const barArcAngle = Math.PI * 0.84;
+        const barStartAngle = -Math.PI * 0.42;
+
+        // A. Main Curved Body (Dark Espresso Mahogany)
+        const barBaseGeo = new THREE.CylinderGeometry(6.40, 6.40, 1.12, 48, 1, false, barStartAngle, barArcAngle);
+        const barBase = new THREE.Mesh(barBaseGeo, woodMat);
+        barBase.position.set(0, 0.56, 0);
+        barBase.receiveShadow = true;
+        barGroup.add(barBase);
+
+        // B. Lower Kick-Plate / Zocalo (Brushed Brass)
+        const barKickGeo = new THREE.CylinderGeometry(6.46, 6.46, 0.12, 48, 1, false, barStartAngle, barArcAngle);
+        const barKick = new THREE.Mesh(barKickGeo, brassMat);
+        barKick.position.set(0, 0.06, 0);
+        barGroup.add(barKick);
+
+        // C. Vertical Fluted Luxury Golden Ribs around the Curved Front
+        const numRibs = 43;
+        for (let i = 0; i <= numRibs; i++) {
+          const ribAng = barStartAngle + (i / numRibs) * barArcAngle;
+          const rx = Math.sin(ribAng) * 6.43;
+          const rz = Math.cos(ribAng) * 6.43;
+          const rib = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.90, 0.06), (i % 4 === 0) ? goldMat : darkGoldMat);
+          rib.position.set(rx, 0.58, rz);
+          rib.rotation.y = ribAng;
+          barGroup.add(rib);
         }
 
-        // West Lounge: 2 Massive L-Sectional Sofas & 4 Cocktail Tables
+        // D. Under-Counter Recessed LED Light Strip
+        const barNeonUnder = new THREE.Mesh(
+          new THREE.TorusGeometry(6.45, 0.025, 12, 64, barArcAngle),
+          neonPinkMat
+        );
+        barNeonUnder.rotation.x = Math.PI / 2;
+        barNeonUnder.rotation.z = -barStartAngle;
+        barNeonUnder.position.set(0, 1.10, 0);
+        barGroup.add(barNeonUnder);
+
+        // E. Polished Black Galaxy Nero Marquina Countertop
+        const barTopGeo = new THREE.CylinderGeometry(6.75, 6.75, 0.09, 48, 1, false, barStartAngle - 0.015, barArcAngle + 0.03);
+        const barTop = new THREE.Mesh(barTopGeo, marbleMat);
+        barTop.position.set(0, 1.16, 0);
+        barTop.castShadow = true;
+        barTop.receiveShadow = true;
+        barGroup.add(barTop);
+
+        // F. Solid Polished Gold Bullnose Rim
+        const barGoldRim = new THREE.Mesh(
+          new THREE.TorusGeometry(6.75, 0.035, 12, 64, barArcAngle + 0.03),
+          goldMat
+        );
+        barGoldRim.rotation.x = Math.PI / 2;
+        barGoldRim.rotation.z = -barStartAngle + 0.015;
+        barGoldRim.position.set(0, 1.16, 0);
+        barGroup.add(barGoldRim);
+
+        // G. Padded Leather Armrest Rail along the Front Lip
+        const barArmrest = new THREE.Mesh(
+          new THREE.TorusGeometry(6.65, 0.055, 12, 64, barArcAngle + 0.02),
+          leatherMat
+        );
+        barArmrest.rotation.x = Math.PI / 2;
+        barArmrest.rotation.z = -barStartAngle + 0.01;
+        barArmrest.position.set(0, 1.20, 0);
+        barGroup.add(barArmrest);
+
+        // H. Heavy Brass Footrest Rail & Support Posts
+        const footrestRail = new THREE.Mesh(
+          new THREE.TorusGeometry(6.05, 0.038, 12, 64, barArcAngle),
+          brassMat
+        );
+        footrestRail.rotation.x = Math.PI / 2;
+        footrestRail.rotation.z = -barStartAngle;
+        footrestRail.position.set(0, 0.22, 0);
+        barGroup.add(footrestRail);
+
+        const numFootPosts = 9;
+        for (let p = 0; p <= numFootPosts; p++) {
+          const pAng = barStartAngle + (p / numFootPosts) * barArcAngle;
+          const px = Math.sin(pAng) * 6.20;
+          const pz = Math.cos(pAng) * 6.20;
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.22, 12), brassMat);
+          post.position.set(px, 0.11, pz);
+          barGroup.add(post);
+        }
+
+        // I. Interior Bartender Service Workstations & Speed Rails
+        const innerArc = Math.PI * 0.70;
+        const innerStart = -Math.PI * 0.35;
+        const serviceCounter = new THREE.Mesh(
+          new THREE.CylinderGeometry(5.35, 5.35, 0.85, 36, 1, false, innerStart, innerArc),
+          chromeMat
+        );
+        serviceCounter.position.set(0, 0.425, 0);
+        barGroup.add(serviceCounter);
+
+        // Dual Ice Wells & Stainless Prep Wells
+        [-1.8, 1.8].forEach(ix => {
+          const iceWell = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.40, 0.50), chromeMat);
+          iceWell.position.set(ix, 0.86, 4.4);
+          const iceCube = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.15, 0.40), glassMat);
+          iceCube.position.set(ix, 0.98, 4.4);
+          barGroup.add(iceWell, iceCube);
+        });
+
+        // Draft Beer Tower (Columna de Grifos de Cerveza Dorada en el Centro)
+        const beerTowerGroup = new THREE.Group();
+        beerTowerGroup.position.set(0, 1.20, 4.85);
+        const tapBase = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.38, 16), goldMat);
+        tapBase.position.y = 0.19;
+        const tapTBar = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.70, 16), goldMat);
+        tapTBar.rotation.z = Math.PI / 2;
+        tapTBar.position.y = 0.38;
+        beerTowerGroup.add(tapBase, tapTBar);
+
+        // 3 Tap Handles with Glowing Emissive Tips
+        [-0.22, 0.0, 0.22].forEach((tx, tIdx) => {
+          const tapHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.012, 0.22, 12), darkWoodMat);
+          tapHandle.position.set(tx, 0.49, 0);
+          const tapTip = new THREE.Mesh(new THREE.SphereGeometry(0.025, 12, 12), (tIdx === 1) ? neonGoldMat : neonAmberMat);
+          tapTip.position.set(tx, 0.60, 0);
+          const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.10, 8), chromeMat);
+          spout.position.set(tx, 0.34, -0.07);
+          spout.rotation.x = Math.PI / 4;
+          beerTowerGroup.add(tapHandle, tapTip, spout);
+        });
+        barGroup.add(beerTowerGroup);
+
+        // Professional Cocktail Shaker Sets & Jiggers
+        [-1.0, 1.0].forEach((sx, sIdx) => {
+          const shaker = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.24, 16), chromeMat);
+          shaker.position.set(sx, 1.28, 4.90);
+          const shakerCap = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.040, 0.08, 16), goldMat);
+          shakerCap.position.set(sx, 1.42, 4.90);
+          const jigger = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.09, 12), chromeMat);
+          jigger.position.set(sx + 0.15, 1.21, 4.95);
+          barGroup.add(shaker, shakerCap, jigger);
+        });
+
+        // Dual Touchscreen POS Order Terminals (Cajas Registradoras)
+        [-3.2, 3.2].forEach(px => {
+          const posStand = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.18, 12), darkGoldMat);
+          posStand.position.set(px, 1.25, 4.0);
+          const posScreen = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.03), woodMat);
+          posScreen.position.set(px, 1.40, 4.0);
+          posScreen.rotation.x = -0.35;
+          const posDisplay = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.18), new THREE.MeshBasicMaterial({ color: 0x06b6d4 }));
+          posDisplay.position.set(px, 1.40, 3.98);
+          posDisplay.rotation.x = -0.35;
+          barGroup.add(posStand, posScreen, posDisplay);
+        });
+
+        g.add(barGroup);
+
+        // ============================================================
+        // 2. THE GRAND BACK-BAR SHELF (ESTANTERIA DE LICORES IMPERIAL)
+        // ============================================================
+        const shelfGroup = new THREE.Group();
+        shelfGroup.position.set(0, 0, -3.40);
+
+        // A. Grand Base Cabinet / Credenza (Dark Walnut & Gold Trims)
+        const credenza = new THREE.Mesh(new THREE.BoxGeometry(11.60, 1.10, 0.85), darkWoodMat);
+        credenza.position.set(0, 0.55, 0);
+        credenza.castShadow = true;
+        credenza.receiveShadow = true;
+
+        const credenzaTop = new THREE.Mesh(new THREE.BoxGeometry(11.80, 0.08, 0.95), marbleMat);
+        credenzaTop.position.set(0, 1.14, 0);
+
+        const credenzaGoldTrim = new THREE.Mesh(new THREE.BoxGeometry(11.82, 0.03, 0.96), goldMat);
+        credenzaGoldTrim.position.set(0, 1.14, 0);
+        shelfGroup.add(credenza, credenzaTop, credenzaGoldTrim);
+
+        // 8 Credenza Cabinet Doors with Gold Trim Framing & Handles
+        for (let d = 0; d < 8; d++) {
+          const dx = -5.0 + d * 1.42;
+          const door = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.88, 0.04), woodMat);
+          door.position.set(dx, 0.55, 0.44);
+          const doorTrim = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.76, 0.02), darkGoldMat);
+          doorTrim.position.set(dx, 0.55, 0.46);
+          const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.12, 12), goldMat);
+          handle.position.set(dx + 0.45, 0.55, 0.49);
+          shelfGroup.add(door, doorTrim, handle);
+        }
+
+        // B. 4 Monumental Corinthian / Baroque Fluted Pilasters
+        const pilasterPositions = [-5.70, -1.90, 1.90, 5.70];
+        pilasterPositions.forEach(px => {
+          // Base Plinth
+          const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.35, 0.48), darkGoldMat);
+          plinth.position.set(px, 1.32, 0.20);
+
+          // Fluted Column Shaft
+          const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.36, 3.10, 0.36), woodMat);
+          shaft.position.set(px, 3.00, 0.20);
+
+          // Vertical Gold Ribs on Pilasters
+          [-0.10, 0.0, 0.10].forEach(ox => {
+            const flute = new THREE.Mesh(new THREE.BoxGeometry(0.04, 2.90, 0.02), goldMat);
+            flute.position.set(px + ox, 3.00, 0.39);
+            shelfGroup.add(flute);
+          });
+
+          // Sculpted Gold Capital
+          const cap = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.30, 0.52), goldMat);
+          cap.position.set(px, 4.60, 0.20);
+          shelfGroup.add(plinth, shaft, cap);
+        });
+
+        // C. Smoky Mirrored Back-Panels with Gold Geometric Grids
+        const mirrorPanel1 = new THREE.Mesh(new THREE.BoxGeometry(11.20, 3.40, 0.05), mirrorMat);
+        mirrorPanel1.position.set(0, 2.85, -0.15);
+        shelfGroup.add(mirrorPanel1);
+
+        // Gold Grid Astragals on Mirrors
+        for (let gx = -4.5; gx <= 4.5; gx += 1.5) {
+          const vGrid = new THREE.Mesh(new THREE.BoxGeometry(0.025, 3.35, 0.02), goldMat);
+          vGrid.position.set(gx, 2.85, -0.12);
+          shelfGroup.add(vGrid);
+        }
+
+        // D. 3 Continuous Tiered Tempered Glass Shelves with LED Back-Glow
+        const shelfLevels = [
+          { y: 1.80, depth: 0.52, width: 11.20 },
+          { y: 2.65, depth: 0.46, width: 11.20 },
+          { y: 3.50, depth: 0.40, width: 11.20 }
+        ];
+
+        shelfLevels.forEach((lvl, idx) => {
+          // Tempered Glass Shelf Plate
+          const shelfMesh = new THREE.Mesh(new THREE.BoxGeometry(lvl.width, 0.04, lvl.depth), glassMat);
+          shelfMesh.position.set(0, lvl.y, 0.15);
+
+          // Polished Brass Front Guard Rail (Barandilla de Seguridad de Laton)
+          const frontRail = new THREE.Mesh(new THREE.BoxGeometry(lvl.width + 0.10, 0.06, 0.03), goldMat);
+          frontRail.position.set(0, lvl.y + 0.04, 0.15 + lvl.depth / 2);
+
+          // LED Under-Shelf Light Channel
+          const ledStrip = new THREE.Mesh(
+            new THREE.BoxGeometry(lvl.width, 0.02, 0.03),
+            (idx === 0) ? neonGoldMat : ((idx === 1) ? neonAmberMat : neonPinkMat)
+          );
+          ledStrip.position.set(0, lvl.y - 0.02, 0.15);
+
+          shelfGroup.add(shelfMesh, frontRail, ledStrip);
+        });
+
+        // E. Grand Royal Baroque Architrave, Crown Crest & Neon Plaque
+        const architrave = new THREE.Mesh(new THREE.BoxGeometry(12.00, 0.45, 0.70), woodMat);
+        architrave.position.set(0, 4.85, 0.20);
+        const architraveGold = new THREE.Mesh(new THREE.BoxGeometry(12.10, 0.08, 0.75), goldMat);
+        architraveGold.position.set(0, 5.08, 0.20);
+        shelfGroup.add(architrave, architraveGold);
+
+        // Royal Crown Crest at Peak
+        const crownCrest = new THREE.Mesh(new THREE.CylinderGeometry(0.60, 0.40, 0.45, 16), goldMat);
+        crownCrest.position.set(0, 5.35, 0.20);
+        const crownOrb = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), neonGoldMat);
+        crownOrb.position.set(0, 5.70, 0.20);
+        shelfGroup.add(crownCrest, crownOrb);
+
+        // Glowing Neon Sign: "MIDNIGHT LOUNGE & BAR"
+        const barSignCanvas = document.createElement('canvas');
+        barSignCanvas.width = 512; barSignCanvas.height = 128;
+        const bsCtx = barSignCanvas.getContext('2d');
+        bsCtx.fillStyle = '#0a0515'; bsCtx.fillRect(0, 0, 512, 128);
+        bsCtx.strokeStyle = '#d4af37'; bsCtx.lineWidth = 6; bsCtx.strokeRect(8, 8, 496, 112);
+        bsCtx.font = '900 36px Segoe UI, Arial';
+        bsCtx.fillStyle = '#f472b6'; bsCtx.textAlign = 'center';
+        bsCtx.fillText('MIDNIGHT LOUNGE', 256, 54);
+        bsCtx.font = '700 24px Segoe UI, Arial';
+        bsCtx.fillStyle = '#fbbf24';
+        bsCtx.fillText('ROYAL CASINO BAR', 256, 95);
+        const barSignTex = new THREE.CanvasTexture(barSignCanvas);
+        const barSignMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.90), new THREE.MeshBasicMaterial({ map: barSignTex }));
+        barSignMesh.position.set(0, 4.85, 0.58);
+        shelfGroup.add(barSignMesh);
+
+        // F. Rich 70+ Premium Liquor Bottle Collection (Multi-Color & Cut-Crystal Silhouettes)
+        const bottlePalettes = [
+          { name: 'whiskey', color: 0xd97706, emissive: 0xb45309, cap: 0xd4af37 },
+          { name: 'champagne', color: 0x064e3b, emissive: 0x047857, cap: 0xd4af37 },
+          { name: 'wine_red', color: 0x881337, emissive: 0x9f1239, cap: 0x4c0519 },
+          { name: 'vodka_blue', color: 0x0284c7, emissive: 0x38bdf8, cap: 0xd0d5dd },
+          { name: 'gin_cyan', color: 0x0d9488, emissive: 0x2dd4bf, cap: 0xd0d5dd },
+          { name: 'cognac', color: 0x92400e, emissive: 0xd97706, cap: 0xd4af37 },
+          { name: 'rose', color: 0xdb2777, emissive: 0xf472b6, cap: 0xd4af37 }
+        ];
+
+        shelfLevels.forEach((lvl, sIdx) => {
+          for (let b = 0; b < 26; b++) {
+            const bx = -5.0 + b * 0.40;
+            // Skip space where pilasters stand
+            if (Math.abs(bx - (-1.90)) < 0.28 || Math.abs(bx - 1.90) < 0.28) continue;
+
+            const bStyle = bottlePalettes[(b * 3 + sIdx * 2) % bottlePalettes.length];
+            const bMat = new THREE.MeshStandardMaterial({
+              color: bStyle.color,
+              emissive: bStyle.emissive,
+              emissiveIntensity: 0.65,
+              roughness: 0.15,
+              metalness: 0.30
+            });
+            const capMat = new THREE.MeshStandardMaterial({ color: bStyle.cap, metalness: 0.90, roughness: 0.20 });
+
+            // Varied silhouettes: Square decanter vs Cylindrical Champagne vs Tall Vodka
+            const type = (b + sIdx) % 3;
+            if (type === 0) {
+              // Square Crystal Decanter (Whiskey / Cognac)
+              const body = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.24, 0.11), bMat);
+              body.position.set(bx, lvl.y + 0.14, 0.15);
+              const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.09, 12), bMat);
+              neck.position.set(bx, lvl.y + 0.30, 0.15);
+              const stopper = new THREE.Mesh(new THREE.SphereGeometry(0.038, 12, 12), capMat);
+              stopper.position.set(bx, lvl.y + 0.37, 0.15);
+              shelfGroup.add(body, neck, stopper);
+            } else if (type === 1) {
+              // Tall Champagne / Wine Bottle with Sloping Neck
+              const body = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.052, 0.26, 16), bMat);
+              body.position.set(bx, lvl.y + 0.15, 0.15);
+              const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.040, 0.14, 16), bMat);
+              neck.position.set(bx, lvl.y + 0.34, 0.15);
+              const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.020, 0.06, 12), capMat);
+              cap.position.set(bx, lvl.y + 0.42, 0.15);
+              shelfGroup.add(body, neck, cap);
+            } else {
+              // Premium Vodka / Gin Cylindrical Bottle
+              const body = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.30, 16), bMat);
+              body.position.set(bx, lvl.y + 0.17, 0.15);
+              const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.08, 16), bMat);
+              neck.position.set(bx, lvl.y + 0.35, 0.15);
+              const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.04, 12), capMat);
+              cap.position.set(bx, lvl.y + 0.40, 0.15);
+              shelfGroup.add(body, neck, cap);
+            }
+          }
+        });
+
+        // G. Suspended Overhead Glassware Stemware Racks (Copero Colgante)
+        const stemwareRack = new THREE.Mesh(new THREE.BoxGeometry(10.80, 0.03, 0.45), goldMat);
+        stemwareRack.position.set(0, 4.05, 0.35);
+        shelfGroup.add(stemwareRack);
+
+        for (let gIdx = 0; gIdx < 32; gIdx++) {
+          const gx = -4.8 + gIdx * 0.31;
+          if (Math.abs(gx - (-1.90)) < 0.25 || Math.abs(gx - 1.90) < 0.25) continue;
+          // Inverted Wine / Martini Glass Hanging
+          const glassStem = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.12, 8), glassMat);
+          glassStem.position.set(gx, 3.96, 0.35);
+          const glassBowl = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.09, 12, 1, true), glassMat);
+          glassBowl.rotation.x = Math.PI;
+          glassBowl.position.set(gx, 3.86, 0.35);
+          shelfGroup.add(glassStem, glassBowl);
+        }
+
+        // H. Warm Atmospheric Point Light for the Bar Center
+        const barLight = new THREE.PointLight(0xffecd1, 0.85, 14);
+        barLight.position.set(0, 2.80, 1.20);
+        shelfGroup.add(barLight);
+
+        g.add(shelfGroup);
+
+        // ============================================================
+        // 3. WEST LOUNGE: VIP L-SECTIONALS & COCKTAIL TABLES
+        // ============================================================
         const westLounge1 = createSectionalSofaLounge(6.5, 5.5, 0);
         westLounge1.position.set(-18.0, 0, 1.5);
         const westLounge2 = createSectionalSofaLounge(5.5, 4.5, Math.PI / 2);
@@ -1657,12 +2160,14 @@
         const tWest2 = createVipCocktailTable(4, 0x221338); tWest2.position.set(-11.0, 0, 6.5);
         g.add(westLounge1, westLounge2, tWest1, tWest2);
 
-        // Grand Entrance Structure (x: 0, z: 14.0 relative to bar, center at z: 38)
-        const entPillarL = new THREE.Mesh(new THREE.BoxGeometry(1.6, 6.5, 1.6), barMat);
+        // ============================================================
+        // 4. GRAND ENTRANCE PORTAL & CASINO ENTRANCE FOYER
+        // ============================================================
+        const entPillarL = new THREE.Mesh(new THREE.BoxGeometry(1.6, 6.5, 1.6), woodMat);
         entPillarL.position.set(-5.5, 3.25, 13.5);
-        const entPillarR = new THREE.Mesh(new THREE.BoxGeometry(1.6, 6.5, 1.6), barMat);
+        const entPillarR = new THREE.Mesh(new THREE.BoxGeometry(1.6, 6.5, 1.6), woodMat);
         entPillarR.position.set(5.5, 3.25, 13.5);
-        const entArch = new THREE.Mesh(new THREE.BoxGeometry(12.6, 1.6, 1.8), barMat);
+        const entArch = new THREE.Mesh(new THREE.BoxGeometry(12.6, 1.6, 1.8), woodMat);
         entArch.position.set(0, 6.6, 13.5);
 
         const entCanvas = document.createElement('canvas'); entCanvas.width = 512; entCanvas.height = 128;
@@ -1670,7 +2175,7 @@
         eCtx.fillStyle = '#0f081d'; eCtx.fillRect(0, 0, 512, 128);
         eCtx.strokeStyle = '#e11fd1'; eCtx.lineWidth = 6; eCtx.strokeRect(10, 10, 492, 108);
         eCtx.font = '900 48px Segoe UI'; eCtx.fillStyle = '#f472b6'; eCtx.textAlign = 'center';
-        eCtx.fillText('🚪 ENTRADA 🚪', 256, 74);
+        eCtx.fillText('ENTRADA', 256, 74);
         const entTex = new THREE.CanvasTexture(entCanvas);
         const entSign = new THREE.Mesh(new THREE.PlaneGeometry(6.0, 1.4), new THREE.MeshBasicMaterial({ map: entTex }));
         entSign.position.set(0, 6.6, 12.55);
@@ -1682,14 +2187,14 @@
 
         g.add(entPillarL, entPillarR, entArch, entSign, carpet);
 
-        // Entrance Palms and Lamp Posts
+        // Entrance Palms and Golden Lamp Posts
         const p1 = createCasinoPalmTree(); p1.position.set(-7.5, 0, 11.5);
         const p2 = createCasinoPalmTree(); p2.position.set(7.5, 0, 11.5);
         const l1 = createGoldenLampPost(); l1.position.set(-6.0, 0, 10.0);
         const l2 = createGoldenLampPost(); l2.position.set(6.0, 0, 10.0);
         g.add(p1, p2, l1, l2);
 
-        // 3D Classic Retro 1950s Jukebox (Gramola Spotify) moved 5m to the left of entrance (x: 11.8)
+        // 3D Classic Retro 1950s Jukebox (Gramola Spotify)
         const jukebox = create3DJukebox();
         jukebox.position.set(11.8, 0, 12.0);
         jukebox.rotation.y = Math.PI;
@@ -3496,10 +4001,10 @@
           platD = 14.5;
           cornerR = 1.8;
         } else if (z.id === 'bar') {
-          // Área del Bar en la zona sur
-          platW = 15.0;
-          platD = 11.0;
-          cornerR = 1.8;
+          // Área del Bar en la zona sur (ampliada para alojar la barra curva completa, estantería y taburetes)
+          platW = 18.0;
+          platD = 16.0;
+          cornerR = 2.4;
         } else if (z.id === 'roulette') {
           // Ruleta 3D
           platW = 10.4;
@@ -3565,54 +4070,62 @@
           });
         }
 
-        /* 3D seats around table / zone (Clean unified luxury casino stools resting directly on platform) */
+        /* 3D seats around table / zone (Clean unified luxury casino stools / Traditional cinema seats) */
         if (z.id !== 'jackpot') {
-          z.seats.forEach(seat => {
-          const stoolGroup = new THREE.Group();
-          stoolGroup.position.set(seat.x - z.x, platY + platH / 2, seat.z - z.z);
-          stoolGroup.rotation.y = seat.r;
+          z.seats.forEach((seat, sIdx) => {
+            if (z.id === 'cinema') {
+              // Butacas Tradicionales de Cine de Terciopelo Rojo con Portavasos y Palomitas
+              const cinemaSeat = createTraditionalCinemaSeat(`C${sIdx + 1}`, (sIdx % 2 === 0));
+              cinemaSeat.position.set(seat.x - z.x, platY + platH / 2, seat.z - z.z);
+              cinemaSeat.rotation.y = seat.r;
+              g.add(cinemaSeat);
+            } else {
+              const stoolGroup = new THREE.Group();
+              stoolGroup.position.set(seat.x - z.x, platY + platH / 2, seat.z - z.z);
+              stoolGroup.rotation.y = seat.r;
 
-          const stoolFoot = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.30, 0.34, 0.04, 20),
-            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
-          );
-          stoolFoot.position.y = 0.02;
+              const stoolFoot = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.30, 0.34, 0.04, 20),
+                new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
+              );
+              stoolFoot.position.y = 0.02;
 
-          const stoolStem = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.05, 0.05, 0.42, 16),
-            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
-          );
-          stoolStem.position.y = 0.23;
+              const stoolStem = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.05, 0.05, 0.42, 16),
+                new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
+              );
+              stoolStem.position.y = 0.23;
 
-          const stoolFootrest = new THREE.Mesh(
-            new THREE.TorusGeometry(0.18, 0.018, 12, 24),
-            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
-          );
-          stoolFootrest.rotation.x = Math.PI / 2;
-          stoolFootrest.position.y = 0.15;
+              const stoolFootrest = new THREE.Mesh(
+                new THREE.TorusGeometry(0.18, 0.018, 12, 24),
+                new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
+              );
+              stoolFootrest.rotation.x = Math.PI / 2;
+              stoolFootrest.position.y = 0.15;
 
-          const cushionMat = new THREE.MeshStandardMaterial({
-            color: 0x22123a,
-            roughness: 0.45,
-            metalness: 0.20,
-            emissive: new THREE.Color(z.color),
-            emissiveIntensity: 0.15
+              const cushionMat = new THREE.MeshStandardMaterial({
+                color: 0x22123a,
+                roughness: 0.45,
+                metalness: 0.20,
+                emissive: new THREE.Color(z.color),
+                emissiveIntensity: 0.15
+              });
+              const stoolCushion = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.32, 0.10, 24), cushionMat);
+              stoolCushion.position.y = 0.46;
+              stoolCushion.castShadow = true;
+
+              const stoolGoldRim = new THREE.Mesh(
+                new THREE.TorusGeometry(0.34, 0.016, 12, 24),
+                new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
+              );
+              stoolGoldRim.rotation.x = Math.PI / 2;
+              stoolGoldRim.position.y = 0.46;
+
+              stoolGroup.add(stoolFoot, stoolStem, stoolFootrest, stoolCushion, stoolGoldRim);
+              g.add(stoolGroup);
+            }
           });
-          const stoolCushion = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.32, 0.10, 24), cushionMat);
-          stoolCushion.position.y = 0.46;
-          stoolCushion.castShadow = true;
-
-          const stoolGoldRim = new THREE.Mesh(
-            new THREE.TorusGeometry(0.34, 0.016, 12, 24),
-            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.12 })
-          );
-          stoolGoldRim.rotation.x = Math.PI / 2;
-          stoolGoldRim.position.y = 0.46;
-
-          stoolGroup.add(stoolFoot, stoolStem, stoolFootrest, stoolCushion, stoolGoldRim);
-          g.add(stoolGroup);
-        });
-      }
+        }
 
         /* Centerpiece 3D Model construction */
         let centerpiece;

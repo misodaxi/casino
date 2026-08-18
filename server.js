@@ -53,9 +53,14 @@ function searchYouTubeTrack(query, callback) {
       const artistMatch = html.match(artistRegex);
       const artist = artistMatch ? artistMatch[1] : 'YouTube Music';
 
-      const durRegex = new RegExp('"videoId":"' + vid + '"[\\s\\S]*?"lengthText":\\{"simpleText":"(.*?)"');
-      const durMatch = html.match(durRegex);
       let duration = 210;
+      const vidSectionIdx = html.indexOf('"videoId":"' + vid + '"');
+      const vidSection = vidSectionIdx !== -1 ? html.substring(vidSectionIdx, vidSectionIdx + 4000) : html;
+
+      const durMatch = vidSection.match(/"lengthText":\s*\{"accessibility":\s*\{.*?\},\s*"simpleText":"(.*?)"\}/) ||
+                       vidSection.match(/"lengthText":\s*\{.*?"simpleText":"(.*?)"\}/) ||
+                       vidSection.match(/"simpleText":"(\d+:\d+(?::\d+)?)"/);
+
       if (durMatch && durMatch[1]) {
         const parts = durMatch[1].split(':');
         if (parts.length === 2) duration = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);

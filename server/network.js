@@ -404,6 +404,30 @@ function setupSocketIO(io) {
       }
     });
 
+    socket.on('jukeboxUpdateTrackDuration', (data) => {
+      if (data && typeof data.duration === 'number' && data.duration > 0) {
+        const dur = Math.round(data.duration);
+        let changed = false;
+        if (jukeboxState.currentTrack &&
+            (jukeboxState.currentTrack.id === data.trackId || (data.videoId && jukeboxState.currentTrack.videoId === data.videoId))) {
+          if (jukeboxState.currentTrack.duration !== dur) {
+            jukeboxState.currentTrack.duration = dur;
+            changed = true;
+          }
+        }
+        if (jukeboxState.playlist && jukeboxState.playlist.length > 0) {
+          const found = jukeboxState.playlist.find(t => (data.trackId && t.id === data.trackId) || (data.videoId && t.videoId === data.videoId));
+          if (found && found.duration !== dur) {
+            found.duration = dur;
+            changed = true;
+          }
+        }
+        if (changed) {
+          io.emit('jukeboxStateUpdate', getSyncedJukeboxState());
+        }
+      }
+    });
+
     // Chat Message Rate-Limiting & Broadcasting
     let chatMsgCount = 0;
     let lastChatReset = Date.now();
