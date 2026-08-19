@@ -323,30 +323,12 @@
 
   <!-- ================= FORTUNE WHEEL OVERLAY ================= -->
   <div class="game-overlay" id="wheelWrap">
-    <button class="exit-game-btn" onclick="exitActiveGame()">🚪 SALIR DE LA MÁQUINA [ESC]</button>
-    <div class="table-title">
-      <h2>FORTUNE WHEEL</h2><span>GIRA Y MULTIPLICA TU APUESTA</span>
-    </div>
+    <button class="exit-game-btn" onclick="exitActiveGame()">🚪 SALIR DE LA RULETA [ESC]</button>
 
-    <div class="wheel-arena">
-      <div class="wheel-pointer"></div>
-      <canvas id="wheelCanvas" width="380" height="380"></canvas>
-    </div>
-
-    <div class="result-banner" id="wheelResultBanner">
-      <div class="rn" id="wheelResultTitle">5X!</div>
-      <div id="wheelResultMsg" class="win">+$250</div>
-    </div>
-
-    <div class="duel-bottom">
-      <div class="duel-controls" style="display:flex; align-items:center; gap:14px;">
-        <div class="chip-rack" id="chipRackWheel">
-          <div class="chip" data-v="10">10</div>
-          <div class="chip selected" data-v="50">50</div>
-          <div class="chip" data-v="100">100</div>
-        </div>
-        <div class="total-bet-pill">APUESTA<span class="v" id="wheelBetDisplay">$50</span></div>
-        <button class="action-btn" id="wheelSpinBtn">GIRAR RUEDA 🎡</button>
+    <div class="duel-bottom" style="left:50%; right:auto; transform:translateX(-50%); width:auto; max-width:92vw; bottom:20px; display:flex; flex-direction:column; align-items:center; z-index:100;">
+      <div style="display:flex; align-items:center; gap:14px; background:rgba(15,8,29,0.92); border:1px solid rgba(245,158,11,0.4); box-shadow:0 0 25px rgba(0,0,0,0.8); padding:10px 20px; border-radius:20px; flex-wrap:wrap; justify-content:center;">
+        <div class="total-bet-pill" style="min-width:90px;">APUESTA<span class="v" id="wheelBetDisplay" style="color:#facc15;">$50</span></div>
+        <button class="action-btn" id="wheelReadyBtn" style="background:linear-gradient(135deg, #f59e0b, #d97706); box-shadow:0 0 20px rgba(245,158,11,0.5); padding:10px 24px; font-size:13px; font-weight:900; letter-spacing:0.5px;">¡ESTOY LISTO! 🎡</button>
       </div>
     </div>
   </div>
@@ -510,21 +492,26 @@
     </div>
   </div>
 
-  <!-- ================= PACHINKOS OVERLAY ================= -->
+  <!-- ================= GACHAPÓN OVERLAY ================= -->
   <div class="game-overlay" id="pachinkoWrap">
-    <button class="exit-game-btn" onclick="exitActiveGame()">🚪 SALIR DEL PACHINKO [ESC]</button>
+    <button class="exit-game-btn" onclick="exitActiveGame()">🚪 SALIR DEL GACHAPÓN [ESC]</button>
     <div class="table-title">
-      <h2>PACHINKOS JAPONESES</h2><span>LANZA BOLAS METÁLICAS POR EL LABERINTO DE NEÓN</span>
+      <h2>GACHAPÓN MÁGICO 3D</h2><span>GIRA LA MANIVELA 3D · COLECCIONA CÁPSULAS EXCLUSIVAS (MÍN $300)</span>
     </div>
     <div class="duel-bottom">
+      <div class="slot-payout-info-bar" id="pachinkoStatusText" style="margin-bottom:8px; background:rgba(6,26,48,0.85); padding:8px 20px; border-radius:20px; border:1px solid #06b6d4; box-shadow:0 0 15px rgba(6,182,212,0.4);">
+        🎁 Gira la manivela 3D para extraer una cápsula sorpresa coleccionable
+      </div>
       <div class="bet-control">
         <div class="chips-rack" id="pachinkoChipRack">
-          <div class="chip selected" data-v="25">25</div>
-          <div class="chip" data-v="50">50</div>
-          <div class="chip" data-v="100">100</div>
+          <div class="chip selected" data-v="300">300</div>
+          <div class="chip" data-v="500">500</div>
+          <div class="chip" data-v="1000">1K</div>
+          <div class="chip" data-v="2500">2.5K</div>
+          <div class="chip" data-v="5000">5K</div>
         </div>
-        <div class="total-bet-pill">APUESTA<span class="v" id="pachinkoBetDisplay">$25</span></div>
-        <button class="action-btn" id="pachinkoDropBtn" style="background:linear-gradient(135deg, #eab308, #84cc16);">LANZAR BOLA 🔮</button>
+        <div class="total-bet-pill">APUESTA<span class="v" id="pachinkoBetDisplay">$300</span></div>
+        <button class="action-btn" id="pachinkoDropBtn" style="background:linear-gradient(135deg, #06b6d4, #a855f7);">GIRAR MANIVELA 🪙</button>
       </div>
     </div>
   </div>

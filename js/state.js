@@ -86,6 +86,15 @@
       /* ============================================================
          UNIFIED LUXURY 3D & HUD CASINO CHIP SYSTEM (16 DENOMINATIONS)
       ============================================================ */
+            const GACHAPON_CHIPS = [
+        { v: 300,   str: '300',  lbl: '$300',  bg: '#0891b2', edge: '#fde047', accent: '#0e7490', gold: true,  hex: 0x0891b2 },
+        { v: 500,   str: '500',  lbl: '$500',  bg: '#db2777', edge: '#fbcfe8', accent: '#9d174d', gold: false, hex: 0xdb2777 },
+        { v: 1000,  str: '1k',   lbl: '$1K',   bg: '#991b1b', edge: '#fde047', accent: '#7f1d1d', gold: true,  hex: 0x991b1b },
+        { v: 2500,  str: '2.5k', lbl: '$2.5K', bg: '#6d28d9', edge: '#e9d5ff', accent: '#4c1d95', gold: false, hex: 0x6d28d9 },
+        { v: 5000,  str: '5k',   lbl: '$5K',   bg: '#0369a1', edge: '#fde047', accent: '#0c4a6e', gold: true,  hex: 0x0369a1 },
+        { v: 10000, str: '10k',  lbl: '$10K',  bg: '#d97706', edge: '#fef08a', accent: '#92400e', gold: true,  hex: 0xd97706 }
+      ];
+
       const CASINO_CHIPS = [
         { v: 0.1,  str: '0.1',  lbl: '$0.1',  bg: '#64748b', edge: '#f1f5f9', accent: '#334155', gold: false, hex: 0x64748b },
         { v: 0.2,  str: '0.2',  lbl: '$0.2',  bg: '#b45309', edge: '#fef3c7', accent: '#78350f', gold: false, hex: 0xb45309 },
@@ -296,7 +305,7 @@
       function populateAllChipRacks(activeVal = 50) {
         const rackConfigs = [
           { id: 'chipRackRoulette', onSelect: (v) => { rState.selectedChip = roundMoney(v); if (roulette3DRefs && roulette3DRefs.update3DChipRackSelection) roulette3DRefs.update3DChipRackSelection(); } },
-          { id: 'chipRackDice', onSelect: (v) => { dState.bet = roundMoney(v); const d = document.getElementById('diceBetDisplay'); if (d) d.textContent = formatMoney(v); } },
+          { id: 'chipRackDice', onSelect: (v) => { dState.bet = roundMoney(v); const d = document.getElementById('diceBetDisplay'); if (d) d.textContent = formatMoney(v); if (typeof update3DDiceChips === 'function') update3DDiceChips(dState.bet); } },
           { id: 'chipRackBJ', onSelect: (v) => {
             if (typeof bjState !== 'undefined' && bjState.active) return;
             const chipVal = roundMoney(v);
@@ -316,7 +325,11 @@
           { id: 'chipRackWheel', onSelect: (v) => { const d = document.getElementById('wheelBetDisplay'); if (d) d.textContent = formatMoney(v); } },
           { id: 'chipRackCoin', onSelect: (v) => { const d = document.getElementById('coinBetDisplay'); if (d) d.textContent = formatMoney(v); } },
           { id: 'slotsChipRack', onSelect: (v) => { const d = document.getElementById('slotsBetDisplay'); if (d) d.textContent = formatMoney(v); } },
-          { id: 'pachinkoChipRack', onSelect: (v) => { const d = document.getElementById('pachinkoBetDisplay'); if (d) d.textContent = formatMoney(v); } },
+          { id: 'pachinkoChipRack', customChips: GACHAPON_CHIPS, defaultVal: 300, onSelect: (v) => {
+            window.pachinkoBet = Math.max(300, roundMoney(v));
+            const d = document.getElementById('pachinkoBetDisplay');
+            if (d) d.textContent = formatMoney(window.pachinkoBet);
+          } },
           { id: 'tragaperrasChipRack', onSelect: (v) => { const d = document.getElementById('tragaperrasBetDisplay'); if (d) d.textContent = formatMoney(v); } }
         ];
 
@@ -327,9 +340,12 @@
           el.innerHTML = '';
           el.classList.add('chip-rack');
 
-          CASINO_CHIPS.forEach(c => {
+          const chipList = cfg.customChips || CASINO_CHIPS;
+          const targetActiveVal = (cfg.defaultVal !== undefined) ? cfg.defaultVal : activeVal;
+
+          chipList.forEach(c => {
             const chipBtn = document.createElement('div');
-            chipBtn.className = 'chip' + (c.v === activeVal ? ' selected' : '');
+            chipBtn.className = 'chip' + (c.v === targetActiveVal ? ' selected' : '');
             chipBtn.dataset.v = c.v;
             chipBtn.title = c.lbl;
             chipBtn.innerHTML = `<span class="chip-txt">${c.str}</span>`;
@@ -343,6 +359,10 @@
 
             el.appendChild(chipBtn);
           });
+
+          if (cfg.defaultVal !== undefined) {
+            if (cfg.onSelect) cfg.onSelect(cfg.defaultVal);
+          }
         });
       }
 

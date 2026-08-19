@@ -84,7 +84,7 @@ window.ZONES = [
     ]
   },
   {
-    id: 'pachinko', name: 'PACHINKOS', icon: '🔮', x: -31.0, z: 1.5, radius: 7.5, color: 0x84cc16, seats: [
+    id: 'pachinko', name: 'GACHAPÓN', icon: '🎁', x: -31.0, z: 1.5, radius: 7.5, color: 0x06b6d4, seats: [
       { x: -39.1, z: 2.45, r: Math.PI },
       { x: -37.3, z: 2.45, r: Math.PI },
       { x: -35.5, z: 2.45, r: Math.PI },

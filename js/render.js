@@ -344,7 +344,7 @@
         addRoundedRectNeonTrack(28, -25, 14.5, 14.5, 1.8, 0xd946ef);   // TV Casino (Magenta)
 
         addRoundedRectNeonTrack(-31.0, -8.5, 18.4, 5.6, 1.1, 0xec4899);   // Slots Row 1 (Pink)
-        addRoundedRectNeonTrack(-31.0, 1.5, 18.4, 5.6, 1.1, 0x84cc16);    // Pachinkos Row 2 (Green)
+        addRoundedRectNeonTrack(-31.0, 1.5, 18.4, 5.6, 1.1, 0x06b6d4);    // Gachapón Row 2 (Cyan)
         addRoundedRectNeonTrack(-31.0, 11.5, 18.4, 5.6, 1.1, 0xf59e0b);   // Tragaperras Row 3 (Gold)
 
         addRoundedRectNeonTrack(0, -11, 10.8, 10.8, 1.7, 0xf97316);   // Roulette (Orange)
@@ -753,19 +753,42 @@
         return g;
       }
 
-      // 9. Slot Machines / Pachinkos / Tragaperras Rows (10 Cabinets per Row - Individual Machines)
+      // 9. Slot Machines / Gachapón / Tragaperras Rows (10 Cabinets per Row - Individual Machines)
       const SLOT_BODY_GEO = new THREE.BoxGeometry(1.1, 2.0, 0.85);
+      const GACHAPON_BASE_GEO = new THREE.BoxGeometry(1.04, 1.15, 0.80);
+      const GACHAPON_DOME_GEO = new THREE.CylinderGeometry(0.44, 0.44, 0.65, 24);
+      const GACHAPON_CAP_TOP_GEO = new THREE.SphereGeometry(0.082, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.5);
+      const GACHAPON_CAP_BOT_GEO = new THREE.SphereGeometry(0.082, 14, 10, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5);
+      const GACHAPON_CAP_RING_GEO = new THREE.CylinderGeometry(0.083, 0.083, 0.008, 16);
+      const GACHAPON_CAP_WHITE_MAT = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.1, roughness: 0.25 });
+      const GACHAPON_CAP_SEAM_MAT = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5, roughness: 0.4 });
+      const GACHAPON_CRANK_BASE_GEO = new THREE.CylinderGeometry(0.075, 0.075, 0.03, 16);
+      const GACHAPON_CRANK_HANDLE_GEO = new THREE.BoxGeometry(0.18, 0.035, 0.04);
+      const GACHAPON_CHUTE_GEO = new THREE.BoxGeometry(0.38, 0.18, 0.22);
+      const GACHAPON_CHUTE_HOLE_GEO = new THREE.BoxGeometry(0.28, 0.12, 0.18);
       const SLOT_SCR_GEO = new THREE.PlaneGeometry(0.92, 0.92);
       const SLOT_TRAY_GEO = new THREE.BoxGeometry(0.98, 0.16, 0.32);
       const SLOT_TOPPER_GEO = new THREE.CylinderGeometry(0.14, 0.14, 0.85, 16);
+      const GACHAPON_TOPPER_GEO = new THREE.CylinderGeometry(0.16, 0.16, 0.88, 16);
       const SLOT_LEVER_BASE_GEO = new THREE.CylinderGeometry(0.04, 0.04, 0.12, 12);
       const SLOT_LEVER_ARM_GEO = new THREE.CylinderGeometry(0.02, 0.02, 0.45, 12);
       const SLOT_LEVER_BALL_GEO = new THREE.SphereGeometry(0.065, 16, 16);
 
       const SLOT_BODY_MAT = new THREE.MeshStandardMaterial({ color: 0x181028, metalness: 0.7, roughness: 0.25 });
+      const GACHAPON_BODY_MAT = new THREE.MeshStandardMaterial({ color: 0x091e3a, metalness: 0.5, roughness: 0.2 });
+      const GACHAPON_GLASS_MAT = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.32, roughness: 0.05 });
       const SLOT_GOLD_MAT = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.92, roughness: 0.18 });
+      const GACHAPON_CHROME_MAT = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.98, roughness: 0.06 });
       const SLOT_ARM_MAT = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.95 });
       const SLOT_BALL_MAT = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.5, roughness: 0.2 });
+
+      const GACHA_CAP_MATS = [
+        new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.4, roughness: 0.2 }),
+        new THREE.MeshStandardMaterial({ color: 0xc084fc, metalness: 0.4, roughness: 0.2 }),
+        new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.4, roughness: 0.2 }),
+        new THREE.MeshStandardMaterial({ color: 0xec4899, metalness: 0.4, roughness: 0.2 }),
+        new THREE.MeshStandardMaterial({ color: 0x4ade80, metalness: 0.4, roughness: 0.2 })
+      ];
 
       function createSlotMachineRow(type = 'slots') {
         const g = new THREE.Group();
@@ -773,9 +796,12 @@
         const spacing = 1.8;
         const startX = -((count - 1) * spacing) / 2;
 
+        const isGachapon = (type === 'pachinko');
+        const isSlots5x5 = (type === 'slots');
+
         const themes = {
           slots: { color: 0xec4899, emissive: 0xec4899, name: 'SLOTS' },
-          pachinko: { color: 0x84cc16, emissive: 0x84cc16, name: 'PACHINKO' },
+          pachinko: { color: 0x06b6d4, emissive: 0x06b6d4, name: 'GACHAPÓN' },
           tragaperras: { color: 0xf59e0b, emissive: 0xf59e0b, name: '777' }
         };
         const theme = themes[type] || themes.slots;
@@ -795,11 +821,6 @@
           const cab = new THREE.Group();
           cab.position.set(x, 0, 0);
 
-          // Cabinet Main Body (Shared Geometry & Material)
-          const body = new THREE.Mesh(SLOT_BODY_GEO, SLOT_BODY_MAT);
-          body.position.y = 1.0;
-          cab.add(body);
-
           // Individual 512x512 Screen & Texture per Machine (Ultra-fast 60 FPS)
           const cabCanvas = document.createElement('canvas');
           cabCanvas.width = 512;
@@ -809,39 +830,165 @@
           cabTex.minFilter = THREE.LinearFilter;
           cabTex.magFilter = THREE.LinearFilter;
 
-          // Unique individual initial symbols for each cabinet
-          const r0 = (i * 3 + 1) % symbols.length;
-          const r1 = (i * 3 + 4) % symbols.length;
-          const r2 = (i * 3 + 7) % symbols.length;
+          const numReels = isSlots5x5 ? 5 : (isGachapon ? 0 : 3);
+          const initialReels = [];
+          for (let r = 0; r < (numReels || 3); r++) {
+            initialReels.push((i * 3 + r * 2 + 1) % symbols.length);
+          }
 
           const machineState = {
             spinning: false,
-            reels: [r0, r1, r2],
-            targetIndexes: [r0, r1, r2],
-            stopTimes: [0, 0, 0],
-            stopped: [true, true, true],
+            reels: initialReels,
+            targetIndexes: [...initialReels],
+            stopTimes: new Array(numReels || 3).fill(0),
+            stopped: new Array(numReels || 3).fill(true),
             symbols: symbols,
-            bet: (type === 'tragaperras') ? 10 : 20,
-            lastTickTime: [0, 0, 0],
-            winner: false
+            bet: isSlots5x5 ? 20 : (isGachapon ? 300 : 10),
+            lastTickTime: new Array(numReels || 3).fill(0),
+            winner: false,
+            winningLines: [],
+            lastPrize: null,
+            multiplier: 0
           };
 
-          // Mechanical Pull Lever with Animated Pivot
-          const leverPivot = new THREE.Group();
-          leverPivot.position.set(0.60, 1.2, 0);
+          let leverPivot = null;
+          let crankGroup = null;
 
-          const leverBase = new THREE.Mesh(SLOT_LEVER_BASE_GEO, SLOT_GOLD_MAT);
-          leverBase.rotation.z = Math.PI / 2;
-          
-          const leverArm = new THREE.Mesh(SLOT_LEVER_ARM_GEO, SLOT_ARM_MAT);
-          leverArm.position.set(0.06, 0.18, 0);
-          leverArm.rotation.z = -0.25;
+          if (isGachapon) {
+            // =========================================================
+            // GABINETE EXPENDEDOR JAPONÉS DE GACHAPÓN 3D
+            // =========================================================
+            // 1. Mueble pedestal inferior en azul cian arcade
+            const baseBody = new THREE.Mesh(GACHAPON_BASE_GEO, GACHAPON_BODY_MAT);
+            baseBody.position.y = 0.58;
+            cab.add(baseBody);
 
-          const leverBall = new THREE.Mesh(SLOT_LEVER_BALL_GEO, SLOT_BALL_MAT);
-          leverBall.position.set(0.12, 0.38, 0);
+            // 2. Pantalla interactiva frontal
+            const scrMat = new THREE.MeshBasicMaterial({ map: cabTex });
+            const scr = new THREE.Mesh(SLOT_SCR_GEO, scrMat);
+            scr.position.set(0, 1.25, 0.435);
+            cab.add(scr);
 
-          leverPivot.add(leverBase, leverArm, leverBall);
-          cab.add(leverPivot);
+            // 3. Domo de cristal transparente superior con cápsulas
+            const dome = new THREE.Mesh(GACHAPON_DOME_GEO, GACHAPON_GLASS_MAT);
+            dome.position.set(0, 1.55, 0);
+            cab.add(dome);
+
+            // Cápsulas grandes de dos tonos empaquetadas abajo y juntas
+            const capGroup = new THREE.Group();
+            capGroup.position.set(0, 1.55, 0);
+
+            const packedCapsuleData = [
+              // Capa Inferior (Apoyadas en el fondo del domo, y = -0.22)
+              { x: 0.0, y: -0.22, z: 0.0, rx: 0.3, ry: 0.4, rz: 0.2, c: 0 },
+              { x: 0.22, y: -0.22, z: 0.02, rx: 0.5, ry: 1.1, rz: 0.4, c: 1 },
+              { x: 0.09, y: -0.22, z: 0.20, rx: 0.8, ry: 0.6, rz: 0.9, c: 2 },
+              { x: -0.13, y: -0.22, z: 0.18, rx: 1.2, ry: 0.2, rz: 0.5, c: 3 },
+              { x: -0.22, y: -0.22, z: -0.02, rx: 0.4, ry: 0.9, rz: 1.3, c: 4 },
+              { x: -0.09, y: -0.22, z: -0.20, rx: 0.9, ry: 1.4, rz: 0.3, c: 0 },
+              { x: 0.13, y: -0.22, z: -0.18, rx: 0.6, ry: 0.3, rz: 0.8, c: 1 },
+
+              // Capa Media (Encajadas entre las inferiores, y = -0.09)
+              { x: 0.03, y: -0.09, z: -0.02, rx: 0.7, ry: 1.2, rz: 0.4, c: 2 },
+              { x: 0.20, y: -0.09, z: 0.10, rx: 0.3, ry: 0.5, rz: 1.1, c: 3 },
+              { x: 0.05, y: -0.09, z: 0.23, rx: 1.1, ry: 0.8, rz: 0.2, c: 4 },
+              { x: -0.13, y: -0.09, z: 0.19, rx: 0.4, ry: 1.5, rz: 0.7, c: 0 },
+              { x: -0.23, y: -0.09, z: 0.03, rx: 0.8, ry: 0.3, rz: 1.2, c: 1 },
+              { x: -0.17, y: -0.09, z: -0.15, rx: 1.3, ry: 0.9, rz: 0.5, c: 2 },
+              { x: 0.01, y: -0.09, z: -0.23, rx: 0.2, ry: 0.6, rz: 0.9, c: 3 },
+              { x: 0.18, y: -0.09, z: -0.14, rx: 0.9, ry: 1.1, rz: 0.3, c: 4 },
+
+              // Capa Superior (Cúspide compacta, y = 0.04)
+              { x: 0.12, y: 0.04, z: 0.04, rx: 0.5, ry: 0.4, rz: 0.8, c: 0 },
+              { x: -0.04, y: 0.04, z: 0.12, rx: 0.8, ry: 1.3, rz: 0.4, c: 1 },
+              { x: -0.12, y: 0.04, z: -0.04, rx: 1.0, ry: 0.7, rz: 0.6, c: 2 },
+              { x: 0.04, y: 0.04, z: -0.12, rx: 0.3, ry: 0.9, rz: 1.0, c: 3 },
+              { x: 0.0, y: 0.05, z: 0.0, rx: 0.6, ry: 0.2, rz: 0.5, c: 4 }
+            ];
+
+            packedCapsuleData.forEach(cd => {
+              const singleCap = new THREE.Group();
+              singleCap.position.set(cd.x, cd.y, cd.z);
+              singleCap.rotation.set(cd.rx, cd.ry, cd.rz);
+
+              // Cúpula superior de color
+              const topMesh = new THREE.Mesh(GACHAPON_CAP_TOP_GEO, GACHA_CAP_MATS[cd.c]);
+              // Cúpula inferior blanca / translúcida
+              const botMesh = new THREE.Mesh(GACHAPON_CAP_BOT_GEO, GACHAPON_CAP_WHITE_MAT);
+              // Anillo de costura central
+              const ringMesh = new THREE.Mesh(GACHAPON_CAP_RING_GEO, GACHAPON_CAP_SEAM_MAT);
+
+              singleCap.add(topMesh, botMesh, ringMesh);
+              capGroup.add(singleCap);
+            });
+
+            cab.add(capGroup);
+
+            // 4. Manivela central giratoria de monedas (T-Crank Wheel)
+            const crank = new THREE.Group();
+            crank.position.set(0, 0.85, 0.44);
+
+            const crankBase = new THREE.Mesh(GACHAPON_CRANK_BASE_GEO, GACHAPON_CHROME_MAT);
+            crankBase.rotation.x = Math.PI / 2;
+
+            const crankHandle = new THREE.Mesh(GACHAPON_CRANK_HANDLE_GEO, SLOT_GOLD_MAT);
+            crankHandle.position.z = 0.025;
+
+            crank.add(crankBase, crankHandle);
+            cab.add(crank);
+            crankGroup = crank;
+
+            // 5. Rampa de salida de cápsula dispensada (Chute)
+            const chute = new THREE.Mesh(GACHAPON_CHUTE_GEO, GACHAPON_CHROME_MAT);
+            chute.position.set(0, 0.42, 0.45);
+            const chuteHole = new THREE.Mesh(GACHAPON_CHUTE_HOLE_GEO, new THREE.MeshBasicMaterial({ color: 0x020617 }));
+            chuteHole.position.set(0, 0.42, 0.47);
+            cab.add(chute, chuteHole);
+
+            // 6. Rótulo superior de neón
+            const topper = new THREE.Mesh(GACHAPON_TOPPER_GEO, topperMat);
+            topper.rotation.z = Math.PI / 2;
+            topper.position.set(0, 2.05, 0.1);
+            cab.add(topper);
+
+          } else {
+            // =========================================================
+            // GABINETE SLOTS 5x5 Y TRAGAPERRAS 777
+            // =========================================================
+            const body = new THREE.Mesh(SLOT_BODY_GEO, SLOT_BODY_MAT);
+            body.position.y = 1.0;
+            cab.add(body);
+
+            const scrMat = new THREE.MeshBasicMaterial({ map: cabTex });
+            const scr = new THREE.Mesh(SLOT_SCR_GEO, scrMat);
+            scr.position.set(0, 1.25, 0.435);
+            cab.add(scr);
+
+            leverPivot = new THREE.Group();
+            leverPivot.position.set(0.60, 1.2, 0);
+
+            const leverBase = new THREE.Mesh(SLOT_LEVER_BASE_GEO, SLOT_GOLD_MAT);
+            leverBase.rotation.z = Math.PI / 2;
+            
+            const leverArm = new THREE.Mesh(SLOT_LEVER_ARM_GEO, SLOT_ARM_MAT);
+            leverArm.position.set(0.06, 0.18, 0);
+            leverArm.rotation.z = -0.25;
+
+            const leverBall = new THREE.Mesh(SLOT_LEVER_BALL_GEO, SLOT_BALL_MAT);
+            leverBall.position.set(0.12, 0.38, 0);
+
+            leverPivot.add(leverBase, leverArm, leverBall);
+            cab.add(leverPivot);
+
+            const tray = new THREE.Mesh(SLOT_TRAY_GEO, SLOT_GOLD_MAT);
+            tray.position.set(0, 0.70, 0.48);
+            cab.add(tray);
+
+            const topper = new THREE.Mesh(SLOT_TOPPER_GEO, topperMat);
+            topper.rotation.z = Math.PI / 2;
+            topper.position.set(0, 2.08, 0.1);
+            cab.add(topper);
+          }
 
           const machineObj = {
             ctx: ctx,
@@ -851,6 +998,7 @@
             type: type,
             seatIndex: i,
             leverPivot: leverPivot,
+            crankGroup: crankGroup,
             lastDrawTime: 0
           };
           window.slotMachinesByZone[type][i] = machineObj;
@@ -858,25 +1006,8 @@
           draw3DSlotMachineScreen(ctx, machineState, theme, type, machineObj);
           cabTex.needsUpdate = true;
 
-          const scrMat = new THREE.MeshBasicMaterial({ map: cabTex });
-          const scr = new THREE.Mesh(SLOT_SCR_GEO, scrMat);
-          scr.position.set(0, 1.25, 0.435);
-          cab.add(scr);
-
-          // Golden Coin Tray
-          const tray = new THREE.Mesh(SLOT_TRAY_GEO, SLOT_GOLD_MAT);
-          tray.position.set(0, 0.70, 0.48);
-          cab.add(tray);
-
-          // Glowing Neon Cylindrical Topper
-          const topper = new THREE.Mesh(SLOT_TOPPER_GEO, topperMat);
-          topper.rotation.z = Math.PI / 2;
-          topper.position.set(0, 2.08, 0.1);
-          cab.add(topper);
-
           g.add(cab);
         }
-
         const palmL = createCasinoPalmTree(); palmL.position.set(startX - 1.4, 0, 0.4);
         const palmR = createCasinoPalmTree(); palmR.position.set(-startX + 1.4, 0, 0.4);
         const lampL = createGoldenLampPost(); lampL.position.set(startX - 2.4, 0, 0.4);
@@ -1374,40 +1505,349 @@
         return g;
       }
 
-      // 11. Fortune Wheel (Horizontal 16-Segment Prize Wheel + 10 VIP Chairs)
+      // 11. Grand Architectural Horizontal 3D Fortune Wheel (360° Circular VIP Stage & Centerpiece Rotor)
+      var wheel3DRefs = null;
+      window.wheel3DRefs = null;
+
       function createFortuneWheel3D() {
         const g = new THREE.Group();
-        const base = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.8, 0.50, 32),
-          new THREE.MeshStandardMaterial({ color: 0x1a0f2e, roughness: 0.3, metalness: 0.2 }));
-        base.position.y = 0.25;
-        g.add(base);
 
-        const wheelR = 2.6;
-        const wheelCanvas = document.createElement('canvas'); wheelCanvas.width = 512; wheelCanvas.height = 512;
-        const ctx = wheelCanvas.getContext('2d');
-        const wheelCols = ['#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#d946ef'];
-        const segs = 16;
-        for (let s = 0; s < segs; s++) {
-          ctx.beginPath();
-          ctx.moveTo(256, 256);
-          ctx.arc(256, 256, 250, (s * 2 * Math.PI) / segs, ((s + 1) * 2 * Math.PI) / segs);
-          ctx.closePath();
-          ctx.fillStyle = wheelCols[s % wheelCols.length]; ctx.fill();
-          ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 4; ctx.stroke();
+        // Architectural Materials
+        const darkObsidianMat = new THREE.MeshStandardMaterial({ color: 0x0a0614, roughness: 0.25, metalness: 0.85 });
+        const mahoganyMat = new THREE.MeshStandardMaterial({ color: 0x160820, roughness: 0.35, metalness: 0.2 });
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
+        const chromeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.98, roughness: 0.08 });
+        const neonPurpleMat = new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 2.2 });
+        const rubyMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, emissive: 0x9f1239, emissiveIntensity: 1.2, roughness: 0.1, metalness: 0.3 });
+
+        // -------------------------------------------------------------
+        // 1. STEPPED CIRCULAR ART-DECO STAGE PLATFORM
+        // -------------------------------------------------------------
+        // Base Tier 1 - Grand Obsidian Marble Step
+        const base1 = new THREE.Mesh(new THREE.CylinderGeometry(4.4, 4.6, 0.18, 48), darkObsidianMat);
+        base1.position.y = 0.09;
+        base1.castShadow = true; base1.receiveShadow = true;
+        const base1Trim = new THREE.Mesh(new THREE.TorusGeometry(4.5, 0.035, 12, 48), goldMat);
+        base1Trim.rotation.x = Math.PI / 2; base1Trim.position.y = 0.18;
+        g.add(base1, base1Trim);
+
+        // Base Tier 2 - Violet Neon Inset Ring
+        const base2 = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 4.0, 0.16, 40), darkObsidianMat);
+        base2.position.y = 0.26;
+        base2.castShadow = true; base2.receiveShadow = true;
+        const neonRing = new THREE.Mesh(new THREE.TorusGeometry(3.92, 0.035, 8, 40), neonPurpleMat);
+        neonRing.rotation.x = Math.PI / 2; neonRing.position.y = 0.34;
+        g.add(base2, neonRing);
+
+        // Base Tier 3 - Fluted Mahogany & Gold Turntable Stage Plinth
+        const base3 = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.25, 0.38, 36), mahoganyMat);
+        base3.position.y = 0.53;
+        base3.castShadow = true; base3.receiveShadow = true;
+        const stageGoldRing = new THREE.Mesh(new THREE.TorusGeometry(3.15, 0.04, 8, 36), goldMat);
+        stageGoldRing.rotation.x = Math.PI / 2; stageGoldRing.position.y = 0.72;
+        g.add(base3, stageGoldRing);
+
+        // 12 Vertical Gold Pilasters around Base 3
+        for (let a = 0; a < 12; a++) {
+          const ang = (a / 12) * Math.PI * 2;
+          const colAcc = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.36, 12), goldMat);
+          colAcc.position.set(Math.cos(ang) * 3.16, 0.53, Math.sin(ang) * 3.16);
+          g.add(colAcc);
         }
-        const wheelTex = new THREE.CanvasTexture(wheelCanvas);
-        const wheelMesh = new THREE.Mesh(new THREE.CylinderGeometry(wheelR, wheelR, 0.18, 32),
-          [
-            new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.1 }),
-            new THREE.MeshBasicMaterial({ map: wheelTex }),
-            new THREE.MeshBasicMaterial({ map: wheelTex })
-          ]);
-        wheelMesh.position.set(0, 0.60, 0);
-        g.add(wheelMesh);
 
-        const p1 = createCasinoPalmTree(); p1.position.set(-4.5, 0, 4.5);
-        const p2 = createCasinoPalmTree(); p2.position.set(4.5, 0, 4.5);
-        g.add(p1, p2);
+        // Recessed Turntable Bezel Ring (Outer Chamfer)
+        const bezel = new THREE.Mesh(new THREE.CylinderGeometry(2.65, 2.75, 0.08, 40), goldMat);
+        bezel.position.y = 0.75;
+        g.add(bezel);
+
+        // -------------------------------------------------------------
+        // 2. HORIZONTAL 3D PRIZE WHEEL ROTOR (Laying flat on the floor at Y = 0.79m)
+        // -------------------------------------------------------------
+        const wheelRadius = 2.45;
+        const rotorGroup = new THREE.Group();
+        rotorGroup.position.set(0, 0.79, 0);
+
+        // Generate High-Res 1024x1024 Face Canvas for 12 Prize Wedges
+        const wFaceCanvas = document.createElement('canvas');
+        wFaceCanvas.width = 1024; wFaceCanvas.height = 1024;
+        const wfCtx = wFaceCanvas.getContext('2d');
+        const cx = 512, cy = 512, rad = 490;
+
+        const wSlicesDef = [
+          { lbl: '50X', sub: 'JACKPOT', bg: '#f59e0b', txt: '#000', glow: '#ffd700' },
+          { lbl: '0.5X', sub: 'TRY',     bg: '#38bdf8', txt: '#fff', glow: '#0284c7' },
+          { lbl: '20X', sub: 'EPIC',    bg: '#d946ef', txt: '#fff', glow: '#f43f5e' },
+          { lbl: '1.5X', sub: 'WIN',     bg: '#8b5cf6', txt: '#fff', glow: '#a855f7' },
+          { lbl: '3X',   sub: 'WIN',     bg: '#ef4444', txt: '#fff', glow: '#dc2626' },
+          { lbl: '0X',   sub: 'MISS',    bg: '#1e1b4b', txt: '#94a3b8', glow: '#312e81' },
+          { lbl: '10X',  sub: 'SUPER',   bg: '#facc15', txt: '#000', glow: '#eab308' },
+          { lbl: '5X',   sub: 'BIG',     bg: '#ec4899', txt: '#fff', glow: '#db2777' },
+          { lbl: '0.5X', sub: 'TRY',     bg: '#38bdf8', txt: '#fff', glow: '#0284c7' },
+          { lbl: '2X',   sub: 'DOUBLE',  bg: '#10b981', txt: '#fff', glow: '#059669' },
+          { lbl: '1.5X', sub: 'WIN',     bg: '#8b5cf6', txt: '#fff', glow: '#a855f7' },
+          { lbl: '0X',   sub: 'MISS',    bg: '#1e1b4b', txt: '#94a3b8', glow: '#312e81' }
+        ];
+
+        const numSlices = wSlicesDef.length;
+        const step = (Math.PI * 2) / numSlices;
+
+        // Draw radial slices
+        for (let i = 0; i < numSlices; i++) {
+          const s = wSlicesDef[i];
+          const a1 = i * step - Math.PI / 2;
+          const a2 = (i + 1) * step - Math.PI / 2;
+
+          wfCtx.beginPath();
+          wfCtx.moveTo(cx, cy);
+          wfCtx.arc(cx, cy, rad, a1, a2);
+          wfCtx.closePath();
+
+          // Radial slice gradient
+          const grad = wfCtx.createRadialGradient(cx, cy, 60, cx, cy, rad);
+          grad.addColorStop(0, '#ffffff');
+          grad.addColorStop(0.18, s.bg);
+          grad.addColorStop(1, '#06030c');
+          wfCtx.fillStyle = grad;
+          wfCtx.fill();
+
+          // Gold spoke divider lines
+          wfCtx.strokeStyle = '#ffd700';
+          wfCtx.lineWidth = 6;
+          wfCtx.stroke();
+
+          // Text labels along sector radial centerline
+          const midA = a1 + step / 2;
+          wfCtx.save();
+          wfCtx.translate(cx, cy);
+          wfCtx.rotate(midA);
+
+          // Big Main Multiplier
+          wfCtx.font = '900 64px "Segoe UI", sans-serif';
+          wfCtx.textAlign = 'right';
+          wfCtx.textBaseline = 'middle';
+          wfCtx.fillStyle = s.txt;
+          wfCtx.shadowColor = s.glow;
+          wfCtx.shadowBlur = 14;
+          wfCtx.fillText(s.lbl, rad - 45, -8);
+
+          // Subtitle Badge
+          wfCtx.shadowBlur = 0;
+          wfCtx.font = '800 24px "Segoe UI", sans-serif';
+          wfCtx.fillStyle = (s.txt === '#000') ? '#334155' : '#fde047';
+          wfCtx.fillText(s.sub, rad - 52, 36);
+
+          wfCtx.restore();
+        }
+
+        // Concentric outer gold rim & decorative star ring
+        wfCtx.strokeStyle = '#d4af37';
+        wfCtx.lineWidth = 14;
+        wfCtx.beginPath();
+        wfCtx.arc(cx, cy, rad - 8, 0, Math.PI * 2);
+        wfCtx.stroke();
+
+        wfCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        wfCtx.lineWidth = 3;
+        wfCtx.beginPath();
+        wfCtx.arc(cx, cy, rad - 20, 0, Math.PI * 2);
+        wfCtx.stroke();
+
+        const wFaceTex = new THREE.CanvasTexture(wFaceCanvas);
+
+        // Horizontal 3D Wheel Cylinder Mesh (Laying completely flat facing +Y up)
+        const wheelCyl = new THREE.Mesh(
+          new THREE.CylinderGeometry(wheelRadius, wheelRadius, 0.12, 48),
+          [
+            goldMat,
+            new THREE.MeshStandardMaterial({ map: wFaceTex, roughness: 0.25, metalness: 0.35 }),
+            new THREE.MeshStandardMaterial({ color: 0x14081c, roughness: 0.5 })
+          ]
+        );
+        wheelCyl.userData = { isWheelRotor: true };
+        rotorGroup.add(wheelCyl);
+
+        // Gold Torus Bevel Rim
+        const rimTorus = new THREE.Mesh(new THREE.TorusGeometry(wheelRadius, 0.035, 12, 48), goldMat);
+        rimTorus.rotation.x = Math.PI / 2;
+        rimTorus.position.y = 0.06;
+        rotorGroup.add(rimTorus);
+
+        // 24 Real 3D Brass Rim Pegs / Pins (Standing upright along the outer rim)
+        for (let p = 0; p < 24; p++) {
+          const pegAng = (p / 24) * Math.PI * 2;
+          const px = Math.cos(pegAng) * (wheelRadius - 0.05);
+          const pz = Math.sin(pegAng) * (wheelRadius - 0.05);
+
+          const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.12, 10), goldMat);
+          peg.position.set(px, 0.11, pz);
+
+          const pegBall = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 10), chromeMat);
+          pegBall.position.set(px, 0.17, pz);
+
+          rotorGroup.add(peg, pegBall);
+        }
+
+        // Center Starburst Rosette & Ruby Gem
+        const hubOuter = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.52, 0.10, 24), goldMat);
+        hubOuter.position.y = 0.09;
+
+        const hubInner = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.36, 0.12, 16), darkObsidianMat);
+        hubInner.position.y = 0.14;
+
+        const hubJewel = new THREE.Mesh(new THREE.OctahedronGeometry(0.18, 1), rubyMat);
+        hubJewel.position.y = 0.24;
+
+        rotorGroup.add(hubOuter, hubInner, hubJewel);
+        g.add(rotorGroup);
+
+        // -------------------------------------------------------------
+        // 3. LUXURY 2-TIERED 16-CHIP DEALER TRAY (IDENTICAL TO BLACKJACK & POKER)
+        // -------------------------------------------------------------
+        const wheelChipStacks = [];
+        const trayGroup = new THREE.Group();
+        trayGroup.position.set(0, 0.73, 2.70);
+        trayGroup.rotation.x = -0.22; // Slanted towards the seated player
+
+        // Slanted Mahogany & Brass Tray Chassis
+        const trayBody = new THREE.Mesh(
+          new THREE.BoxGeometry(1.40, 0.08, 0.42),
+          mahoganyMat
+        );
+        trayBody.castShadow = true;
+
+        const trayTrim = new THREE.Mesh(
+          new THREE.BoxGeometry(1.44, 0.03, 0.46),
+          goldMat
+        );
+        trayTrim.position.y = 0.035;
+
+        // Velvet Lined Inset Basin
+        const trayVelvet = new THREE.Mesh(
+          new THREE.BoxGeometry(1.36, 0.02, 0.38),
+          new THREE.MeshStandardMaterial({ color: 0x3b0764, roughness: 0.8, metalness: 0.1 })
+        );
+        trayVelvet.position.y = 0.045;
+
+        trayGroup.add(trayBody, trayTrim, trayVelvet);
+
+        // 16 Full Luxury Chip Denominations (2 Rows of 8, exactly like Blackjack & Poker)
+        // Row 1 (Back row, z = -0.10): Low stakes $0.1, $0.2, $0.5, $1, $2, $5, $10, $20
+        // Row 2 (Front row, z = 0.10): High stakes $50, $100, $200, $500, $1K, $2K, $5K, $10K
+        CASINO_CHIPS.forEach((cDef, cIdx) => {
+          const isHighRow = cIdx >= 8;
+          const col = isHighRow ? (cIdx - 8) : cIdx;
+          const posX = -0.525 + col * 0.150;
+          const posZ = isHighRow ? 0.10 : -0.10;
+
+          const stack = new THREE.Group();
+          stack.position.set(posX, 0.055, posZ);
+          stack.userData = { chipVal: cDef.v, isWheelChipStack: true };
+          stack.name = 'wheelChipStack_' + cDef.v;
+
+          // 4 physical stacked 3D chips per slot
+          const stackHeight = 4;
+          for (let h = 0; h < stackHeight; h++) {
+            const chipM = create3DChipSingleMesh(cDef, 0.052, 0.013);
+            chipM.position.y = h * 0.014 + 0.007;
+            chipM.rotation.y = (h * 0.35) % (Math.PI * 2);
+            stack.add(chipM);
+          }
+
+          // Floating 3D Value Label with gold border
+          const labelCanvas = document.createElement('canvas');
+          labelCanvas.width = 128; labelCanvas.height = 64;
+          const lCtx = labelCanvas.getContext('2d');
+          lCtx.fillStyle = '#0f081d';
+          if (lCtx.roundRect) lCtx.roundRect(4, 4, 120, 56, 12); else lCtx.rect(4, 4, 120, 56);
+          lCtx.fill();
+          lCtx.strokeStyle = '#f59e0b'; lCtx.lineWidth = 3; lCtx.stroke();
+          lCtx.font = '900 28px "Segoe UI", Arial, sans-serif';
+          lCtx.fillStyle = '#ffffff'; lCtx.textAlign = 'center'; lCtx.textBaseline = 'middle';
+          lCtx.fillText(cDef.str, 64, 32);
+
+          const labelTex = new THREE.CanvasTexture(labelCanvas);
+          const labelSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex, depthTest: false }));
+          labelSpr.scale.set(0.14, 0.07, 1);
+          labelSpr.position.set(0, 0.115, 0);
+          stack.add(labelSpr);
+
+          trayGroup.add(stack);
+          wheelChipStacks.push(stack);
+        });
+
+        g.add(trayGroup);
+
+        // Highlight selected 3D chip in the wheel rack
+        function update3DWheelChipRackSelection() {
+          if (!wheelChipStacks) return;
+          const curVal = (typeof window.wheelBet === 'number' && window.wheelBet > 0) ? window.wheelBet : 50;
+          wheelChipStacks.forEach(stack => {
+            const val = stack.userData.chipVal;
+            const isSelected = (val === curVal);
+            stack.position.y = isSelected ? 0.085 : 0.055;
+            stack.scale.set(isSelected ? 1.20 : 1.0, isSelected ? 1.20 : 1.0, isSelected ? 1.20 : 1.0);
+          });
+        }
+
+        // -------------------------------------------------------------
+        // 4. FIXED MECHANICAL CLAPPER POINTER (Pointing at North Edge)
+        // -------------------------------------------------------------
+        const clapperMount = new THREE.Group();
+        clapperMount.position.set(0, 0.88, -wheelRadius - 0.06);
+
+        const mountBase = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.14), darkObsidianMat);
+        const mountRing = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.16, 16), goldMat);
+        mountRing.rotation.x = Math.PI / 2;
+
+        const clapperGroup = new THREE.Group();
+        const clapperArrow = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.32, 12), goldMat);
+        clapperArrow.rotation.x = Math.PI / 2;
+        clapperArrow.position.z = 0.16;
+        const clapperTip = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 10), rubyMat);
+        clapperTip.position.z = 0.32;
+
+        clapperGroup.add(clapperArrow, clapperTip);
+        clapperMount.add(mountBase, mountRing, clapperGroup);
+        g.add(clapperMount);
+
+        // -------------------------------------------------------------
+        // 4. OVERHEAD LUXURY HALO RING & WARM DOWNWARD SPOTLIGHTS
+        // -------------------------------------------------------------
+        // Floating circular gold halo ring above the wheel at Y = 3.6m
+        const haloRing = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.045, 12, 40), goldMat);
+        haloRing.rotation.x = Math.PI / 2;
+        haloRing.position.y = 3.60;
+
+        const haloNeon = new THREE.Mesh(new THREE.TorusGeometry(2.52, 0.025, 8, 40), neonPurpleMat);
+        haloNeon.rotation.x = Math.PI / 2;
+        haloNeon.position.y = 3.58;
+
+        g.add(haloRing, haloNeon);
+
+        // 4 Thin Arch Support Columns connecting halo ring to podium perimeter
+        const haloAngles = [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4];
+        haloAngles.forEach(ang => {
+          const colX = Math.cos(ang) * 3.8;
+          const colZ = Math.sin(ang) * 3.8;
+          const pCol = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 3.5, 12), goldMat);
+          pCol.position.set(colX, 1.80, colZ);
+
+          const pBase = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.12, 12), darkObsidianMat);
+          pBase.position.set(colX, 0.15, colZ);
+
+          g.add(pCol, pBase);
+        });
+
+        // Store references for real-time 3D horizontal spinning
+        wheel3DRefs = {
+          group: g,
+          rotor: rotorGroup,
+          clapper: clapperGroup,
+          wheelMesh: wheelCyl,
+                    chipStacks: wheelChipStacks,
+          update3DWheelChipRackSelection: update3DWheelChipRackSelection
+        };
+        window.wheel3DRefs = wheel3DRefs;
 
         return g;
       }
@@ -5376,6 +5816,8 @@
         const label = makeLabelSprite(z.name, z.icon, z.color);
         if (z.id === 'jukebox') {
           label.visible = false; // Jukebox already has its own floating interactive 3D title!
+        } else if (z.id === 'wheel') {
+          label.position.set(0, 6.9, 0); // Majestically above the marquee spire
         } else if (z.id === 'cinema') {
           label.position.set(0, 4.4, 3.5);
         } else if (z.id === 'bowling' || z.id === 'tvcasino') {

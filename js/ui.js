@@ -343,36 +343,19 @@
       }
 
       // 3. Pachinko Drop Button
-      let pachinkoBet = 25;
+      window.pachinkoBet = 300;
       document.querySelectorAll('#pachinkoChipRack .chip').forEach(c => {
         c.addEventListener('click', () => {
           document.querySelectorAll('#pachinkoChipRack .chip').forEach(x => x.classList.remove('selected'));
           c.classList.add('selected');
-          pachinkoBet = parseInt(c.dataset.v, 10);
-          document.getElementById('pachinkoBetDisplay').textContent = '$' + pachinkoBet;
+          window.pachinkoBet = parseInt(c.dataset.v, 10);
+          document.getElementById('pachinkoBetDisplay').textContent = '$' + window.pachinkoBet;
         });
       });
       const pachinkoBtn = document.getElementById('pachinkoDropBtn');
       if (pachinkoBtn) {
         pachinkoBtn.addEventListener('click', () => {
-          if (state.balance < pachinkoBet) { showToast('Saldo insuficiente'); return; }
-          state.balance -= pachinkoBet;
-          updateBalanceUI();
-          playSound('chip');
-          showToast('🔮 ¡Bola de Pachinko en caída!');
-          setTimeout(() => {
-            const mult = [0, 0.5, 1.5, 2.0, 5.0, 10.0][Math.floor(Math.random() * 6)];
-            const win = Math.floor(pachinkoBet * mult);
-            if (win > 0) {
-              state.balance += win;
-              updateBalanceUI();
-              if (mult >= 2) triggerConfetti();
-              showToast(`✨ Pachinko: Cayó en casilla x${mult}! (+$${win})`);
-            } else {
-              playSound('lose');
-              showToast('Pachinko: La bola cayó fuera');
-            }
-          }, 1100);
+          spinSlotMachine('pachinko');
         });
       }
 

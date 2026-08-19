@@ -99,6 +99,21 @@
           }
         });
 
+        // Fortune Wheel Multiplayer Sync Listeners
+        socket.on('fortuneWheelPlayerSpin', (data) => {
+          window.netMetrics.msgIn++;
+          if (typeof handleRemoteWheelSpin === 'function') {
+            handleRemoteWheelSpin(data);
+          }
+        });
+
+        socket.on('fortuneWheelPlayerResult', (data) => {
+          window.netMetrics.msgIn++;
+          if (typeof handleRemoteWheelResult === 'function') {
+            handleRemoteWheelResult(data);
+          }
+        });
+
         // Clock Synchronization Response with Jitter & Latency Tracking
         socket.on('syncPong', (data) => {
           window.netMetrics.msgIn++;

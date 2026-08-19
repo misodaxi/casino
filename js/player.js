@@ -761,8 +761,19 @@
           toPos = new THREE.Vector3(z.x, 3.0, z.z + 5.2);
           toLook = new THREE.Vector3(z.x, 1.4, z.z);
         } else if (gameId === 'wheel') {
-          toPos = new THREE.Vector3(z.x, 3.8, z.z + 5.0);
-          toLook = new THREE.Vector3(z.x, 1.8, z.z);
+          // Perspectiva elevada desde el asiento VIP mirando hacia el centro de la ruleta horizontal
+          const eyeY = 3.60;
+          const backDist = 0.60;
+          toPos = new THREE.Vector3(
+            seat.x - Math.sin(seat.r) * backDist,
+            eyeY,
+            seat.z - Math.cos(seat.r) * backDist
+          );
+          toLook = new THREE.Vector3(
+            z.x,
+            0.80,
+            z.z
+          );
         } else if (gameId === 'blackjack') {
           // Elevated high-angle camera well above the player's head with a steep downward perspective
           const eyeY = 4.60;
@@ -801,6 +812,18 @@
             document.querySelectorAll('.game-overlay').forEach(w => w.classList.remove('show'));
             const wrap = document.getElementById(gameId + 'Wrap');
             if (wrap) wrap.classList.add('show');
+            if (gameId === 'pachinko') {
+              window.pachinkoBet = Math.max(300, window.pachinkoBet || 300);
+              const d = document.getElementById('pachinkoBetDisplay');
+              if (d) d.textContent = formatMoney(window.pachinkoBet);
+              const rack = document.getElementById('pachinkoChipRack');
+              if (rack) {
+                rack.querySelectorAll('.chip').forEach(x => {
+                  if (parseInt(x.dataset.v, 10) === window.pachinkoBet) x.classList.add('selected');
+                  else x.classList.remove('selected');
+                });
+              }
+            }
             if (gameId === 'cinema') {
               if (typeof updateCinemaVideoTitleDisplay === 'function') {
                 updateCinemaVideoTitleDisplay();
@@ -858,7 +881,30 @@
           }
         }
 
-        if (state.mode !== 'roulette' && state.mode !== 'mines' && state.mode !== 'blackjack' && state.mode !== 'dice' && state.mode !== 'coin' && state.mode !== 'poker') return;
+        if (state.mode !== 'roulette' && state.mode !== 'mines' && state.mode !== 'blackjack' && state.mode !== 'dice' && state.mode !== 'coin' && state.mode !== 'poker' && state.mode !== 'wheel') return;
+
+        // Fortune Wheel 3D: selección de fichas 3D en la mesa
+        if (state.mode === 'wheel') {
+          if (window.wheel3DRefs && window.wheel3DRefs.chipStacks) {
+            const trayHits = tableRaycaster.intersectObjects(window.wheel3DRefs.chipStacks, true);
+            if (trayHits.length > 0) {
+              let obj = trayHits[0].object;
+              while (obj && !obj.userData.chipVal && obj.parent) obj = obj.parent;
+              if (obj && obj.userData.chipVal) {
+                playSound('chip');
+                window.wheelBet = roundMoney(obj.userData.chipVal);
+                const selDisplay = document.getElementById('wheelBetDisplay');
+                if (selDisplay) selDisplay.textContent = formatMoney(window.wheelBet);
+                showToast(`Ficha de ${formatMoney(window.wheelBet)} seleccionada`);
+                if (window.wheel3DRefs.update3DWheelChipRackSelection) {
+                  window.wheel3DRefs.update3DWheelChipRackSelection();
+                }
+                return;
+              }
+            }
+          }
+          return;
+        }
 
         // Poker 3D: interactividad con la caja de fichas del crupier y los espacios de fichas de jugador
         if (state.mode === 'poker') {

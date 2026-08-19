@@ -19,6 +19,7 @@ const { setupRouletteSocketEvents, handleRouletteDisconnect } = require('./games
 const { setupBlackjackSocketEvents, handleBlackjackDisconnect } = require('./games/blackjack');
 const { setupDiceSocketEvents, handleDiceVersusDisconnect } = require('./games/dice');
 const { setupCoinSocketEvents, handleCoinVersusDisconnect } = require('./games/coin');
+const { setupWheelSocketEvents } = require('./games/wheel');
 
 function getZoneForPosition(x, z) {
   let closestZone = 'lobby';
@@ -462,6 +463,7 @@ function setupSocketIO(io) {
     setupBlackjackSocketEvents(io, socket, players);
     setupDiceSocketEvents(io, socket, players);
     setupCoinSocketEvents(io, socket, players);
+    setupWheelSocketEvents(io, socket, players);
 
     // Disconnect Cleanup
     socket.on('disconnect', () => {

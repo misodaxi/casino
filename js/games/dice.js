@@ -2,23 +2,41 @@
          2. DICE DUEL LOGIC — MOTOR DE FÍSICA REAL PARA LOS DADOS
       ============================================================ */
       const dState = { bet: 50, selectedChip: 50, rolling: false };
+      var diceCurrentMode = 'solo';
 
       function update3DDiceChips(betAmount) {
         if (!dice3DRefs || !dice3DRefs.chipsGroup) return;
         const grp = dice3DRefs.chipsGroup;
         while (grp.children && grp.children.length > 0) grp.remove(grp.children[0]);
-        const amt = Math.max(0, betAmount || 0);
+        const amt = Math.max(0, typeof betAmount === 'number' ? betAmount : (dState.bet || 0));
+
+        // Actualizar rótulos informativos de la UI en modo solo contra la máquina
+        if (diceCurrentMode === 'solo') {
+          const subTitle = document.getElementById('diceSubTitle');
+          const p1Who = document.getElementById('diceP1Who');
+          const p2Who = document.getElementById('diceP2Who');
+          if (subTitle) subTitle.textContent = amt > 0 ? `TÚ ($${amt}) VS LA MÁQUINA ($${amt}) · BOTE TOTAL: $${amt * 2}` : 'TÚ VS LA MÁQUINA · GANA MÁS ALTO';
+          if (p1Who) p1Who.textContent = amt > 0 ? `🔵 TÚ ($${amt})` : '🔵 TÚ (DADOS AZULES)';
+          if (p2Who) p2Who.textContent = amt > 0 ? `🔴 LA MÁQUINA ($${amt})` : '🔴 LA MÁQUINA (DADOS ROJOS)';
+        }
+
         if (amt > 0) {
-          // Detectar dinámicamente en qué asiento está sentado el jugador (0 = Asiento Izquierdo, 1 = Asiento Derecho)
-          const mySeatIdx = (state.player.currentSeat && state.player.currentSeat.zone === 'dice' && typeof state.player.currentSeat.seatIndex === 'number')
+          // Detectar dinámicamente en qué asiento está sentado el jugador (0 = Asiento Izquierdo / Azul, 1 = Asiento Derecho / Rojo)
+          const mySeatIdx = (state.player && state.player.currentSeat && state.player.currentSeat.zone === 'dice' && typeof state.player.currentSeat.seatIndex === 'number')
             ? state.player.currentSeat.seatIndex
             : 0;
-          const targetX = (mySeatIdx === 1) ? 1.65 : -1.65;
+          const playerX = (mySeatIdx === 1) ? 1.65 : -1.65;
+          const machineX = (mySeatIdx === 1) ? -1.65 : 1.65;
 
-          // Renderizar pila física 3D de fichas apostadas dentro del círculo de apuesta de la bandeja de su asiento
-          const stackM = create3DChipStackMesh(amt, 0.075, 0.018);
-          stackM.position.set(targetX, 1.385, 1.34);
-          grp.add(stackM);
+          // 1. Renderizar pila 3D de fichas apostadas por el jugador en su bandeja
+          const playerStack = create3DChipStackMesh(amt, 0.075, 0.018);
+          playerStack.position.set(playerX, 1.365, 1.34);
+          grp.add(playerStack);
+
+          // 2. Renderizar pila 3D de fichas igualadas de la máquina / casa en la bandeja contraria (exactamente igual en ambos lados)
+          const machineStack = create3DChipStackMesh(amt, 0.075, 0.018);
+          machineStack.position.set(machineX, 1.365, 1.34);
+          grp.add(machineStack);
         }
       }
 
@@ -602,8 +620,8 @@
 
         if (pSum > hSum) {
           state.balance += dState.bet * 2; updateBalanceUI();
-          title.textContent = '¡GANASTE!'; title.style.color = '#4ade80';
-          msg.className = 'win'; msg.textContent = '+$' + dState.bet;
+          title.textContent = '¡GANASTE EL BOTE!'; title.style.color = '#4ade80';
+          msg.className = 'win'; msg.textContent = '+$' + dState.bet + ' (Bote: $' + (dState.bet * 2) + ')';
           triggerConfetti(); addXP(80);
           playSound('win');
         } else if (pSum < hSum) {
@@ -613,7 +631,7 @@
         } else {
           state.balance += dState.bet; updateBalanceUI();
           title.textContent = 'EMPATE'; title.style.color = '#d4d4d8';
-          msg.className = 'win'; msg.textContent = 'Reembolsado';
+          msg.className = 'win'; msg.textContent = 'Apuestas devueltas ($' + dState.bet + ')';
         }
         banner.classList.add('show');
         dState.rolling = false;
@@ -663,7 +681,7 @@
       /* ============================================================
          3. DADOS VERSUS 1v1 MULTIPLAYER CLIENT LOGIC
       ============================================================ */
-      let diceCurrentMode = 'solo'; // 'solo' | 'versus'
+      // diceCurrentMode initialized at top
       var diceVersusState = null;
       const diceProcessedRolls = new Set();
 
@@ -805,6 +823,15 @@
       });
 
 // --- Explicit Global Window Bindings ---
-if (typeof diceState !== 'undefined') window.diceState = diceState;
+if (typeof dState !== 'undefined') window.dState = dState;
+if (typeof diceCurrentMode !== 'undefined') window.diceCurrentMode = diceCurrentMode;
+if (typeof update3DDiceChips !== 'undefined') window.update3DDiceChips = update3DDiceChips;
 if (typeof diceVersusState !== 'undefined') window.diceVersusState = diceVersusState;
 if (typeof updateDicePhysics !== 'undefined') window.updateDicePhysics = updateDicePhysics;
+
+// Auto-inicializar fichas 3D en ambas bandejas cuando la escena esté lista
+setTimeout(() => {
+  if (typeof update3DDiceChips === 'function' && typeof dState !== 'undefined') {
+    update3DDiceChips(dState.bet);
+  }
+}, 300);

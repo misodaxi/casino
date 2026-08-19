@@ -194,6 +194,12 @@
               window.roulette3DRefs.ball.position.y = 0.505;
             }
           }
+
+          /* rotate 3D Fortune Wheel when idle */
+          if (window.wheel3DRefs && window.wheel3DRefs.rotor && !window.wSpinning) {
+            window.wheel3DRefs.rotor.rotation.y -= dt15 * 0.15;
+          }
+
           if (window.jackpotTrophyVictory) {
             const jv = window.jackpotTrophyVictory;
             if (jv.victoryGroup) jv.victoryGroup.position.y = 3.70 + Math.sin(now * 0.0025) * 0.07;
