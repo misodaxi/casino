@@ -195,8 +195,8 @@
             }
           }
 
-          /* rotate 3D Fortune Wheel when idle */
-          if (window.wheel3DRefs && window.wheel3DRefs.rotor && !window.wSpinning) {
+          /* rotate 3D Fortune Wheel when idle (only if not spun or locked on prize) */
+          if (window.wheel3DRefs && window.wheel3DRefs.rotor && !window.wSpinning && !window.wheelResultLocked) {
             window.wheel3DRefs.rotor.rotation.y -= dt15 * 0.15;
           }
 

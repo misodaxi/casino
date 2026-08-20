@@ -1795,19 +1795,32 @@
         const clapperMount = new THREE.Group();
         clapperMount.position.set(0, 0.88, -wheelRadius - 0.06);
 
-        const mountBase = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.14), darkObsidianMat);
-        const mountRing = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.16, 16), goldMat);
-        mountRing.rotation.x = Math.PI / 2;
+        const mountBase = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.16, 0.16), darkObsidianMat);
+        const mountTrim = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.04, 0.20), goldMat);
+        mountTrim.position.y = 0.08;
 
         const clapperGroup = new THREE.Group();
-        const clapperArrow = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.32, 12), goldMat);
-        clapperArrow.rotation.x = Math.PI / 2;
-        clapperArrow.position.z = 0.16;
-        const clapperTip = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 10), rubyMat);
-        clapperTip.position.z = 0.32;
 
-        clapperGroup.add(clapperArrow, clapperTip);
-        clapperMount.add(mountBase, mountRing, clapperGroup);
+        // Sculpted Gold Arrow Body (pointing +Z inwards to wheel center)
+        const clapperArrow = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.40, 16), goldMat);
+        clapperArrow.rotation.x = Math.PI / 2;
+        clapperArrow.position.z = 0.20;
+
+        // Glowing Ruby Arrowhead Point
+        const clapperTip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.24, 16), rubyMat);
+        clapperTip.rotation.x = Math.PI / 2;
+        clapperTip.position.z = 0.44;
+
+        // Accent Sphere Needle Jewel
+        const clapperJewel = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 12), chromeMat);
+        clapperJewel.position.z = 0.30;
+
+        // Downward Spotlight / Pointlight directly illuminating the active prize slice below the pointer
+        const pointerLight = new THREE.PointLight(0xff0055, 1.8, 3.0);
+        pointerLight.position.set(0, -0.06, 0.42);
+
+        clapperGroup.add(clapperArrow, clapperTip, clapperJewel, pointerLight);
+        clapperMount.add(mountBase, mountTrim, clapperGroup);
         g.add(clapperMount);
 
         // -------------------------------------------------------------

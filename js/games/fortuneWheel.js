@@ -1,11 +1,51 @@
 /* ============================================================
-   6. FORTUNE WHEEL 3D ENGINE (INDIVIDUAL MULTIPLAYER)
+   6. FORTUNE WHEEL 3D ENGINE (PREMEDITATED TIMED CASINO LANDING)
    ============================================================ */
-const wSlices = ['50X', '0.5X', '20X', '1.5X', '3X', '0X', '10X', '5X', '0.5X', '2X', '1.5X', '0X'];
+const wSlices = [
+  '50X',  // idx 0 - JACKPOT
+  '0.5X', // idx 1
+  '20X',  // idx 2 - EPIC
+  '1.5X', // idx 3
+  '3X',   // idx 4
+  '0X',   // idx 5 - MISS
+  '10X',  // idx 6 - SUPER
+  '5X',   // idx 7 - BIG
+  '0.5X', // idx 8
+  '2X',   // idx 9 - DOUBLE
+  '1.5X', // idx 10
+  '0X'    // idx 11 - MISS
+];
+
+// Weighted casino distribution
+const WHEEL_ODDS_WEIGHTS = [
+  { idx: 0, w: 1 },   // 50X Jackpot
+  { idx: 1, w: 18 },  // 0.5X
+  { idx: 2, w: 2 },   // 20X Epic
+  { idx: 3, w: 15 },  // 1.5X
+  { idx: 4, w: 8 },   // 3X
+  { idx: 5, w: 12 },  // 0X Miss
+  { idx: 6, w: 4 },   // 10X Super
+  { idx: 7, w: 6 },   // 5X Big
+  { idx: 8, w: 18 },  // 0.5X
+  { idx: 9, w: 10 },  // 2X Double
+  { idx: 10, w: 15 }, // 1.5X
+  { idx: 11, w: 12 }  // 0X Miss
+];
+
+function pickWeightedSliceIndex() {
+  const totalWeight = WHEEL_ODDS_WEIGHTS.reduce((acc, item) => acc + item.w, 0);
+  let rnd = Math.random() * totalWeight;
+  for (let i = 0; i < WHEEL_ODDS_WEIGHTS.length; i++) {
+    if (rnd < WHEEL_ODDS_WEIGHTS[i].w) return WHEEL_ODDS_WEIGHTS[i].idx;
+    rnd -= WHEEL_ODDS_WEIGHTS[i].w;
+  }
+  return Math.floor(Math.random() * wSlices.length);
+}
 
 let wSpinning = false;
 window.wSpinning = false;
 window.wheelBet = 50;
+window.wheelResultLocked = false;
 let remoteWheelSpinActive = false;
 
 function spinFortuneWheel() {
@@ -16,18 +56,28 @@ function spinFortuneWheel() {
     return;
   }
 
+  // Deduct balance
   state.balance = roundMoney(state.balance - bet);
   updateBalanceUI();
   wSpinning = true;
   window.wSpinning = true;
-  remoteWheelSpinActive = false; // Local spin overrides any remote animation
+  window.wheelResultLocked = true;
+  remoteWheelSpinActive = false;
   playSound('coin_flip');
 
-  // Broadcast individual spin to multiplayer server
+  // 1. Premeditated Outcome Determination
+  const winIdx = pickWeightedSliceIndex();
+  const multStr = wSlices[winIdx].replace('X', '');
+  const mult = parseFloat(multStr);
+  const win = roundMoney(bet * mult);
+
+  // Broadcast individual spin to multiplayer server with premeditated target
   if (typeof socket !== 'undefined' && socket && socket.connected) {
     const mySeat = (state.player && state.player.currentSeat && typeof state.player.currentSeat.seatIndex === 'number') ? state.player.currentSeat.seatIndex : null;
     socket.emit('fortuneWheelSpin', {
       bet: bet,
+      winIdx: winIdx,
+      mult: wSlices[winIdx],
       seatIndex: mySeat,
       playerName: (state.player && state.player.name) ? state.player.name : 'Jugador'
     });
@@ -40,44 +90,63 @@ function spinFortuneWheel() {
     readyBtn.textContent = 'GIRANDO... 🎡';
   }
 
-  let currAngle = 0;
-  let speed = 0.45 + Math.random() * 0.35;
-  let lastPegIndex = -1;
-  let lastFrameTime = performance.now();
-  const step = (Math.PI * 2) / wSlices.length;
+  // 2. Exact Slice Centerline Target Calculation (11*PI/12 - winIdx*step)
+  const numSlices = wSlices.length;
+  const step = (Math.PI * 2) / numSlices;
+  const targetPocketAngle = (winIdx + 3.5) * step; // Shifted +0.5 step (15°) dead center into winning slice
+
+  const rotor = (window.wheel3DRefs && window.wheel3DRefs.rotor) ? window.wheel3DRefs.rotor : null;
+  const clapper = (window.wheel3DRefs && window.wheel3DRefs.clapper) ? window.wheel3DRefs.clapper : null;
+
+  const startRot = rotor ? rotor.rotation.y : 0;
+  const TWO_PI = Math.PI * 2;
+
+  // 3. Smooth, Continuous High-Speed to Decel Physics (Zero Angle Discontinuity)
+  const fullTurns = 7.0 * TWO_PI; // 7 full dramatic fast revolutions
+  const normalizedTarget = ((targetPocketAngle % TWO_PI) + TWO_PI) % TWO_PI;
+  const normalizedStart = ((startRot % TWO_PI) + TWO_PI) % TWO_PI;
+  let diff = normalizedTarget - normalizedStart;
+  while (diff < 0.25 * Math.PI) diff += TWO_PI;
+
+  const finalTargetRot = startRot + fullTurns + diff;
+
+  const DURATION = 6000; // 6.0s total continuous spin
+  const startTime = performance.now();
+  let lastClapperTick = -1;
 
   function stepWheel(now) {
-    const dtMs = Math.min(now - lastFrameTime, 50);
-    lastFrameTime = now;
-    const speedScale = dtMs / 16.667;
+    const elapsed = now - startTime;
+    const progress = Math.min(1.0, elapsed / DURATION);
 
-    currAngle += speed * speedScale;
-    speed *= Math.pow(0.984, speedScale);
+    // Quintic ease-out curve: starts at high velocity and decelerates with true mechanical friction
+    const ease = 1 - Math.pow(1 - progress, 5);
+    const currentRot = startRot + (finalTargetRot - startRot) * ease;
+    const currentSpeed = (finalTargetRot - startRot) * (5 * Math.pow(1 - progress, 4)) / (DURATION / 1000);
 
-    // Trigger tick sound when a peg crosses the indicator
-    const pegIndex = Math.floor((currAngle + step * 0.5) / step);
-    if (pegIndex !== lastPegIndex) {
-      lastPegIndex = pegIndex;
-      playSound('tick', 0.25);
+    if (rotor) {
+      rotor.rotation.y = currentRot;
     }
 
-    // Sincronización en tiempo real con el rotor 3D horizontal y el clapper
-    if (window.wheel3DRefs && window.wheel3DRefs.rotor) {
-      window.wheel3DRefs.rotor.rotation.y = -currAngle;
-      if (window.wheel3DRefs.clapper) {
-        const clapperDeflect = (speed > 0.02) ? (Math.sin(currAngle * wSlices.length) * 0.25) : 0;
-        window.wheel3DRefs.clapper.rotation.y = clapperDeflect;
-      }
+    // Dynamic clapper pointer deflection & sound
+    if (clapper) {
+      const clapperDeflect = (currentSpeed > 0.4) ? (Math.sin(currentRot * 12) * Math.min(0.22, currentSpeed * 0.03)) : 0;
+      clapper.rotation.y = clapperDeflect;
     }
 
-    if (speed >= 0.005) {
+    const pegIdx = Math.floor((currentRot + step * 0.5) / step);
+    if (pegIdx !== lastClapperTick && currentSpeed > 0.15) {
+      lastClapperTick = pegIdx;
+      playSound('tick', Math.min(0.35, Math.max(0.08, currentSpeed * 0.035)));
+    }
+
+    if (progress < 1.0) {
       requestAnimationFrame(stepWheel);
     } else {
       wSpinning = false;
       window.wSpinning = false;
-      if (window.wheel3DRefs && window.wheel3DRefs.clapper) {
-        window.wheel3DRefs.clapper.rotation.y = 0;
-      }
+      window.wheelResultLocked = true;
+      if (rotor) rotor.rotation.y = finalTargetRot; // 100% exact alignment on slice center
+      if (clapper) clapper.rotation.y = 0;
 
       if (readyBtn) {
         readyBtn.disabled = false;
@@ -85,29 +154,25 @@ function spinFortuneWheel() {
         readyBtn.textContent = '¡ESTOY LISTO! 🎡';
       }
 
-      const finalIndex = Math.floor(((Math.PI * 2 - (currAngle % (Math.PI * 2))) / (Math.PI * 2)) * wSlices.length) % wSlices.length;
-      const multStr = wSlices[finalIndex].replace('X', '');
-      const mult = parseFloat(multStr);
-      const win = roundMoney(bet * mult);
-
       if (win > 0) {
         state.balance = roundMoney(state.balance + win);
         updateBalanceUI();
         playSound('win');
         if (typeof spawnConfetti === 'function') spawnConfetti();
         addXP(mult >= 10 ? 300 : 100);
-        showToast(`🎉 ¡Premio ${wSlices[finalIndex]} en la Ruleta! +$${win} (x${mult})`);
+        showToast(`🎉 ¡La flecha 3D marca ${wSlices[winIdx]}! Ganaste +$${win} (x${mult})`);
       } else {
         playSound('lose');
-        showToast(`❌ Ruleta de la Fortuna: ${wSlices[finalIndex]} (Sin premio)`);
+        showToast(`❌ La flecha 3D marca ${wSlices[winIdx]} (Sin premio)`);
       }
 
-      // Broadcast result to multiplayer server
+      // Broadcast result
       if (typeof socket !== 'undefined' && socket && socket.connected) {
         socket.emit('fortuneWheelResult', {
           bet: bet,
           win: win,
-          mult: wSlices[finalIndex],
+          winIdx: winIdx,
+          mult: wSlices[winIdx],
           playerName: (state.player && state.player.name) ? state.player.name : 'Jugador'
         });
       }
@@ -121,45 +186,61 @@ function handleRemoteWheelSpin(data) {
   if (!data) return;
   const pName = data.playerName || 'Otro jugador';
   const betVal = (typeof data.bet === 'number') ? data.bet : 50;
+  const winIdx = (typeof data.winIdx === 'number') ? data.winIdx : pickWeightedSliceIndex();
   showToast(`🎡 ${pName} ha lanzado su tirada individual en la Ruleta ($${betVal})`);
 
   // Animate 3D wheel for spectator if not currently spinning locally
   if (!wSpinning && window.wheel3DRefs && window.wheel3DRefs.rotor) {
     remoteWheelSpinActive = true;
-    let rAngle = 0;
-    let rSpeed = 0.42 + Math.random() * 0.25;
-    let rLastFrame = performance.now();
-    let rLastPeg = -1;
-    const step = (Math.PI * 2) / wSlices.length;
+    window.wheelResultLocked = true;
+    const rotor = window.wheel3DRefs.rotor;
+    const clapper = window.wheel3DRefs.clapper;
+
+    const numSlices = wSlices.length;
+    const step = (Math.PI * 2) / numSlices;
+    const targetPocketAngle = (winIdx + 3.5) * step; // Shifted +0.5 step (15°) dead center into winning slice
+
+    const startRot = rotor.rotation.y;
+    const TWO_PI = Math.PI * 2;
+
+    const fullTurns = 6.0 * TWO_PI;
+    const normalizedTarget = ((targetPocketAngle % TWO_PI) + TWO_PI) % TWO_PI;
+    const normalizedStart = ((startRot % TWO_PI) + TWO_PI) % TWO_PI;
+    let diff = normalizedTarget - normalizedStart;
+    while (diff < 0.25 * Math.PI) diff += TWO_PI;
+
+    const finalTargetRot = startRot + fullTurns + diff;
+
+    const DURATION = 5800;
+    const startTime = performance.now();
+    let lastClapperTick = -1;
 
     function stepRemoteWheel(now) {
       if (wSpinning) { remoteWheelSpinActive = false; return; }
-      const dtMs = Math.min(now - rLastFrame, 50);
-      rLastFrame = now;
-      const scale = dtMs / 16.667;
-      rAngle += rSpeed * scale;
-      rSpeed *= Math.pow(0.984, scale);
+      const elapsed = now - startTime;
+      const progress = Math.min(1.0, elapsed / DURATION);
+      const ease = 1 - Math.pow(1 - progress, 5);
+      const currentRot = startRot + (finalTargetRot - startRot) * ease;
+      const currentSpeed = (finalTargetRot - startRot) * (5 * Math.pow(1 - progress, 4)) / (DURATION / 1000);
 
-      const pegIndex = Math.floor((rAngle + step * 0.5) / step);
-      if (pegIndex !== rLastPeg) {
-        rLastPeg = pegIndex;
-        if (state.mode === 'wheel') playSound('tick', 0.15);
+      rotor.rotation.y = currentRot;
+
+      if (clapper) {
+        clapper.rotation.y = (currentSpeed > 0.4) ? (Math.sin(currentRot * 12) * Math.min(0.22, currentSpeed * 0.03)) : 0;
       }
 
-      if (window.wheel3DRefs && window.wheel3DRefs.rotor) {
-        window.wheel3DRefs.rotor.rotation.y = -rAngle;
-        if (window.wheel3DRefs.clapper) {
-          window.wheel3DRefs.clapper.rotation.y = (rSpeed > 0.02) ? (Math.sin(rAngle * wSlices.length) * 0.20) : 0;
-        }
+      const pegIdx = Math.floor((currentRot + step * 0.5) / step);
+      if (pegIdx !== lastClapperTick && currentSpeed > 0.15) {
+        lastClapperTick = pegIdx;
+        if (state.mode === 'wheel') playSound('tick', Math.min(0.25, currentSpeed * 0.03));
       }
 
-      if (rSpeed >= 0.005 && remoteWheelSpinActive) {
+      if (progress < 1.0 && remoteWheelSpinActive) {
         requestAnimationFrame(stepRemoteWheel);
       } else {
         remoteWheelSpinActive = false;
-        if (window.wheel3DRefs && window.wheel3DRefs.clapper) {
-          window.wheel3DRefs.clapper.rotation.y = 0;
-        }
+        rotor.rotation.y = finalTargetRot;
+        if (clapper) clapper.rotation.y = 0;
       }
     }
     requestAnimationFrame(stepRemoteWheel);
