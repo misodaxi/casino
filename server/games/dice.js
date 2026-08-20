@@ -1,18 +1,17 @@
 // ============================================================
-// AUTHORITATIVE MULTIPLAYER DICE 1V1 ENGINE WITH READY SYSTEM
+// AUTHORITATIVE MULTIPLAYER DICE 1V1 ENGINE (SERVER)
 // ============================================================
 
 const { roundMoney } = require('../state');
 
 const diceVersusMatches = {}; // matchId -> match state object
 
-function getOrCreateDiceVersusState(matchId) {
+function getOrCreateDiceVersusState(matchId = 'dice-versus-1') {
   if (!diceVersusMatches[matchId]) {
     diceVersusMatches[matchId] = {
       matchId: matchId,
-      player1: null, // { id, name, seatIndex, bet }
-      player2: null, // { id, name, seatIndex, bet }
-      readyPlayers: {}, // { [socketId]: true }
+      players: {}, // socketId -> { id, name, seatIndex, bet }
+      readyPlayers: {}, // socketId -> true
       status: 'WAITING', // 'WAITING' | 'READY' | 'ROLLING' | 'SETTLED'
       finalBet: 50,
       pot: 100,
@@ -25,21 +24,28 @@ function getOrCreateDiceVersusState(matchId) {
   return diceVersusMatches[matchId];
 }
 
-function broadcastDiceVersusState(io, matchId) {
+function broadcastDiceVersusState(io, matchId = 'dice-versus-1') {
   const m = getOrCreateDiceVersusState(matchId);
-  const readyCount = Object.keys(m.readyPlayers || {}).filter(id => (m.player1 && m.player1.id === id) || (m.player2 && m.player2.id === id)).length;
-  const totalPlayers = (m.player1 ? 1 : 0) + (m.player2 ? 1 : 0);
+  const playerList = Object.values(m.players || {});
+  const totalPlayers = playerList.length;
+  const readyList = Object.keys(m.readyPlayers || {});
+  const totalReady = readyList.length;
+
+  const p1 = playerList[0] || null;
+  const p2 = playerList[1] || null;
 
   const payload = {
     matchId: m.matchId,
     status: m.status,
-    player1: m.player1,
-    player2: m.player2,
+    players: m.players || {},
+    player1: p1,
+    player2: p2,
     readyPlayers: m.readyPlayers || {},
-    readyCount: readyCount,
+    readyCount: totalReady,
+    totalReady: totalReady,
     totalPlayers: totalPlayers,
     finalBet: m.finalBet || 50,
-    pot: m.pot || 100,
+    pot: (m.finalBet || 50) * 2,
     turn: m.turn,
     statusMsg: m.statusMsg,
     lastResult: m.lastResult,
@@ -47,26 +53,29 @@ function broadcastDiceVersusState(io, matchId) {
   };
 
   io.to(`dice:${matchId}`).emit('diceVersusState', payload);
-  if (m.player1 && m.player1.id) io.to(m.player1.id).emit('diceVersusState', payload);
-  if (m.player2 && m.player2.id) io.to(m.player2.id).emit('diceVersusState', payload);
+  playerList.forEach(p => {
+    if (p && p.id) io.to(p.id).emit('diceVersusState', payload);
+  });
   return payload;
 }
 
-function checkAndTriggerDiceRoll(io, matchId) {
+function checkAndTriggerDiceRoll(io, matchId = 'dice-versus-1') {
   const m = getOrCreateDiceVersusState(matchId);
   if (m.status === 'ROLLING') return;
 
-  const p1 = m.player1;
-  const p2 = m.player2;
+  const playerList = Object.values(m.players || {});
+  const totalPlayers = playerList.length;
+  const readyCount = Object.keys(m.readyPlayers || {}).length;
 
-  if (p1 && p2) {
+  if (totalPlayers >= 2) {
+    const p1 = playerList[0];
+    const p2 = playerList[1];
     const isP1Ready = !!(m.readyPlayers && m.readyPlayers[p1.id]);
     const isP2Ready = !!(m.readyPlayers && m.readyPlayers[p2.id]);
 
     if (isP1Ready && isP2Ready) {
-      startDiceVersusRoll(io, matchId);
+      startDiceVersusRoll(io, matchId, p1, p2);
     } else {
-      const readyCount = (isP1Ready ? 1 : 0) + (isP2Ready ? 1 : 0);
       m.status = 'READY';
       if (readyCount === 1) {
         const readyName = isP1Ready ? p1.name : p2.name;
@@ -76,13 +85,13 @@ function checkAndTriggerDiceRoll(io, matchId) {
       }
       broadcastDiceVersusState(io, matchId);
     }
-  } else if (p1 || p2) {
-    const soloPlayer = p1 || p2;
+  } else if (totalPlayers === 1) {
+    const soloPlayer = playerList[0];
     if (m.readyPlayers && m.readyPlayers[soloPlayer.id]) {
       startDiceSoloRoll(io, matchId, soloPlayer);
     } else {
       m.status = 'WAITING';
-      m.statusMsg = 'Esperando rival en la mesa de dados...';
+      m.statusMsg = 'Esperando rival o pulsa LISTO para jugar vs la Casa';
       broadcastDiceVersusState(io, matchId);
     }
   }
@@ -184,10 +193,8 @@ function startDiceSoloRoll(io, matchId, soloPlayer) {
   }, 4200);
 }
 
-function startDiceVersusRoll(io, matchId) {
+function startDiceVersusRoll(io, matchId, p1, p2) {
   const m = getOrCreateDiceVersusState(matchId);
-  if (!m.player1 || !m.player2) return;
-
   m.status = 'ROLLING';
   m.rollId++;
   m.statusMsg = '🎲 ¡Lanzando dados 3D en el tapete!';
@@ -205,11 +212,11 @@ function startDiceVersusRoll(io, matchId) {
   let isTie = false;
 
   if (total1 > total2) {
-    winnerId = m.player1.id;
-    winnerName = m.player1.name;
+    winnerId = p1.id;
+    winnerName = p1.name;
   } else if (total2 > total1) {
-    winnerId = m.player2.id;
-    winnerName = m.player2.name;
+    winnerId = p2.id;
+    winnerName = p2.name;
   } else {
     isTie = true;
   }
@@ -222,26 +229,26 @@ function startDiceVersusRoll(io, matchId) {
     player2Dice: [d2_1, d2_2],
     player1Total: total1,
     player2Total: total2,
-    player1: { id: m.player1.id, name: m.player1.name },
-    player2: { id: m.player2.id, name: m.player2.name },
+    player1: { id: p1.id, name: p1.name },
+    player2: { id: p2.id, name: p2.name },
     winnerId,
     winnerName,
     isTie,
     finalBet: m.finalBet || 50,
-    pot: m.pot || 100
+    pot: (m.finalBet || 50) * 2
   };
 
   m.lastResult = resultPayload;
 
   io.to(`dice:${matchId}`).emit('diceVersusRollStart', { matchId: m.matchId, rollId: m.rollId });
   io.to(`dice:${matchId}`).emit('diceVersusRollResult', resultPayload);
-  if (m.player1 && m.player1.id) {
-    io.to(m.player1.id).emit('diceVersusRollStart', { matchId: m.matchId, rollId: m.rollId });
-    io.to(m.player1.id).emit('diceVersusRollResult', resultPayload);
+  if (p1 && p1.id) {
+    io.to(p1.id).emit('diceVersusRollStart', { matchId: m.matchId, rollId: m.rollId });
+    io.to(p1.id).emit('diceVersusRollResult', resultPayload);
   }
-  if (m.player2 && m.player2.id) {
-    io.to(m.player2.id).emit('diceVersusRollStart', { matchId: m.matchId, rollId: m.rollId });
-    io.to(m.player2.id).emit('diceVersusRollResult', resultPayload);
+  if (p2 && p2.id) {
+    io.to(p2.id).emit('diceVersusRollStart', { matchId: m.matchId, rollId: m.rollId });
+    io.to(p2.id).emit('diceVersusRollResult', resultPayload);
   }
   broadcastDiceVersusState(io, matchId);
 
@@ -264,21 +271,22 @@ function startDiceVersusRoll(io, matchId) {
         winnerName,
         isTie,
         finalBet: live.finalBet,
-        pot: live.pot,
-        player1Id: live.player1 ? live.player1.id : null,
-        player2Id: live.player2 ? live.player2.id : null
+        pot: (live.finalBet || 50) * 2,
+        player1Id: p1 ? p1.id : null,
+        player2Id: p2 ? p2.id : null
       };
 
       io.to(`dice:${matchId}`).emit('diceVersusSettled', settlePayload);
-      if (live.player1 && live.player1.id) io.to(live.player1.id).emit('diceVersusSettled', settlePayload);
-      if (live.player2 && live.player2.id) io.to(live.player2.id).emit('diceVersusSettled', settlePayload);
+      if (p1 && p1.id) io.to(p1.id).emit('diceVersusSettled', settlePayload);
+      if (p2 && p2.id) io.to(p2.id).emit('diceVersusSettled', settlePayload);
 
       // Reset to ready for next match after 4.5 seconds
       setTimeout(() => {
         if (diceVersusMatches[matchId]) {
           const finished = diceVersusMatches[matchId];
           finished.readyPlayers = {};
-          if (finished.player1 && finished.player2) {
+          const curCount = Object.keys(finished.players || {}).length;
+          if (curCount >= 2) {
             finished.status = 'READY';
             finished.statusMsg = '👥 2 en Mesa · ⏳ 0/2 Listos (Pulsad LISTO para el siguiente duelo)';
           } else {
@@ -295,30 +303,18 @@ function startDiceVersusRoll(io, matchId) {
 function handleDiceVersusDisconnect(io, socket) {
   for (const matchId in diceVersusMatches) {
     const match = diceVersusMatches[matchId];
-    if (match) {
-      let changed = false;
-      if (match.readyPlayers && match.readyPlayers[socket.id]) {
-        delete match.readyPlayers[socket.id];
-        changed = true;
-      }
-      if (match.player1 && match.player1.id === socket.id) {
-        match.player1 = null;
-        changed = true;
-      }
-      if (match.player2 && match.player2.id === socket.id) {
-        match.player2 = null;
-        changed = true;
-      }
+    if (match && match.players && match.players[socket.id]) {
+      delete match.players[socket.id];
+      if (match.readyPlayers) delete match.readyPlayers[socket.id];
 
-      if (changed) {
-        if (!match.player1 && !match.player2) {
-          delete diceVersusMatches[matchId];
-        } else {
-          match.status = 'WAITING';
-          match.statusMsg = 'Un jugador se ha desconectado. Esperando nuevo rival...';
-          match.readyPlayers = {};
-          broadcastDiceVersusState(io, matchId);
-        }
+      const totalPlayers = Object.keys(match.players).length;
+      if (totalPlayers === 0) {
+        delete diceVersusMatches[matchId];
+      } else {
+        match.status = 'WAITING';
+        match.statusMsg = 'Un jugador se ha desconectado. Esperando nuevo rival...';
+        match.readyPlayers = {};
+        broadcastDiceVersusState(io, matchId);
       }
     }
   }
@@ -335,21 +331,25 @@ function setupDiceSocketEvents(io, socket, players) {
     const sIdx = (data && typeof data.seatIndex === 'number') ? data.seatIndex : 0;
 
     // Clean up stale disconnected sockets
-    if (m.player1 && !players[m.player1.id]) m.player1 = null;
-    if (m.player2 && !players[m.player2.id]) m.player2 = null;
-
-    if (!m.player1 || m.player1.id === socket.id) {
-      m.player1 = { id: socket.id, name: pName, seatIndex: sIdx, bet: m.finalBet || 50 };
-    } else if (!m.player2 || m.player2.id === socket.id) {
-      m.player2 = { id: socket.id, name: pName, seatIndex: sIdx, bet: m.finalBet || 50 };
-    } else {
-      socket.emit('diceVersusError', { message: 'La mesa de dados 1v1 está llena (2/2 jugadores).' });
-      return;
+    for (const sId in m.players) {
+      if (!players[sId]) {
+        delete m.players[sId];
+        if (m.readyPlayers) delete m.readyPlayers[sId];
+      }
     }
 
-    if (m.player1 && m.player2) {
+    m.players[socket.id] = {
+      id: socket.id,
+      name: pName,
+      seatIndex: sIdx,
+      bet: m.finalBet || 50
+    };
+
+    const totalPlayers = Object.keys(m.players).length;
+    if (totalPlayers >= 2) {
       m.status = 'READY';
-      m.statusMsg = '👥 2 en Mesa · ⏳ 0/2 Listos (Pulsad LISTO para iniciar el duelo)';
+      const totalReady = Object.keys(m.readyPlayers || {}).length;
+      m.statusMsg = `👥 2 en Mesa · ⏳ ${totalReady}/2 Listos (Pulsad LISTO para iniciar el duelo)`;
     } else {
       m.status = 'WAITING';
       m.statusMsg = 'Esperando rival en el otro asiento de dados...';
@@ -362,14 +362,14 @@ function setupDiceSocketEvents(io, socket, players) {
     const matchId = (data && data.matchId) ? data.matchId : socket.currentDiceMatchId;
     if (matchId && diceVersusMatches[matchId]) {
       const m = diceVersusMatches[matchId];
-      if (m.readyPlayers && m.readyPlayers[socket.id]) delete m.readyPlayers[socket.id];
-      if (m.player1 && m.player1.id === socket.id) m.player1 = null;
-      if (m.player2 && m.player2.id === socket.id) m.player2 = null;
+      delete m.players[socket.id];
+      if (m.readyPlayers) delete m.readyPlayers[socket.id];
 
       socket.leave(`dice:${matchId}`);
       delete socket.currentDiceMatchId;
 
-      if (!m.player1 && !m.player2) {
+      const totalPlayers = Object.keys(m.players).length;
+      if (totalPlayers === 0) {
         delete diceVersusMatches[matchId];
       } else {
         m.status = 'WAITING';

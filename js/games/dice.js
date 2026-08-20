@@ -678,7 +678,7 @@
         dState.rolling = false;
       }
 
-                        /* ============================================================
+                              /* ============================================================
          3. DADOS VERSUS 1v1 MULTIPLAYER CLIENT LOGIC & READY SYSTEM
       ============================================================ */
       var diceVersusState = null;
@@ -698,33 +698,33 @@
         const p2Who = document.getElementById('diceP2Who');
         const subTitle = document.getElementById('diceSubTitle');
 
-        const isLocalP1 = typeof socket !== 'undefined' && socket && vsData.player1 && vsData.player1.id === socket.id;
-        const isLocalP2 = typeof socket !== 'undefined' && socket && vsData.player2 && vsData.player2.id === socket.id;
-        const localUser = isLocalP1 ? vsData.player1 : (isLocalP2 ? vsData.player2 : null);
-        const otherUser = isLocalP1 ? vsData.player2 : (isLocalP2 ? vsData.player1 : null);
+        const playerList = vsData.players ? Object.values(vsData.players) : [vsData.player1, vsData.player2].filter(Boolean);
+        const totalPlayers = (typeof vsData.totalPlayers === 'number') ? vsData.totalPlayers : playerList.length;
+        const p1 = playerList[0] || vsData.player1;
+        const p2 = playerList[1] || vsData.player2;
 
         const myId = (typeof socket !== 'undefined' && socket) ? socket.id : null;
         isDiceReady = !!(myId && vsData.readyPlayers && vsData.readyPlayers[myId]);
 
-        if (vsData.player1 && vsData.player2) {
+        if (totalPlayers >= 2 && p1 && p2) {
           // MODO 1v1 VERSUS AUTOMÁTICO (2 JUGADORES EN LA MESA)
           diceCurrentMode = 'versus';
           window.diceCurrentMode = 'versus';
           if (statusBox) statusBox.style.display = 'block';
           if (statusMsgEl) statusMsgEl.textContent = vsData.statusMsg || `👥 2 en Mesa · ⏳ ${vsData.readyCount || 0}/2 Listos`;
 
-          const potAmt = (typeof vsData.pot === 'number' && vsData.pot > 0) ? vsData.pot : (vsData.finalBet * 2);
+          const potAmt = (typeof vsData.pot === 'number' && vsData.pot > 0) ? vsData.pot : ((vsData.finalBet || 50) * 2);
           if (subTitle) {
-            subTitle.textContent = `⚔️ DUELO 1v1 · BOTE: $${potAmt} ($${vsData.finalBet} cada uno)`;
+            subTitle.textContent = `⚔️ DUELO 1v1 · BOTE: $${potAmt} ($${vsData.finalBet || 50} cada uno)`;
           }
 
           if (p1Who) {
-            const p1ReadyIcon = (vsData.readyPlayers && vsData.readyPlayers[vsData.player1.id]) ? ' [LISTO 👍]' : '';
-            p1Who.textContent = `🔵 ${vsData.player1.name} (AZUL)${p1ReadyIcon}`;
+            const p1Ready = !!(vsData.readyPlayers && vsData.readyPlayers[p1.id]);
+            p1Who.textContent = `🔵 ${p1.name} (AZUL)${p1Ready ? ' [LISTO 👍]' : ''}`;
           }
           if (p2Who) {
-            const p2ReadyIcon = (vsData.readyPlayers && vsData.readyPlayers[vsData.player2.id]) ? ' [LISTO 👍]' : '';
-            p2Who.textContent = `🔴 ${vsData.player2.name} (ROJO)${p2ReadyIcon}`;
+            const p2Ready = !!(vsData.readyPlayers && vsData.readyPlayers[p2.id]);
+            p2Who.textContent = `🔴 ${p2.name} (ROJO)${p2Ready ? ' [LISTO 👍]' : ''}`;
           }
 
           // Update 3D chip stacks for both players
