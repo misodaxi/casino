@@ -657,7 +657,7 @@
           } else if (gameId === 'blackjack') {
             socket.emit('blackjackJoin', { blackjackId: 'blackjack', seatIndex: seat.seatIndex, bet: bjState.bet || 50 });
           } else if (gameId === 'dice') {
-            socket.emit('diceVersusJoin', { matchId: 'dice-versus-1', seatIndex: (seat && typeof seat.seatIndex === 'number') ? seat.seatIndex : 0, balance: state.balance });
+            socket.emit('diceVersusJoin', { matchId: 'dice-versus-1', seatIndex: (seat && typeof seat.seatIndex === 'number') ? seat.seatIndex : 0, name: (state.player && state.player.name) ? state.player.name : 'Jugador', balance: state.balance });
           } else if (gameId === 'coin') {
             socket.emit('coinVersusJoin', { matchId: 'coin-versus-1', seatIndex: (seat && typeof seat.seatIndex === 'number') ? seat.seatIndex : 0, bet: coinState.bet || 50, balance: state.balance });
           }
@@ -790,7 +790,7 @@
           );
           if (typeof update3DBJChips === 'function') update3DBJChips(bjState.bet);
         } else if (gameId === 'cinema') {
-          const seatY = (typeof seat.y === 'number') ? seat.y : 0.18;
+          const seatY = (typeof seat.y === 'number') ? seat.y : 0.30;
           toPos = new THREE.Vector3(seat.x, seatY + 1.25, seat.z + 0.15);
           toLook = new THREE.Vector3(seat.x * 0.2, 5.6, -36.5);
           state.cinemaPivot = new THREE.Vector3(seat.x, seatY + 1.20, seat.z);

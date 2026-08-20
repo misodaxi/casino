@@ -634,36 +634,48 @@
       function createCineMusicAmphitheater() {
         const g = new THREE.Group();
         const carpetMat = new THREE.MeshStandardMaterial({ color: 0x180928, roughness: 0.75, metalness: 0.15 });
-        const riserEdgeMat = new THREE.MeshStandardMaterial({ color: 0x0c0416, roughness: 0.35, metalness: 0.30 });
         const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
         const stepNeonMat = new THREE.MeshStandardMaterial({ color: 0x8b5cf6, emissive: 0x8b5cf6, emissiveIntensity: 2.2 });
 
-        // 3 Tiered Stadium Risers (Gradas Escalonadas de Cine)
-        // Tier 1 (Front Row Riser, y: 0.15m, z: -2.5m)
-        const tier1 = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.18, 2.6), carpetMat);
-        tier1.position.set(0, 0.09, -2.5);
+        // Front Walkway Base Platform (in front of Row 1, y: 0.08m, z: -4.5m)
+        const frontWalkway = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.12, 1.8), carpetMat);
+        frontWalkway.position.set(0, 0.06, -4.7);
+        const frontWalkwayRim = new THREE.Mesh(new THREE.BoxGeometry(15.3, 0.04, 0.06), goldMat);
+        frontWalkwayRim.position.set(0, 0.12, -5.6);
+        const frontWalkwayNeon = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.02, 0.03), stepNeonMat);
+        frontWalkwayNeon.position.set(0, 0.10, -5.62);
+
+        // 3 Tiered Stadium Risers (Gradas Escalonadas de Cine con Alturas Calibradas)
+        // Tier 1 (Front Row Riser, Top Surface at y: 0.30m, z: -2.5m)
+        const tier1 = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.30, 2.6), carpetMat);
+        tier1.position.set(0, 0.15, -2.5);
         const tier1Rim = new THREE.Mesh(new THREE.BoxGeometry(15.3, 0.04, 0.06), goldMat);
-        tier1Rim.position.set(0, 0.18, -3.8);
+        tier1Rim.position.set(0, 0.30, -3.8);
         const tier1Neon = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.02, 0.03), stepNeonMat);
-        tier1Neon.position.set(0, 0.16, -3.82);
+        tier1Neon.position.set(0, 0.28, -3.82);
 
-        // Tier 2 (Middle Row Riser, y: 0.45m, z: 0.0m)
-        const tier2 = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.48, 2.6), carpetMat);
-        tier2.position.set(0, 0.24, 0.0);
+        // Tier 2 (Middle Row Riser, Top Surface at y: 0.60m, z: 0.0m)
+        const tier2 = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.60, 2.6), carpetMat);
+        tier2.position.set(0, 0.30, 0.0);
         const tier2Rim = new THREE.Mesh(new THREE.BoxGeometry(15.3, 0.04, 0.06), goldMat);
-        tier2Rim.position.set(0, 0.48, -1.3);
+        tier2Rim.position.set(0, 0.60, -1.2);
         const tier2Neon = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.02, 0.03), stepNeonMat);
-        tier2Neon.position.set(0, 0.46, -1.32);
+        tier2Neon.position.set(0, 0.58, -1.22);
 
-        // Tier 3 (Back Row / VIP Riser, y: 0.75m, z: +2.5m)
-        const tier3 = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.78, 2.6), carpetMat);
-        tier3.position.set(0, 0.39, 2.5);
+        // Tier 3 (Back Row / VIP Riser, Top Surface at y: 0.90m, z: +2.5m)
+        const tier3 = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.90, 2.6), carpetMat);
+        tier3.position.set(0, 0.45, 2.5);
         const tier3Rim = new THREE.Mesh(new THREE.BoxGeometry(15.3, 0.04, 0.06), goldMat);
-        tier3Rim.position.set(0, 0.78, 1.2);
+        tier3Rim.position.set(0, 0.90, 1.3);
         const tier3Neon = new THREE.Mesh(new THREE.BoxGeometry(15.2, 0.02, 0.03), stepNeonMat);
-        tier3Neon.position.set(0, 0.76, 1.18);
+        tier3Neon.position.set(0, 0.88, 1.28);
 
-        g.add(tier1, tier1Rim, tier1Neon, tier2, tier2Rim, tier2Neon, tier3, tier3Rim, tier3Neon);
+        g.add(
+          frontWalkway, frontWalkwayRim, frontWalkwayNeon,
+          tier1, tier1Rim, tier1Neon,
+          tier2, tier2Rim, tier2Neon,
+          tier3, tier3Rim, tier3Neon
+        );
 
         // Brass Side Aisle Handrails
         [-7.2, 7.2].forEach(hx => {
@@ -4482,7 +4494,7 @@
 
         // 1. Plataforma cuadrada de lujo con bordes redondeados (Omitida para la gramola para que no tenga plataforma sobrante)
         let ring = null;
-        if (z.id !== 'jukebox') {
+        if (z.id !== 'jukebox' && z.id !== 'cinema') {
           const plat = createRoundedPlatformMesh(platW, platD, platH, cornerR, 0x1a1030, z.color);
           g.add(plat);
 

@@ -678,14 +678,16 @@
         dState.rolling = false;
       }
 
-      /* ============================================================
+            /* ============================================================
          3. DADOS VERSUS 1v1 MULTIPLAYER CLIENT LOGIC
       ============================================================ */
-      // diceCurrentMode initialized at top
       var diceVersusState = null;
       const diceProcessedRolls = new Set();
 
       function updateDiceTableUI(vsData) {
+        if (!vsData) return;
+        diceVersusState = vsData;
+
         const statusBox = document.getElementById('diceVersusStatusBox');
         const statusMsgEl = document.getElementById('diceVersusStatusMsg');
         const rollBtn = document.getElementById('diceRollBtn');
@@ -696,14 +698,16 @@
         const p2Who = document.getElementById('diceP2Who');
         const subTitle = document.getElementById('diceSubTitle');
 
-        if (vsData && vsData.player1 && vsData.player2) {
+        if (vsData.player1 && vsData.player2) {
           // MODO 1v1 VERSUS AUTOMÁTICO (2 JUGADORES SENTADOS)
           diceCurrentMode = 'versus';
+          window.diceCurrentMode = 'versus';
           if (statusBox) statusBox.style.display = 'block';
-          if (statusMsgEl) statusMsgEl.textContent = vsData.statusMsg || 'DADOS 1v1 · BOTE';
+          if (statusMsgEl) statusMsgEl.textContent = vsData.statusMsg || 'DADOS 1v1 · BOTE EN JUEGO';
 
+          const potAmt = (typeof vsData.pot === 'number' && vsData.pot > 0) ? vsData.pot : (vsData.finalBet * 2);
           if (subTitle) {
-            subTitle.textContent = `⚔️ DUELO 1v1 · BOTE EN JUEGO: $${vsData.finalBet * 2} ($${vsData.finalBet} cada uno)`;
+            subTitle.textContent = `⚔️ DUELO 1v1 · BOTE: $${potAmt} ($${vsData.finalBet} cada uno)`;
           }
 
           if (p1Who) p1Who.textContent = `🔵 ${vsData.player1.name} (AZUL)`;
@@ -714,30 +718,56 @@
           const localUser = isLocalP1 ? vsData.player1 : (isLocalP2 ? vsData.player2 : null);
           const otherUser = isLocalP1 ? vsData.player2 : (isLocalP2 ? vsData.player1 : null);
 
-          if (vsData.status === 'PLAYER_2_JOINED') {
-            if (rollBtn) { rollBtn.style.display = 'inline-block'; rollBtn.textContent = 'APOSTAR AL BOTE 🎲'; }
+          // Update 3D chip stacks for both players
+          if (typeof update3DDiceChips === 'function') {
+            update3DDiceChips(vsData.finalBet || dState.bet || 50);
+          }
+
+          if (vsData.status === 'PLAYER_2_JOINED' || vsData.status === 'WAITING') {
+            if (rollBtn) {
+              rollBtn.style.display = 'inline-block';
+              rollBtn.textContent = `APOSTAR Y LANZAR ($${vsData.finalBet || dState.bet || 50}) 🎲`;
+            }
             if (betBtn) betBtn.style.display = 'none';
             if (acceptBtn) acceptBtn.style.display = 'none';
             if (rejectBtn) rejectBtn.style.display = 'none';
           } else if (vsData.status === 'BET_PROPOSED') {
             if (localUser && localUser.accepted) {
-              if (rollBtn) rollBtn.style.display = 'none';
+              if (rollBtn) {
+                rollBtn.style.display = 'inline-block';
+                rollBtn.disabled = true;
+                rollBtn.style.opacity = '0.6';
+                rollBtn.textContent = `⏳ Esperando a ${otherUser ? otherUser.name : 'rival'}...`;
+              }
               if (betBtn) betBtn.style.display = 'none';
               if (acceptBtn) acceptBtn.style.display = 'none';
               if (rejectBtn) rejectBtn.style.display = 'none';
             } else if (otherUser && otherUser.accepted) {
               if (rollBtn) rollBtn.style.display = 'none';
               if (betBtn) betBtn.style.display = 'none';
-              if (acceptBtn) { acceptBtn.style.display = 'inline-block'; acceptBtn.textContent = `ACEPTAR BOTE $${vsData.finalBet * 2} Y TIRAR 👍`; }
+              if (acceptBtn) {
+                acceptBtn.style.display = 'inline-block';
+                acceptBtn.textContent = `ACEPTAR BOTE ($${potAmt}) Y TIRAR 👍`;
+              }
               if (rejectBtn) rejectBtn.style.display = 'inline-block';
             } else {
-              if (rollBtn) { rollBtn.style.display = 'inline-block'; rollBtn.textContent = 'APOSTAR AL BOTE 🎲'; }
+              if (rollBtn) {
+                rollBtn.style.display = 'inline-block';
+                rollBtn.disabled = false;
+                rollBtn.style.opacity = '1';
+                rollBtn.textContent = `APOSTAR Y LANZAR ($${vsData.finalBet || dState.bet || 50}) 🎲`;
+              }
               if (betBtn) betBtn.style.display = 'none';
               if (acceptBtn) acceptBtn.style.display = 'none';
               if (rejectBtn) rejectBtn.style.display = 'none';
             }
-          } else if (vsData.status === 'BET_LOCKED' || vsData.status === 'ROLLING' || vsData.status === 'SETTLED') {
-            if (rollBtn) rollBtn.style.display = 'none';
+          } else if (vsData.status === 'ROLLING' || vsData.status === 'SETTLED') {
+            if (rollBtn) {
+              rollBtn.style.display = 'inline-block';
+              rollBtn.disabled = true;
+              rollBtn.style.opacity = '0.6';
+              rollBtn.textContent = 'RODANDO DADOS... 🎲';
+            }
             if (betBtn) betBtn.style.display = 'none';
             if (acceptBtn) acceptBtn.style.display = 'none';
             if (rejectBtn) rejectBtn.style.display = 'none';
@@ -745,29 +775,37 @@
         } else {
           // MODO SOLO CONTRA LA CASA (1 JUGADOR SENTADO)
           diceCurrentMode = 'solo';
+          window.diceCurrentMode = 'solo';
           if (statusBox) statusBox.style.display = 'none';
           if (subTitle) subTitle.textContent = 'TÚ VS LA CASA · GANA MÁS ALTO';
           if (p1Who) p1Who.textContent = '🔵 TÚ (DADOS AZULES)';
           if (p2Who) p2Who.textContent = '🔴 LA CASA (DADOS ROJOS)';
-          if (rollBtn) { rollBtn.style.display = 'inline-block'; rollBtn.textContent = 'TIRAR 🎲'; }
+          if (rollBtn) {
+            rollBtn.style.display = 'inline-block';
+            rollBtn.disabled = false;
+            rollBtn.style.opacity = '1';
+            rollBtn.textContent = 'TIRAR 🎲';
+          }
           if (betBtn) betBtn.style.display = 'none';
           if (acceptBtn) acceptBtn.style.display = 'none';
           if (rejectBtn) rejectBtn.style.display = 'none';
         }
       }
 
-      if (typeof socket !== 'undefined' && socket) {
+      function setupDiceSocketListeners() {
+        if (typeof socket === 'undefined' || !socket) return;
+
         socket.on('diceVersusState', (vsData) => {
           if (!vsData) return;
-          diceVersusState = vsData;
           updateDiceTableUI(vsData);
         });
 
         socket.on('diceVersusRollStart', (data) => {
           playSound('dice');
-          document.getElementById('diceResultBanner').classList.remove('show');
+          const banner = document.getElementById('diceResultBanner');
+          if (banner) banner.classList.remove('show');
           const statusMsgEl = document.getElementById('diceVersusStatusMsg');
-          if (statusMsgEl) statusMsgEl.textContent = '¡Preparados! ¡Lanzando dados...!';
+          if (statusMsgEl) statusMsgEl.textContent = '🎲 ¡Lanzando dados 3D en el tapete!';
         });
 
         socket.on('diceVersusRollResult', (resData) => {
@@ -781,46 +819,66 @@
         socket.on('diceVersusSettled', (settledData) => {
           if (!settledData) return;
           if (socket.id === settledData.winnerId) {
-            state.balance += settledData.finalBet;
+            state.balance = roundMoney(state.balance + settledData.finalBet);
             updateBalanceUI();
           } else if (settledData.winnerId && (socket.id === settledData.player1Id || socket.id === settledData.player2Id)) {
-            state.balance -= settledData.finalBet;
+            state.balance = roundMoney(state.balance - settledData.finalBet);
             updateBalanceUI();
+          }
+        });
+
+        socket.on('diceVersusError', (err) => {
+          if (err && err.message) showToast(`⚠️ ${err.message}`);
+        });
+      }
+
+      setupDiceSocketListeners();
+      if (typeof socket !== 'undefined' && socket) {
+        socket.on('connect', setupDiceSocketListeners);
+      }
+
+      function rollDiceVersus3D(resData) {
+        dState.rolling = true;
+        startDiceCraneRoll(resData.player1Dice, resData.player2Dice, resData);
+      }
+
+      const diceAcceptBtn = document.getElementById('diceVersusAcceptBtn');
+      if (diceAcceptBtn) {
+        diceAcceptBtn.addEventListener('click', () => {
+          if (typeof socket !== 'undefined' && socket && socket.connected) {
+            socket.emit('diceVersusAcceptBet', { matchId: 'dice-versus-1', balance: state.balance });
           }
         });
       }
 
-      function rollDiceVersus3D(resData) {
-        startDiceCraneRoll(resData.player1Dice, resData.player2Dice, resData);
+      const diceRejectBtn = document.getElementById('diceVersusRejectBtn');
+      if (diceRejectBtn) {
+        diceRejectBtn.addEventListener('click', () => {
+          if (typeof socket !== 'undefined' && socket && socket.connected) {
+            socket.emit('diceVersusRejectBet', { matchId: 'dice-versus-1' });
+          }
+        });
       }
 
-      document.getElementById('diceVersusAcceptBtn').addEventListener('click', () => {
-        if (typeof socket !== 'undefined' && socket && socket.connected) {
-          socket.emit('diceVersusAcceptBet', { matchId: 'dice-versus-1', balance: state.balance });
-        }
-      });
+      const rollBtnEl = document.getElementById('diceRollBtn');
+      if (rollBtnEl) {
+        rollBtnEl.addEventListener('click', () => {
+          if (dState.rolling) return;
+          const curBet = (typeof dState.bet === 'number' && dState.bet > 0) ? dState.bet : 50;
+          if (state.balance < curBet) { showToast('Saldo insuficiente'); return; }
 
-      document.getElementById('diceVersusRejectBtn').addEventListener('click', () => {
-        if (typeof socket !== 'undefined' && socket && socket.connected) {
-          socket.emit('diceVersusRejectBet', { matchId: 'dice-versus-1' });
-        }
-      });
+          if (diceCurrentMode === 'versus' && typeof socket !== 'undefined' && socket && socket.connected) {
+            socket.emit('diceVersusBet', { matchId: 'dice-versus-1', bet: curBet, balance: state.balance });
+            return;
+          }
 
-      document.getElementById('diceRollBtn').addEventListener('click', () => {
-        if (dState.rolling) return;
-        if (state.balance < dState.bet) { showToast('Saldo insuficiente'); return; }
-
-        if (diceCurrentMode === 'versus' && typeof socket !== 'undefined' && socket && socket.connected) {
-          socket.emit('diceVersusBet', { matchId: 'dice-versus-1', bet: dState.bet, balance: state.balance });
-          return;
-        }
-
-        dState.rolling = true;
-        state.balance -= dState.bet; updateBalanceUI();
-        playSound('dice');
-        document.getElementById('diceResultBanner').classList.remove('show');
-        rollDiceDuel3D();
-      });
+          dState.rolling = true;
+          state.balance -= curBet; updateBalanceUI();
+          playSound('dice');
+          document.getElementById('diceResultBanner').classList.remove('show');
+          rollDiceDuel3D();
+        });
+      }
 
 // --- Explicit Global Window Bindings ---
 if (typeof dState !== 'undefined') window.dState = dState;
@@ -828,6 +886,8 @@ if (typeof diceCurrentMode !== 'undefined') window.diceCurrentMode = diceCurrent
 if (typeof update3DDiceChips !== 'undefined') window.update3DDiceChips = update3DDiceChips;
 if (typeof diceVersusState !== 'undefined') window.diceVersusState = diceVersusState;
 if (typeof updateDicePhysics !== 'undefined') window.updateDicePhysics = updateDicePhysics;
+if (typeof updateDiceTableUI !== 'undefined') window.updateDiceTableUI = updateDiceTableUI;
+if (typeof rollDiceVersus3D !== 'undefined') window.rollDiceVersus3D = rollDiceVersus3D;
 
 // Auto-inicializar fichas 3D en ambas bandejas cuando la escena esté lista
 setTimeout(() => {
