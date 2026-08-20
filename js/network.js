@@ -114,44 +114,30 @@
           }
         });
 
-                // Dice 1v1 Versus Multiplayer Listeners
-        socket.on('diceVersusState', (vsData) => {
+                // Authoritative Multiplayer Dice Listeners (Unified Architecture)
+        socket.on('diceState', (stateData) => {
           window.netMetrics.msgIn++;
-          window.diceVersusState = vsData;
+          window.diceServerState = stateData;
           if (typeof updateDiceTableUI === 'function') {
-            updateDiceTableUI(vsData);
+            updateDiceTableUI(stateData);
           }
         });
 
-        socket.on('diceVersusRollStart', (data) => {
+        socket.on('diceRoll', (data) => {
           window.netMetrics.msgIn++;
-          if (typeof playSound === 'function') playSound('dice');
-          const banner = document.getElementById('diceResultBanner');
-          if (banner) banner.classList.remove('show');
-          const statusMsgEl = document.getElementById('diceVersusStatusMsg');
-          if (statusMsgEl) statusMsgEl.textContent = '🎲 ¡Lanzando dados 3D en el tapete!';
-        });
-
-        socket.on('diceVersusRollResult', (resData) => {
-          window.netMetrics.msgIn++;
-          if (typeof rollDiceVersus3D === 'function') {
-            rollDiceVersus3D(resData);
+          if (typeof handleRemoteDiceRoll === 'function') {
+            handleRemoteDiceRoll(data);
           }
         });
 
-        socket.on('diceVersusSettled', (settledData) => {
+        socket.on('diceResult', (data) => {
           window.netMetrics.msgIn++;
-          if (!settledData) return;
-          if (socket.id === settledData.winnerId) {
-            state.balance = roundMoney(state.balance + settledData.finalBet);
-            if (typeof updateBalanceUI === 'function') updateBalanceUI();
-          } else if (settledData.winnerId && (socket.id === settledData.player1Id || socket.id === settledData.player2Id)) {
-            state.balance = roundMoney(state.balance - settledData.finalBet);
-            if (typeof updateBalanceUI === 'function') updateBalanceUI();
+          if (typeof handleRemoteDiceResult === 'function') {
+            handleRemoteDiceResult(data);
           }
         });
 
-        socket.on('diceVersusError', (err) => {
+        socket.on('diceError', (err) => {
           window.netMetrics.msgIn++;
           if (err && err.message && typeof showToast === 'function') {
             showToast('⚠️ ' + err.message);

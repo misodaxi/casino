@@ -17,7 +17,7 @@ const {
 
 const { setupRouletteSocketEvents, handleRouletteDisconnect } = require('./games/roulette');
 const { setupBlackjackSocketEvents, handleBlackjackDisconnect } = require('./games/blackjack');
-const { setupDiceSocketEvents, handleDiceVersusDisconnect } = require('./games/dice');
+const { setupDiceSocketEvents, handleDiceDisconnect } = require('./games/dice');
 const { setupCoinSocketEvents, handleCoinVersusDisconnect } = require('./games/coin');
 const { setupWheelSocketEvents } = require('./games/wheel');
 
@@ -478,7 +478,7 @@ function setupSocketIO(io) {
 
       handleRouletteDisconnect(io, socket);
       handleBlackjackDisconnect(io, socket);
-      handleDiceVersusDisconnect(io, socket);
+      handleDiceDisconnect(io, socket);
       handleCoinVersusDisconnect(io, socket);
     });
   });

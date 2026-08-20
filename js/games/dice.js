@@ -678,17 +678,17 @@
         dState.rolling = false;
       }
 
-                              /* ============================================================
-         3. DADOS VERSUS 1v1 MULTIPLAYER CLIENT LOGIC & READY SYSTEM
+                                    /* ============================================================
+         3. AUTHORITATIVE MULTIPLAYER DICE ENGINE (ROULETTE ARCHITECTURE)
       ============================================================ */
-      var diceVersusState = null;
+      var diceServerState = null;
       var isDiceReady = false;
-      const diceProcessedRolls = new Set();
+      var lastHandledDiceRollId = -1;
 
-      function updateDiceTableUI(vsData) {
-        if (!vsData) return;
-        diceVersusState = vsData;
-        window.diceVersusState = vsData;
+      function updateDiceTableUI(s) {
+        if (!s) return;
+        diceServerState = s;
+        window.diceServerState = s;
 
         const statusBox = document.getElementById('diceVersusStatusBox');
         const statusMsgEl = document.getElementById('diceVersusStatusMsg');
@@ -698,45 +698,45 @@
         const p2Who = document.getElementById('diceP2Who');
         const subTitle = document.getElementById('diceSubTitle');
 
-        const playerList = vsData.players ? Object.values(vsData.players) : [vsData.player1, vsData.player2].filter(Boolean);
-        const totalPlayers = (typeof vsData.totalPlayers === 'number') ? vsData.totalPlayers : playerList.length;
-        const p1 = playerList[0] || vsData.player1;
-        const p2 = playerList[1] || vsData.player2;
+        const totalP = (typeof s.totalPlayers === 'number') ? s.totalPlayers : (s.players ? Object.keys(s.players).length : 0);
+        const totalR = (typeof s.totalReady === 'number') ? s.totalReady : (s.readyPlayers ? Object.keys(s.readyPlayers).length : 0);
 
         const myId = (typeof socket !== 'undefined' && socket) ? socket.id : null;
-        isDiceReady = !!(myId && vsData.readyPlayers && vsData.readyPlayers[myId]);
+        isDiceReady = !!(myId && s.readyPlayers && s.readyPlayers[myId]);
 
-        if (totalPlayers >= 2 && p1 && p2) {
+        if (totalP >= 2) {
           // MODO 1v1 VERSUS AUTOMÁTICO (2 JUGADORES EN LA MESA)
           diceCurrentMode = 'versus';
           window.diceCurrentMode = 'versus';
           if (statusBox) statusBox.style.display = 'block';
-          if (statusMsgEl) statusMsgEl.textContent = vsData.statusMsg || `👥 2 en Mesa · ⏳ ${vsData.readyCount || 0}/2 Listos`;
+          if (statusMsgEl) statusMsgEl.textContent = s.statusMsg || `👥 2 en Mesa · ⏳ ${totalR}/2 Listos`;
 
-          const potAmt = (typeof vsData.pot === 'number' && vsData.pot > 0) ? vsData.pot : ((vsData.finalBet || 50) * 2);
+          const potAmt = (typeof s.pot === 'number' && s.pot > 0) ? s.pot : ((s.finalBet || 50) * 2);
           if (subTitle) {
-            subTitle.textContent = `⚔️ DUELO 1v1 · BOTE: $${potAmt} ($${vsData.finalBet || 50} cada uno)`;
+            subTitle.textContent = `⚔️ DUELO 1v1 · BOTE: $${potAmt} ($${s.finalBet || 50} cada uno)`;
           }
 
           if (p1Who) {
-            const p1Ready = !!(vsData.readyPlayers && vsData.readyPlayers[p1.id]);
-            p1Who.textContent = `🔵 ${p1.name} (AZUL)${p1Ready ? ' [LISTO 👍]' : ''}`;
+            const p1 = s.player1;
+            const p1Name = p1 ? p1.name : 'Jugador 1';
+            const p1Ready = !!(s.readyPlayers && p1 && s.readyPlayers[p1.id]);
+            p1Who.textContent = `🔵 ${p1Name} (AZUL)${p1Ready ? ' [LISTO 👍]' : ''}`;
           }
           if (p2Who) {
-            const p2Ready = !!(vsData.readyPlayers && vsData.readyPlayers[p2.id]);
-            p2Who.textContent = `🔴 ${p2.name} (ROJO)${p2Ready ? ' [LISTO 👍]' : ''}`;
+            const p2 = s.player2;
+            const p2Name = p2 ? p2.name : 'Jugador 2';
+            const p2Ready = !!(s.readyPlayers && p2 && s.readyPlayers[p2.id]);
+            p2Who.textContent = `🔴 ${p2Name} (ROJO)${p2Ready ? ' [LISTO 👍]' : ''}`;
           }
 
-          // Update 3D chip stacks for both players
           if (typeof update3DDiceChips === 'function') {
-            update3DDiceChips(vsData.finalBet || dState.bet || 50);
+            update3DDiceChips(s.finalBet || dState.bet || 50);
           }
 
-          // In versus mode: HIDE solo roll button, SHOW Ready button
           if (rollBtn) rollBtn.style.display = 'none';
           if (readyBtn) {
             readyBtn.style.display = 'inline-block';
-            if (vsData.status === 'ROLLING') {
+            if (s.status === 'ROLLING') {
               readyBtn.disabled = true;
               readyBtn.style.opacity = '0.6';
               readyBtn.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
@@ -745,7 +745,7 @@
               readyBtn.disabled = false;
               readyBtn.style.opacity = '1';
               readyBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
-              readyBtn.textContent = 'NO LISTO ✋';
+              readyBtn.textContent = 'CANCELAR LISTO ❌';
             } else {
               readyBtn.disabled = false;
               readyBtn.style.opacity = '1';
@@ -772,10 +772,32 @@
         }
       }
 
-      function rollDiceVersus3D(resData) {
-        if (!resData || !resData.rollId) return;
+      function handleRemoteDiceRoll(data) {
+        if (!data || !data.rollId) return;
+        if (lastHandledDiceRollId === data.rollId) return;
+        lastHandledDiceRollId = data.rollId;
+
+        playSound('dice');
+        const banner = document.getElementById('diceResultBanner');
+        if (banner) banner.classList.remove('show');
+
         dState.rolling = true;
-        startDiceCraneRoll(resData.player1Dice, resData.player2Dice, resData);
+        startDiceCraneRoll(data.player1Dice, data.player2Dice, data);
+      }
+
+      function handleRemoteDiceResult(data) {
+        if (!data) return;
+        const myId = (typeof socket !== 'undefined' && socket) ? socket.id : null;
+        if (data.winnerId === myId) {
+          state.balance = roundMoney(state.balance + data.finalBet);
+          if (typeof updateBalanceUI === 'function') updateBalanceUI();
+        } else if (data.winnerId && data.winnerId !== 'house' && (data.player1 && data.player1.id === myId || data.player2 && data.player2.id === myId)) {
+          state.balance = roundMoney(state.balance - data.finalBet);
+          if (typeof updateBalanceUI === 'function') updateBalanceUI();
+        } else if (data.isSolo && data.winnerId === 'house') {
+          state.balance = roundMoney(state.balance - data.finalBet);
+          if (typeof updateBalanceUI === 'function') updateBalanceUI();
+        }
       }
 
       var diceReadyBtnEl = document.getElementById('diceReadyBtn');
@@ -788,9 +810,9 @@
           if (typeof socket !== 'undefined' && socket && socket.connected) {
             playSound('chip');
             if (isDiceReady) {
-              socket.emit('diceUnready', { matchId: 'dice-versus-1' });
+              socket.emit('diceUnready', { diceId: 'dice' });
             } else {
-              socket.emit('diceReady', { matchId: 'dice-versus-1', bet: curBet, balance: state.balance });
+              socket.emit('diceReady', { diceId: 'dice', bet: curBet, balance: state.balance });
             }
           }
         });
@@ -803,7 +825,6 @@
           const curBet = (typeof dState.bet === 'number' && dState.bet > 0) ? dState.bet : 50;
           if (state.balance < curBet) { showToast('Saldo insuficiente'); return; }
 
-          // Si hay 2 jugadores en la mesa, forzar el uso de READY
           if (diceCurrentMode === 'versus') {
             if (diceReadyBtnEl) diceReadyBtnEl.click();
             return;
@@ -821,10 +842,11 @@
 if (typeof dState !== 'undefined') window.dState = dState;
 if (typeof diceCurrentMode !== 'undefined') window.diceCurrentMode = diceCurrentMode;
 if (typeof update3DDiceChips !== 'undefined') window.update3DDiceChips = update3DDiceChips;
-if (typeof diceVersusState !== 'undefined') window.diceVersusState = diceVersusState;
+if (typeof diceServerState !== 'undefined') window.diceServerState = diceServerState;
 if (typeof updateDicePhysics !== 'undefined') window.updateDicePhysics = updateDicePhysics;
 if (typeof updateDiceTableUI !== 'undefined') window.updateDiceTableUI = updateDiceTableUI;
-if (typeof rollDiceVersus3D !== 'undefined') window.rollDiceVersus3D = rollDiceVersus3D;
+if (typeof handleRemoteDiceRoll !== 'undefined') window.handleRemoteDiceRoll = handleRemoteDiceRoll;
+if (typeof handleRemoteDiceResult !== 'undefined') window.handleRemoteDiceResult = handleRemoteDiceResult;
 
 // Auto-inicializar fichas 3D en ambas bandejas cuando la escena esté lista
 setTimeout(() => {

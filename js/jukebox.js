@@ -477,6 +477,10 @@
         const overlay = document.getElementById('jukeboxModalOverlay');
         if (overlay) {
           overlay.classList.add('show');
+          if (typeof state !== 'undefined') {
+            state.keys = {};
+            if (state.player) { state.player.vx = 0; state.player.vz = 0; }
+          }
           renderJukeboxPresets();
           renderJukeboxQueue();
         }
@@ -484,7 +488,13 @@
 
       function closeJukeboxModal() {
         const overlay = document.getElementById('jukeboxModalOverlay');
-        if (overlay) overlay.classList.remove('show');
+        if (overlay) {
+          overlay.classList.remove('show');
+          if (typeof state !== 'undefined') {
+            state.keys = {};
+            if (state.player) { state.player.vx = 0; state.player.vz = 0; }
+          }
+        }
       }
 
       function renderJukeboxPresets() {

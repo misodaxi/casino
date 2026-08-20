@@ -190,26 +190,47 @@
         targetCamDist = Math.max(7, Math.min(35, targetCamDist + e.deltaY * 0.015));
       }, { passive: true });
 
+      function isMovementInputBlocked() {
+        if (state.mode !== 'casino') return true;
+        if (state.isTypingChat || document.activeElement === chatInput) return true;
+        const jukeModal = document.getElementById('jukeboxModalOverlay');
+        if (jukeModal && jukeModal.classList.contains('show')) return true;
+        const tvModal = document.getElementById('tvModal');
+        if (tvModal && tvModal.classList.contains('show')) return true;
+        if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return true;
+        return false;
+      }
+
       window.addEventListener('keydown', e => {
-        if (state.isTypingChat || document.activeElement === chatInput) return;
+        if (isMovementInputBlocked()) {
+          if (state.keys) {
+            state.keys[e.key.toLowerCase()] = false;
+            if (e.code) state.keys[e.code.toLowerCase()] = false;
+          }
+          if (e.key === 'Escape') {
+            const jukeModal = document.getElementById('jukeboxModalOverlay');
+            if (jukeModal && jukeModal.classList.contains('show')) {
+              closeJukeboxModal();
+            }
+          }
+          return;
+        }
         state.keys[e.key.toLowerCase()] = true;
         if (e.code) state.keys[e.code.toLowerCase()] = true;
         if (e.key.toLowerCase() === 'e') tryInteract();
-        if (e.key === 'Escape') {
-          const jukeModal = document.getElementById('jukeboxModalOverlay');
-          if (jukeModal && jukeModal.classList.contains('show')) {
-            closeJukeboxModal();
-          }
-        }
       });
+
       window.addEventListener('keyup', e => {
-        if (state.isTypingChat || document.activeElement === chatInput) return;
+        if (isMovementInputBlocked()) {
+          state.keys = {};
+          return;
+        }
         state.keys[e.key.toLowerCase()] = false;
         if (e.code) state.keys[e.code.toLowerCase()] = false;
       });
 
       function updatePlayer(dt) {
-        if (state.mode !== 'casino' || state.isTypingChat || document.activeElement === chatInput) {
+        if (isMovementInputBlocked()) {
           if (state.player) { state.player.vx = 0; state.player.vz = 0; }
           return;
         }
@@ -657,7 +678,7 @@
           } else if (gameId === 'blackjack') {
             socket.emit('blackjackJoin', { blackjackId: 'blackjack', seatIndex: seat.seatIndex, bet: bjState.bet || 50 });
           } else if (gameId === 'dice') {
-            socket.emit('diceVersusJoin', { matchId: 'dice-versus-1', seatIndex: (seat && typeof seat.seatIndex === 'number') ? seat.seatIndex : 0, name: (state.player && state.player.name) ? state.player.name : 'Jugador', balance: state.balance });
+            socket.emit('diceJoin', { diceId: 'dice', seatIndex: (seat && typeof seat.seatIndex === 'number') ? seat.seatIndex : 0, name: (state.player && state.player.name) ? state.player.name : 'Axel', balance: state.balance });
           } else if (gameId === 'coin') {
             socket.emit('coinVersusJoin', { matchId: 'coin-versus-1', seatIndex: (seat && typeof seat.seatIndex === 'number') ? seat.seatIndex : 0, bet: coinState.bet || 50, balance: state.balance });
           }
@@ -1318,7 +1339,7 @@
         if (previousMode === 'roulette' && typeof socket !== 'undefined' && socket && socket.connected) {
           socket.emit('rouletteLeave', { rouletteId: 'roulette' });
         } else if (previousMode === 'dice' && typeof socket !== 'undefined' && socket && socket.connected) {
-          socket.emit('diceVersusLeave', { matchId: 'dice-versus-1' });
+          socket.emit('diceLeave', { diceId: 'dice' });
         } else if (previousMode === 'coin' && typeof socket !== 'undefined' && socket && socket.connected) {
           socket.emit('coinVersusLeave', { matchId: 'coin-versus-1' });
         } else if (previousMode === 'blackjack') {
