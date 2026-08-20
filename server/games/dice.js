@@ -31,14 +31,16 @@ function broadcastDiceVersusState(io, matchId) {
     status: m.status,
     player1: m.player1,
     player2: m.player2,
-    finalBet: m.finalBet,
-    pot: m.pot,
+    finalBet: m.finalBet || 50,
+    pot: m.pot || 100,
     turn: m.turn,
     statusMsg: m.statusMsg,
     lastResult: m.lastResult,
     rollId: m.rollId
   };
   io.to(`dice:${matchId}`).emit('diceVersusState', payload);
+  if (m.player1 && m.player1.id) io.to(m.player1.id).emit('diceVersusState', payload);
+  if (m.player2 && m.player2.id) io.to(m.player2.id).emit('diceVersusState', payload);
   return payload;
 }
 
@@ -84,14 +86,22 @@ function startDiceVersusRoll(io, matchId) {
     winnerId,
     winnerName,
     isTie,
-    finalBet: m.finalBet,
-    pot: m.pot
+    finalBet: m.finalBet || 50,
+    pot: m.pot || 100
   };
 
   m.lastResult = resultPayload;
 
   io.to(`dice:${matchId}`).emit('diceVersusRollStart', { matchId: m.matchId, rollId: m.rollId });
   io.to(`dice:${matchId}`).emit('diceVersusRollResult', resultPayload);
+  if (m.player1 && m.player1.id) {
+    io.to(m.player1.id).emit('diceVersusRollStart', { matchId: m.matchId, rollId: m.rollId });
+    io.to(m.player1.id).emit('diceVersusRollResult', resultPayload);
+  }
+  if (m.player2 && m.player2.id) {
+    io.to(m.player2.id).emit('diceVersusRollStart', { matchId: m.matchId, rollId: m.rollId });
+    io.to(m.player2.id).emit('diceVersusRollResult', resultPayload);
+  }
   broadcastDiceVersusState(io, matchId);
 
   // After 4.2 seconds of 3D physics roll animation, settle results
@@ -106,7 +116,7 @@ function startDiceVersusRoll(io, matchId) {
       }
       broadcastDiceVersusState(io, matchId);
 
-      io.to(`dice:${matchId}`).emit('diceVersusSettled', {
+      const settlePayload = {
         matchId,
         winnerId,
         winnerName,
@@ -115,7 +125,11 @@ function startDiceVersusRoll(io, matchId) {
         pot: live.pot,
         player1Id: live.player1 ? live.player1.id : null,
         player2Id: live.player2 ? live.player2.id : null
-      });
+      };
+
+      io.to(`dice:${matchId}`).emit('diceVersusSettled', settlePayload);
+      if (live.player1 && live.player1.id) io.to(live.player1.id).emit('diceVersusSettled', settlePayload);
+      if (live.player2 && live.player2.id) io.to(live.player2.id).emit('diceVersusSettled', settlePayload);
 
       // Reset to ready for next match after 4.5 seconds
       setTimeout(() => {
@@ -138,20 +152,30 @@ function startDiceVersusRoll(io, matchId) {
 }
 
 function handleDiceVersusDisconnect(io, socket) {
-  const matchId = socket.currentDiceMatchId;
-  if (matchId && diceVersusMatches[matchId]) {
+  for (const matchId in diceVersusMatches) {
     const match = diceVersusMatches[matchId];
-    if (match.player1 && match.player1.id === socket.id) match.player1 = null;
-    if (match.player2 && match.player2.id === socket.id) match.player2 = null;
+    if (match) {
+      let changed = false;
+      if (match.player1 && match.player1.id === socket.id) {
+        match.player1 = null;
+        changed = true;
+      }
+      if (match.player2 && match.player2.id === socket.id) {
+        match.player2 = null;
+        changed = true;
+      }
 
-    if (!match.player1 && !match.player2) {
-      delete diceVersusMatches[matchId];
-    } else {
-      match.status = 'WAITING';
-      match.statusMsg = 'Un jugador se ha desconectado. Esperando nuevo rival...';
-      if (match.player1) match.player1.accepted = false;
-      if (match.player2) match.player2.accepted = false;
-      broadcastDiceVersusState(io, matchId);
+      if (changed) {
+        if (!match.player1 && !match.player2) {
+          delete diceVersusMatches[matchId];
+        } else {
+          match.status = 'WAITING';
+          match.statusMsg = 'Un jugador se ha desconectado. Esperando nuevo rival...';
+          if (match.player1) match.player1.accepted = false;
+          if (match.player2) match.player2.accepted = false;
+          broadcastDiceVersusState(io, matchId);
+        }
+      }
     }
   }
 }
@@ -166,10 +190,14 @@ function setupDiceSocketEvents(io, socket, players) {
     const pName = (data && data.name) || (players[socket.id] && players[socket.id].name) || 'Jugador';
     const sIdx = (data && typeof data.seatIndex === 'number') ? data.seatIndex : 0;
 
+    // Clean up stale disconnected sockets
+    if (m.player1 && !players[m.player1.id]) m.player1 = null;
+    if (m.player2 && !players[m.player2.id]) m.player2 = null;
+
     if (!m.player1 || m.player1.id === socket.id) {
-      m.player1 = { id: socket.id, name: pName, seatIndex: sIdx, bet: m.finalBet, accepted: false };
+      m.player1 = { id: socket.id, name: pName, seatIndex: sIdx, bet: m.finalBet || 50, accepted: false };
     } else if (!m.player2 || m.player2.id === socket.id) {
-      m.player2 = { id: socket.id, name: pName, seatIndex: sIdx, bet: m.finalBet, accepted: false };
+      m.player2 = { id: socket.id, name: pName, seatIndex: sIdx, bet: m.finalBet || 50, accepted: false };
     } else {
       socket.emit('diceVersusError', { message: 'La mesa de dados 1v1 está llena (2/2 jugadores).' });
       return;
@@ -209,7 +237,7 @@ function setupDiceSocketEvents(io, socket, players) {
   });
 
   socket.on('diceVersusBet', (data) => {
-    const matchId = (data && data.matchId) ? data.matchId : socket.currentDiceMatchId;
+    const matchId = (data && data.matchId) ? data.matchId : (socket.currentDiceMatchId || 'dice-versus-1');
     if (!matchId || !diceVersusMatches[matchId]) return;
 
     const m = diceVersusMatches[matchId];
@@ -238,7 +266,7 @@ function setupDiceSocketEvents(io, socket, players) {
   });
 
   socket.on('diceVersusAcceptBet', (data) => {
-    const matchId = (data && data.matchId) ? data.matchId : socket.currentDiceMatchId;
+    const matchId = (data && data.matchId) ? data.matchId : (socket.currentDiceMatchId || 'dice-versus-1');
     if (!matchId || !diceVersusMatches[matchId]) return;
 
     const m = diceVersusMatches[matchId];
@@ -255,7 +283,7 @@ function setupDiceSocketEvents(io, socket, players) {
   });
 
   socket.on('diceVersusRejectBet', (data) => {
-    const matchId = (data && data.matchId) ? data.matchId : socket.currentDiceMatchId;
+    const matchId = (data && data.matchId) ? data.matchId : (socket.currentDiceMatchId || 'dice-versus-1');
     if (!matchId || !diceVersusMatches[matchId]) return;
 
     const m = diceVersusMatches[matchId];

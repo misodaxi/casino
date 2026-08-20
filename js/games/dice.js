@@ -678,7 +678,7 @@
         dState.rolling = false;
       }
 
-            /* ============================================================
+                  /* ============================================================
          3. DADOS VERSUS 1v1 MULTIPLAYER CLIENT LOGIC
       ============================================================ */
       var diceVersusState = null;
@@ -687,6 +687,7 @@
       function updateDiceTableUI(vsData) {
         if (!vsData) return;
         diceVersusState = vsData;
+        window.diceVersusState = vsData;
 
         const statusBox = document.getElementById('diceVersusStatusBox');
         const statusMsgEl = document.getElementById('diceVersusStatusMsg');
@@ -726,6 +727,8 @@
           if (vsData.status === 'PLAYER_2_JOINED' || vsData.status === 'WAITING') {
             if (rollBtn) {
               rollBtn.style.display = 'inline-block';
+              rollBtn.disabled = false;
+              rollBtn.style.opacity = '1';
               rollBtn.textContent = `APOSTAR Y LANZAR ($${vsData.finalBet || dState.bet || 50}) 🎲`;
             }
             if (betBtn) betBtn.style.display = 'none';
@@ -792,52 +795,8 @@
         }
       }
 
-      function setupDiceSocketListeners() {
-        if (typeof socket === 'undefined' || !socket) return;
-
-        socket.on('diceVersusState', (vsData) => {
-          if (!vsData) return;
-          updateDiceTableUI(vsData);
-        });
-
-        socket.on('diceVersusRollStart', (data) => {
-          playSound('dice');
-          const banner = document.getElementById('diceResultBanner');
-          if (banner) banner.classList.remove('show');
-          const statusMsgEl = document.getElementById('diceVersusStatusMsg');
-          if (statusMsgEl) statusMsgEl.textContent = '🎲 ¡Lanzando dados 3D en el tapete!';
-        });
-
-        socket.on('diceVersusRollResult', (resData) => {
-          if (!resData || !resData.rollId) return;
-          if (diceProcessedRolls.has(resData.rollId)) return;
-          diceProcessedRolls.add(resData.rollId);
-
-          rollDiceVersus3D(resData);
-        });
-
-        socket.on('diceVersusSettled', (settledData) => {
-          if (!settledData) return;
-          if (socket.id === settledData.winnerId) {
-            state.balance = roundMoney(state.balance + settledData.finalBet);
-            updateBalanceUI();
-          } else if (settledData.winnerId && (socket.id === settledData.player1Id || socket.id === settledData.player2Id)) {
-            state.balance = roundMoney(state.balance - settledData.finalBet);
-            updateBalanceUI();
-          }
-        });
-
-        socket.on('diceVersusError', (err) => {
-          if (err && err.message) showToast(`⚠️ ${err.message}`);
-        });
-      }
-
-      setupDiceSocketListeners();
-      if (typeof socket !== 'undefined' && socket) {
-        socket.on('connect', setupDiceSocketListeners);
-      }
-
       function rollDiceVersus3D(resData) {
+        if (!resData || !resData.rollId) return;
         dState.rolling = true;
         startDiceCraneRoll(resData.player1Dice, resData.player2Dice, resData);
       }
