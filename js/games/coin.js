@@ -163,22 +163,22 @@ window.clearCoinBet = clearCoinBet;
 /* ============================================================
    ADVANCED HIGH-LAUNCH 3D COIN PHYSICS (EXTRA BOUNCY & NON-CLIPPING)
 ============================================================ */
-const COIN_RADIUS = 0.24;
-const COIN_HALF_H = 0.024;
+const COIN_RADIUS = 0.48;
+const COIN_HALF_H = 0.040;
 const COIN_FLOOR_Y = 0.840;
-const BASIN_BOUND_R = 0.78;
+const BASIN_BOUND_R = 1.15;
 
 let activeCoinRoll = null;
 
 function spawnPhysicsCoin(targetFace, customSeed, versusData) {
   const mesh = makeCoinMesh(COIN_RADIUS, COIN_HALF_H * 2);
-  mesh.position.set(0, 1.70, 0.06);
+  mesh.position.set(0, 1.80, 0);
   mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
 
-  let vy = 10.4 + Math.random() * 1.6;
-  let vx = (Math.random() - 0.5) * 0.45;
-  let vz = (Math.random() - 0.5) * 0.45;
-  let angSpeed = 38 + Math.random() * 12;
+  let vy = 11.2 + Math.random() * 1.5;
+  let vx = (Math.random() - 0.5) * 0.35;
+  let vz = (Math.random() - 0.5) * 0.35;
+  let angSpeed = 34 + Math.random() * 10;
   let tiltAngle = Math.random() * Math.PI * 2;
 
   if (customSeed) {
@@ -189,9 +189,9 @@ function spawnPhysicsCoin(targetFace, customSeed, versusData) {
     if (typeof customSeed.tiltAngle === 'number') tiltAngle = customSeed.tiltAngle;
   }
 
-  const tiltAxis = new THREE.Vector3(Math.cos(tiltAngle), 0.35 * (Math.random() - 0.5), Math.sin(tiltAngle)).normalize();
+  const tiltAxis = new THREE.Vector3(Math.cos(tiltAngle), 0.30 * (Math.random() - 0.5), Math.sin(tiltAngle)).normalize();
   coin3DRefs.launchGroup.add(mesh);
-  playSound('chip');
+  playSound('coin_flip');
 
   return {
     mesh,
@@ -232,11 +232,18 @@ function updateCoinPhysics(dt) {
   if (!coin3DRefs || !activeCoinRoll) return;
   const d = activeCoinRoll;
 
+  // Si ya se asentó, realizar la transición suave a posición plana y resolver
   if (d.settled) {
     if (d.snapT >= 0 && d.snapT < 1) {
-      d.snapT = Math.min(1, d.snapT + dt * 4.2);
+      d.snapT = Math.min(1, d.snapT + dt * 4.5);
       d.mesh.quaternion.slerpQuaternions(d.snapFrom, d.snapTo, d.snapT);
-      d.mesh.position.y = COIN_FLOOR_Y + COIN_HALF_H;
+      d.mesh.position.y = COIN_FLOOR_Y + COIN_HALF_H + 0.001;
+    }
+    if (d.snapT >= 1) {
+      // Completamente plano y asentado
+      d.mesh.quaternion.copy(d.snapTo);
+      d.mesh.position.y = COIN_FLOOR_Y + COIN_HALF_H + 0.001;
+      window.isCoinPhysicsActive = false; // Desactivar física solo cuando ya esté 100% plano
     }
     if (!d.resolved) {
       d.resolved = true;
@@ -245,12 +252,12 @@ function updateCoinPhysics(dt) {
     return;
   }
 
-  const subSteps = 6;
+  const subSteps = 8;
   const subDt = Math.min(0.04, dt) / subSteps;
-  const gravity = -24.0;
-  const restitution = 0.58;
-  const friction = 0.94;
-  const basinRadius = BASIN_BOUND_R;
+  const gravity = -26.0;
+  const restitution = 0.52;
+  const friction = 0.92;
+  const basinRadius = BASIN_BOUND_R - COIN_RADIUS * 0.40; // 1.15 - 0.192 = 0.958
 
   for (let step = 0; step < subSteps; step++) {
     d.vel.y += gravity * subDt;
@@ -263,6 +270,7 @@ function updateCoinPhysics(dt) {
       d.mesh.quaternion.premultiply(_coinTempDq);
     }
 
+    // Colisión elástica contra el borde del plato
     const horizDist = Math.hypot(d.mesh.position.x, d.mesh.position.z);
     if (horizDist > basinRadius) {
       const nx = d.mesh.position.x / horizDist;
@@ -272,15 +280,16 @@ function updateCoinPhysics(dt) {
 
       const vNormal = d.vel.x * nx + d.vel.z * nz;
       if (vNormal > 0) {
-        d.vel.x -= (1 + 0.65) * vNormal * nx;
-        d.vel.z -= (1 + 0.65) * vNormal * nz;
-        d.vel.y += 0.45;
-        d.angVel.x += (Math.random() - 0.5) * 8.0;
-        d.angVel.z += (Math.random() - 0.5) * 8.0;
-        playSound('chip', 0.6);
+        d.vel.x -= (1 + 0.55) * vNormal * nx;
+        d.vel.z -= (1 + 0.55) * vNormal * nz;
+        d.vel.y += 0.35;
+        d.angVel.x += (Math.random() - 0.5) * 6.0;
+        d.angVel.z += (Math.random() - 0.5) * 6.0;
+        playSound('coin_land', 0.5);
       }
     }
 
+    // Cálculo dinámico de altura mínima según ángulo de inclinación
     _coinTempUpWorld.copy(_coinUnitY).applyQuaternion(d.mesh.quaternion);
     const tiltDot = Math.abs(_coinTempUpWorld.dot(_coinUnitY));
     const effectiveRadius = COIN_HALF_H + (1.0 - tiltDot) * (COIN_RADIUS - COIN_HALF_H);
@@ -295,21 +304,21 @@ function updateCoinPhysics(dt) {
         d.vel.y = -d.vel.y * restitution;
         d.vel.x *= friction;
         d.vel.z *= friction;
-        d.angVel.multiplyScalar(0.72);
+        d.angVel.multiplyScalar(0.70);
 
-        if (imp > 0.4) {
-          playSound('coin_land', Math.min(1.0, imp / 5.0));
+        if (imp > 0.35) {
+          playSound('coin_land', Math.min(1.0, imp / 4.0));
         }
 
-        if (imp < 0.65 && d.bounces >= 3) {
+        if (imp < 0.55 && d.bounces >= 3) {
           d.groundedTimer += subDt;
         } else {
           d.groundedTimer = 0;
         }
 
-        if (d.groundedTimer > 0.18 || (d.bounces > 9 && Math.hypot(d.vel.x, d.vel.y, d.vel.z) < 0.35)) {
+        // Condición de parada definitiva
+        if (d.groundedTimer > 0.16 || (d.bounces > 7 && Math.hypot(d.vel.x, d.vel.y, d.vel.z) < 0.40)) {
           d.settled = true;
-          window.isCoinPhysicsActive = false;
           d.vel.set(0, 0, 0);
           d.angVel.set(0, 0, 0);
 
@@ -349,13 +358,13 @@ function resolveCoinFlip3D(result, versusData) {
     : 0;
 
   if (isRealDuel) {
-    const isWinner = (mySeatIdx === 0 && result === 'cara') || (mySeatIdx === 1 && result === 'cruz');
+    const isWinner = (versusData && versusData.winnerId)
+      ? (typeof socket !== 'undefined' && socket && socket.id === versusData.winnerId)
+      : ((mySeatIdx === 0 && result === 'cara') || (mySeatIdx === 1 && result === 'cruz'));
     const curBet = coinState.bet || 50;
     const totalPot = roundMoney(curBet * 2);
 
     if (isWinner) {
-      state.balance = roundMoney(state.balance + totalPot);
-      updateBalanceUI();
       msg.className = 'win';
       msg.textContent = `¡GANASTE EL DUELO! +${formatMoney(totalPot)}`;
       triggerConfetti();

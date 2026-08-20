@@ -196,7 +196,7 @@
           osc1.start(now); osc2.start(now);
           osc1.stop(now + 0.038); osc2.stop(now + 0.038);
         }
-        else if (type === 'coin_bounce' || type === 'coin') {
+        else if (type === 'coin_bounce' || type === 'coin' || type === 'coin_land') {
           // Síntesis física de moneda de oro con resonancia inarmónica y reverberación metálica
           const intensity = (typeof param === 'number') ? Math.max(0.15, Math.min(1.0, param)) : 1.0;
           const pitchVariation = 0.96 + Math.random() * 0.08;
