@@ -18,7 +18,7 @@ const {
 const { setupRouletteSocketEvents, handleRouletteDisconnect } = require('./games/roulette');
 const { setupBlackjackSocketEvents, handleBlackjackDisconnect } = require('./games/blackjack');
 const { setupDiceSocketEvents, handleDiceDisconnect } = require('./games/dice');
-const { setupCoinSocketEvents, handleCoinVersusDisconnect } = require('./games/coin');
+const { setupCoinSocketEvents, handleCoinDisconnect } = require('./games/coin');
 const { setupWheelSocketEvents } = require('./games/wheel');
 
 function getZoneForPosition(x, z) {
@@ -479,7 +479,7 @@ function setupSocketIO(io) {
       handleRouletteDisconnect(io, socket);
       handleBlackjackDisconnect(io, socket);
       handleDiceDisconnect(io, socket);
-      handleCoinVersusDisconnect(io, socket);
+      handleCoinDisconnect(io, socket);
     });
   });
 }

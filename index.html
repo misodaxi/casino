@@ -358,9 +358,10 @@
       <div class="duel-controls" style="display:flex; align-items:center; gap:12px; pointer-events:auto; flex-wrap:wrap; justify-content:center;">
         <div class="total-bet-pill">MI APUESTA<span class="v" id="coinBetDisplay">$50</span></div>
         <button class="mini-btn" onclick="clearCoinBet()">BORRAR 🔄</button>
-        <button class="mini-btn" id="coinBotDuelToggleBtn" onclick="toggleCoinBotDuel()">DUELO 1 VS 1 ⚔️</button>
-        <button class="action-btn" id="coinMatchBetBtn" onclick="matchRivalBet()" style="display:none; background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; font-weight:800;">IGUALAR APUESTA ($50) ⚔️</button>
+        <!-- Solo Flip Button (when 1 player) -->
         <button class="action-btn" id="coinFlipBtn">LANZAR MONEDA 🪙</button>
+        <!-- Multiplayer 1v1 Ready Button (when 2 players) -->
+        <button class="action-btn" id="coinReadyBtn" style="display:none; background:linear-gradient(135deg, #10b981, #059669); font-weight:900; font-size:16px; padding:12px 28px; border-radius:14px; box-shadow:0 0 20px rgba(16,185,129,0.5);">LISTO 👍</button>
       </div>
     </div>
   </div>

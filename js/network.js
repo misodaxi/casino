@@ -114,7 +114,37 @@
           }
         });
 
-                // Authoritative Multiplayer Dice Listeners (Unified Architecture)
+                        // Authoritative Multiplayer Coin Flip Listeners (Unified Architecture)
+        socket.on('coinState', (stateData) => {
+          window.netMetrics.msgIn++;
+          window.coinServerState = stateData;
+          if (typeof updateCoinTableUI === 'function') {
+            updateCoinTableUI(stateData);
+          }
+        });
+
+        socket.on('coinFlip', (data) => {
+          window.netMetrics.msgIn++;
+          if (typeof handleRemoteCoinFlip === 'function') {
+            handleRemoteCoinFlip(data);
+          }
+        });
+
+        socket.on('coinResult', (data) => {
+          window.netMetrics.msgIn++;
+          if (typeof handleRemoteCoinResult === 'function') {
+            handleRemoteCoinResult(data);
+          }
+        });
+
+        socket.on('coinError', (err) => {
+          window.netMetrics.msgIn++;
+          if (err && err.message && typeof showToast === 'function') {
+            showToast('⚠️ ' + err.message);
+          }
+        });
+
+        // Authoritative Multiplayer Dice Listeners (Unified Architecture)
         socket.on('diceState', (stateData) => {
           window.netMetrics.msgIn++;
           window.diceServerState = stateData;

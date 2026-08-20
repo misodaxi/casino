@@ -680,7 +680,7 @@
           } else if (gameId === 'dice') {
             socket.emit('diceJoin', { diceId: 'dice', seatIndex: (seat && typeof seat.seatIndex === 'number') ? seat.seatIndex : 0, name: (state.player && state.player.name) ? state.player.name : 'Axel', balance: state.balance });
           } else if (gameId === 'coin') {
-            socket.emit('coinVersusJoin', { matchId: 'coin-versus-1', seatIndex: (seat && typeof seat.seatIndex === 'number') ? seat.seatIndex : 0, bet: coinState.bet || 50, balance: state.balance });
+            socket.emit('coinJoin', { coinId: 'coin', seatIndex: (seat && typeof seat.seatIndex === 'number') ? seat.seatIndex : 0, name: (state.player && state.player.name) ? state.player.name : 'Axel', bet: coinState.bet || 50, balance: state.balance });
           }
         }
 
@@ -1341,7 +1341,7 @@
         } else if (previousMode === 'dice' && typeof socket !== 'undefined' && socket && socket.connected) {
           socket.emit('diceLeave', { diceId: 'dice' });
         } else if (previousMode === 'coin' && typeof socket !== 'undefined' && socket && socket.connected) {
-          socket.emit('coinVersusLeave', { matchId: 'coin-versus-1' });
+          socket.emit('coinLeave', { coinId: 'coin' });
         } else if (previousMode === 'blackjack') {
           if ((typeof socket === 'undefined' || !socket || !socket.connected) && bjState.active) {
             bjState.active = false;
