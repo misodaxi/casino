@@ -790,9 +790,10 @@
           );
           if (typeof update3DBJChips === 'function') update3DBJChips(bjState.bet);
         } else if (gameId === 'cinema') {
-          toPos = new THREE.Vector3(seat.x, 1.85, seat.z + 1.2);
-          toLook = new THREE.Vector3(seat.x * 0.3, 6.5, -37.0);
-          state.cinemaPivot = new THREE.Vector3(seat.x, 1.6, seat.z);
+          const seatY = (typeof seat.y === 'number') ? seat.y : 0.18;
+          toPos = new THREE.Vector3(seat.x, seatY + 1.25, seat.z + 0.15);
+          toLook = new THREE.Vector3(seat.x * 0.2, 5.6, -36.5);
+          state.cinemaPivot = new THREE.Vector3(seat.x, seatY + 1.20, seat.z);
         }
 
         const start = performance.now();

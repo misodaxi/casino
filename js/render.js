@@ -4529,7 +4529,8 @@
             if (z.id === 'cinema') {
               // Butacas Tradicionales de Cine de Terciopelo Rojo con Portavasos y Palomitas
               const cinemaSeat = createTraditionalCinemaSeat(`C${sIdx + 1}`, (sIdx % 2 === 0));
-              cinemaSeat.position.set(seat.x - z.x, platY + platH / 2, seat.z - z.z);
+              const seatFloorY = (typeof seat.y === 'number') ? seat.y : (platY + platH / 2);
+              cinemaSeat.position.set(seat.x - z.x, seatFloorY, seat.z - z.z);
               cinemaSeat.rotation.y = seat.r;
               g.add(cinemaSeat);
             } else {
