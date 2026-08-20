@@ -209,16 +209,12 @@
         <div class="total-bet-pill" id="diceBetPill">APUESTA<span class="v" id="diceBetDisplay">$50</span></div>
         <button class="action-btn" id="diceClearBetBtn"
           style="background:rgba(239,68,68,0.25); border:1px solid #ef4444; color:#fca5a5;">BORRAR 🗑️</button>
-        <!-- Solo Action Button -->
+        <!-- Solo Action Button (Only when 1 player at table) -->
         <button class="action-btn" id="diceRollBtn">TIRAR 🎲</button>
 
-        <!-- Versus Action Buttons -->
-        <button class="action-btn" id="diceVersusBetBtn"
-          style="display:none; background:linear-gradient(135deg, #ec4899, #8b5cf6);">PROPONER APUESTA 🎲</button>
-        <button class="action-btn" id="diceVersusAcceptBtn"
-          style="display:none; background:linear-gradient(135deg, #10b981, #059669);">ACEPTAR 👍</button>
-        <button class="action-btn" id="diceVersusRejectBtn"
-          style="display:none; background:linear-gradient(135deg, #ef4444, #dc2626);">RECHAZAR ❌</button>
+        <!-- Multiplayer 1v1 Ready Button (Enforced when 2 players at table) -->
+        <button class="action-btn" id="diceReadyBtn"
+          style="display:none; background:linear-gradient(135deg, #10b981, #059669); font-weight:900; font-size:16px; padding:12px 28px; border-radius:14px; box-shadow:0 0 20px rgba(16,185,129,0.5);">LISTO 👍</button>
       </div>
     </div>
   </div>
