@@ -334,6 +334,12 @@
             }
             readyBtn.disabled = (s.status === 'SPINNING' || s.status === 'RESULT');
           }
+
+          // Real-time synchronization of all 3D placed chips across all connected players
+          if (typeof roulette3DRefs !== 'undefined' && roulette3DRefs && roulette3DRefs.update3DPlacedChips) {
+            const mergedBets = Object.assign({}, s.bets || {}, (typeof rState !== 'undefined' && rState.bets) ? rState.bets : {});
+            roulette3DRefs.update3DPlacedChips(mergedBets);
+          }
         });
 
         socket.on('rouletteSpin', (data) => {
@@ -350,6 +356,12 @@
 
             Object.entries(rState.bets).forEach(([key, amt]) => {
               if (key === 'num-' + winNum) winAmt += amt * 36;
+              else if (key.startsWith('split-')) {
+                const splitNums = key.replace('split-', '').split('-').map(Number);
+                if (splitNums.includes(winNum)) {
+                  winAmt += amt * 18; // Casilla doble (Split): pago 17 a 1 + devoluciÃ³n de apuesta = 18x
+                }
+              }
               else if (key === 'red' && color === 'red') winAmt += amt * 2;
               else if (key === 'black' && color === 'black') winAmt += amt * 2;
               else if (key === 'even' && winNum !== 0 && winNum % 2 === 0) winAmt += amt * 2;
@@ -430,6 +442,12 @@
 
                   Object.entries(rState.bets).forEach(([key, amt]) => {
                     if (key === 'num-' + winNum) winAmt += amt * 36;
+                    else if (key.startsWith('split-')) {
+                      const splitNums = key.replace('split-', '').split('-').map(Number);
+                      if (splitNums.includes(winNum)) {
+                        winAmt += amt * 18; // Casilla doble (Split): pago 17 a 1 + devoluciÃ³n de apuesta = 18x
+                      }
+                    }
                     else if (key === 'red' && color === 'red') winAmt += amt * 2;
                     else if (key === 'black' && color === 'black') winAmt += amt * 2;
                     else if (key === 'even' && winNum !== 0 && winNum % 2 === 0) winAmt += amt * 2;

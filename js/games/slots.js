@@ -778,7 +778,11 @@ function spinSlotMachine(gameType) {
   const isSlots5x5 = (gameType === 'slots');
   const symbols = isTraga ? TRAGAPERRAS_SYMBOLS : SLOTS_SYMBOLS;
   const prefix = isTraga ? 'traga' : (isGachapon ? 'pachinko' : 'slots');
-  const bet = isTraga ? (window.tragaBet || 10) : (isGachapon ? (window.pachinkoBet || 300) : (window.slotsBet || 20));
+  const bet = isTraga
+    ? roundMoney(window.tragaBet || 10)
+    : (isGachapon
+        ? Math.max(300, roundMoney(window.pachinkoBet || 300))
+        : roundMoney(window.slotsBet || 20));
 
   const mySeatIdx = (state.player.currentSeat && state.player.currentSeat.zone === gameType && typeof state.player.currentSeat.seatIndex === 'number')
     ? state.player.currentSeat.seatIndex

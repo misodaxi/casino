@@ -321,16 +321,16 @@
               socket.emit('blackjackBetChange', { bet: nextBet, seatIndex: mySeat });
             }
           }},
-          { id: 'chipRackPlinko', onSelect: (v) => { plinkoBet = roundMoney(v); const d = document.getElementById('plinkoBetDisplay'); if (d) d.textContent = formatMoney(v); } },
-          { id: 'chipRackWheel', onSelect: (v) => { const d = document.getElementById('wheelBetDisplay'); if (d) d.textContent = formatMoney(v); } },
-          { id: 'chipRackCoin', onSelect: (v) => { const d = document.getElementById('coinBetDisplay'); if (d) d.textContent = formatMoney(v); } },
-          { id: 'slotsChipRack', onSelect: (v) => { const d = document.getElementById('slotsBetDisplay'); if (d) d.textContent = formatMoney(v); } },
+          { id: 'chipRackPlinko', onSelect: (v) => { window.plinkoBet = roundMoney(v); if (typeof pState !== 'undefined') pState.bet = roundMoney(v); const d = document.getElementById('plinkoBetDisplay'); if (d) d.textContent = formatMoney(v); } },
+          { id: 'chipRackWheel', onSelect: (v) => { window.wheelBet = roundMoney(v); const d = document.getElementById('wheelBetDisplay'); if (d) d.textContent = formatMoney(v); if (typeof update3DWheelChips === 'function') update3DWheelChips(); } },
+          { id: 'chipRackCoin', onSelect: (v) => { if (typeof coinState !== 'undefined') { coinState.bet = roundMoney(v); coinState.selectedChip = roundMoney(v); if (typeof update3DCoinChips === 'function') update3DCoinChips(coinState.bet); } const d = document.getElementById('coinBetDisplay'); if (d) d.textContent = formatMoney(v); } },
+          { id: 'slotsChipRack', onSelect: (v) => { window.slotsBet = roundMoney(v); const d = document.getElementById('slotsBetDisplay'); if (d) d.textContent = formatMoney(window.slotsBet); } },
           { id: 'pachinkoChipRack', customChips: GACHAPON_CHIPS, defaultVal: 300, onSelect: (v) => {
             window.pachinkoBet = Math.max(300, roundMoney(v));
             const d = document.getElementById('pachinkoBetDisplay');
             if (d) d.textContent = formatMoney(window.pachinkoBet);
           } },
-          { id: 'tragaperrasChipRack', onSelect: (v) => { const d = document.getElementById('tragaperrasBetDisplay'); if (d) d.textContent = formatMoney(v); } }
+          { id: 'tragaperrasChipRack', onSelect: (v) => { window.tragaBet = roundMoney(v); const d = document.getElementById('tragaperrasBetDisplay'); if (d) d.textContent = formatMoney(window.tragaBet); } }
         ];
 
         rackConfigs.forEach(cfg => {

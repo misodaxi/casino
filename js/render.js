@@ -364,154 +364,682 @@
         sceneRef.add(neonGrp);
       }
 
-      // 6. Bowling 3D Alley (Grand Championship 6-Lane Regulation Alley - Shared Asset Pool)
-      const BOWLING_LANE_GEO = new THREE.BoxGeometry(2.2, 0.1, 48.0);
-      const BOWLING_GUTTER_GEO = new THREE.BoxGeometry(0.35, 0.06, 48.0);
-      const BOWLING_GUTTER_NEON_GEO = new THREE.BoxGeometry(0.06, 0.04, 48.0);
-      const BOWLING_DIVIDER_GEO = new THREE.BoxGeometry(0.12, 0.22, 48.0);
-      const BOWLING_PIN_BODY_GEO = new THREE.CylinderGeometry(0.07, 0.11, 0.46, 16);
-      const BOWLING_PIN_HEAD_GEO = new THREE.SphereGeometry(0.08, 16, 16);
-      const BOWLING_PIN_STRIPE_GEO = new THREE.CylinderGeometry(0.082, 0.082, 0.05, 16);
-      const BOWLING_BALL_GEO = new THREE.SphereGeometry(0.14, 16, 16);
-      const BOWLING_MONITOR_POLE_GEO = new THREE.CylinderGeometry(0.04, 0.04, 2.4, 12);
-      const BOWLING_MONITOR_BOX_GEO = new THREE.BoxGeometry(1.6, 0.9, 0.15);
-      const BOWLING_HOOD_GEO = new THREE.BoxGeometry(2.9, 2.2, 1.4);
-      const BOWLING_RACK_GEO = new THREE.BoxGeometry(0.40, 0.60, 4.8);
+      // 6. Bowling 3D Alley (Ultra-Luxury Midnight VIP Championship Bowling Architecture - Hyperrealistic Remodel)
+      // -------------------------------------------------------------
+      // High-Definition Procedural Textures & Materials Cache
+      // -------------------------------------------------------------
+      var _bowlingLaneTexCache = null;
+      function getBowlingLaneTexture() {
+        if (_bowlingLaneTexCache) return _bowlingLaneTexCache;
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024; canvas.height = 4096;
+        const ctx = canvas.getContext('2d');
 
-      const BOWLING_LANE_MAT = new THREE.MeshStandardMaterial({ color: 0xdfb989, roughness: 0.18, metalness: 0.12 });
-      const BOWLING_GUTTER_MAT = new THREE.MeshStandardMaterial({ color: 0x0d0d14, roughness: 0.5, metalness: 0.2 });
-      const BOWLING_GUTTER_NEON_MAT = new THREE.MeshStandardMaterial({ color: 0x3b82f6, emissive: 0x3b82f6, emissiveIntensity: 2.2 });
-      const BOWLING_DIVIDER_MAT = new THREE.MeshStandardMaterial({ color: 0x181028, metalness: 0.85, roughness: 0.25 });
-      const BOWLING_PIN_MAT = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
-      const BOWLING_PIN_RED_MAT = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.25 });
-      const BOWLING_HOOD_MAT = new THREE.MeshStandardMaterial({ color: 0x0c0718, emissive: 0x3b82f6, emissiveIntensity: 0.45, roughness: 0.3 });
-      const BOWLING_MONITOR_MAT = new THREE.MeshStandardMaterial({ color: 0x0a0514, emissive: 0x3b82f6, emissiveIntensity: 0.6 });
-      const BOWLING_RACK_MAT = new THREE.MeshStandardMaterial({ color: 0x202028, metalness: 0.85, roughness: 0.2 });
+        // 1. Warm Canadian Honey & Amber Maple Hardwood (39 Regulation Planks)
+        ctx.fillStyle = '#b47336';
+        ctx.fillRect(0, 0, 1024, 4096);
 
-      const _bowlingBallMatCache = {};
-      function getBowlingBallMaterial(colorHex) {
-        if (!_bowlingBallMatCache[colorHex]) {
-          _bowlingBallMatCache[colorHex] = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.15, metalness: 0.6 });
+        const numPlanks = 39;
+        const plankW = 1024 / numPlanks;
+        const plankTones = [
+          '#c68846', '#b97a38', '#d59856', '#a96a2c', '#cc8d4c', '#be7f3d',
+          '#cb8c4b', '#b37433', '#d99e5c', '#c38442', '#a36426', '#cd8e4d'
+        ];
+
+        for (let i = 0; i < numPlanks; i++) {
+          const tone = plankTones[(i * 7 + 5) % plankTones.length];
+          ctx.fillStyle = tone;
+          ctx.fillRect(i * plankW, 0, plankW, 4096);
+
+          // Dark Seam Micro-groove between boards
+          ctx.strokeStyle = 'rgba(30, 15, 4, 0.40)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(i * plankW, 0);
+          ctx.lineTo(i * plankW, 4096);
+          ctx.stroke();
+
+          // Organic Wood Grain Fibers & Growth Rings
+          for (let g = 0; g < 75; g++) {
+            const gy = (g * 67 + i * 41) % 4096;
+            ctx.fillStyle = 'rgba(60, 25, 6, 0.08)';
+            ctx.fillRect(i * plankW + 1, gy, plankW - 2, 28 + (g % 7) * 10);
+          }
+
+          // Staggered Plank End-Joints (Juntas de listones cada 8-12 pies)
+          const jointY1 = (i * 347 + 600) % 3600;
+          const jointY2 = (i * 521 + 1800) % 3600;
+          ctx.fillStyle = 'rgba(20, 8, 2, 0.60)';
+          ctx.fillRect(i * plankW, jointY1, plankW, 3.5);
+          ctx.fillRect(i * plankW, jointY2, plankW, 3.5);
         }
-        return _bowlingBallMatCache[colorHex];
+
+        // 2. Thick Ebony Foul Line with Warning Gold Bezel (y = 3940px)
+        ctx.fillStyle = '#06040a';
+        ctx.fillRect(0, 3930, 1024, 30);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillRect(0, 3922, 1024, 8);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(0, 3956, 1024, 4);
+
+        // 3. Stance Alignment Guide Dots (10 Ebony & Gold Dots at 7ft y = 3720px and 12ft y = 3450px)
+        const dotPlanks = [3, 8, 13, 18, 20, 21, 26, 31, 36];
+        [3720, 3450].forEach(dy => {
+          dotPlanks.forEach(pIdx => {
+            const dx = (pIdx + 0.5) * plankW;
+            ctx.fillStyle = '#09090b';
+            ctx.beginPath(); ctx.arc(dx, dy, 9, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(dx, dy, 3, 0, Math.PI * 2); ctx.fill();
+          });
+        });
+
+        // 4. Target Range Chevrons (7 Ebony & Gold Triangular Arrows at 15ft y = 2960px pointing down the lane)
+        const arrowPlanks = [5, 10, 15, 20, 24, 29, 34];
+        arrowPlanks.forEach((pIdx, aIdx) => {
+          const ax = (pIdx + 0.5) * plankW;
+          const ay = 3020 - Math.abs(aIdx - 3) * 55; // Staggered V-arrow apex formation
+          ctx.fillStyle = '#09090b';
+          ctx.beginPath();
+          ctx.moveTo(ax, ay - 75);
+          ctx.lineTo(ax - 22, ay);
+          ctx.lineTo(ax + 22, ay);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#fbbf24';
+          ctx.lineWidth = 4.5;
+          ctx.stroke();
+
+          // Interior gold inlay triangle
+          ctx.fillStyle = '#d4af37';
+          ctx.beginPath();
+          ctx.moveTo(ax, ay - 55);
+          ctx.lineTo(ax - 10, ay - 10);
+          ctx.lineTo(ax + 10, ay - 10);
+          ctx.closePath();
+          ctx.fill();
+        });
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.ClampToEdgeWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.anisotropy = 16;
+        _bowlingLaneTexCache = tex;
+        return tex;
+      }
+
+      var _bowlingPinTexCache = null;
+      function getBowlingPinTexture() {
+        if (_bowlingPinTexCache) return _bowlingPinTexCache;
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+
+        // Pure Pearl White Base with rich radial lighting gradient
+        const grad = ctx.createLinearGradient(0, 0, 512, 0);
+        grad.addColorStop(0, '#f1f5f9');
+        grad.addColorStop(0.3, '#ffffff');
+        grad.addColorStop(0.7, '#ffffff');
+        grad.addColorStop(1, '#e2e8f0');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 512, 512);
+
+        // Gold Base Ring at Bottom (y = 475px to 512px)
+        ctx.fillStyle = '#d4af37';
+        ctx.fillRect(0, 480, 512, 32);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillRect(0, 490, 512, 10);
+
+        // Double Ruby-Red Crown Stripes around the Neck (y = 110px to 170px)
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(0, 115, 512, 24);
+        ctx.fillRect(0, 152, 512, 24);
+
+        // Gold Trim on Neck Stripes
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillRect(0, 111, 512, 4);
+        ctx.fillRect(0, 139, 512, 4);
+        ctx.fillRect(0, 148, 512, 4);
+        ctx.fillRect(0, 176, 512, 4);
+
+        // Crown / VIP Casino Logo Emblem on the Belly
+        ctx.font = 'bold 44px "Segoe UI", Arial';
+        ctx.fillStyle = '#d4af37';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('👑', 256, 255);
+        ctx.font = '900 22px "Segoe UI", Arial';
+        ctx.fillStyle = '#991b1b';
+        ctx.fillText('MIDNIGHT VIP', 256, 292);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.anisotropy = 8;
+        _bowlingPinTexCache = tex;
+        return tex;
+      }
+
+      // Sculpted Regulation Bowling Pin Lathe Geometry (Height: ~0.57m, Scaled Up & Imposing)
+      var _bowlingPinLatheGeo = null;
+      function getBowlingPinGeometry() {
+        if (_bowlingPinLatheGeo) return _bowlingPinLatheGeo;
+        const pts = [
+          new THREE.Vector2(0.0000, 0.0000),
+          new THREE.Vector2(0.0537, 0.0000), // Base flat (radius: 5.37cm)
+          new THREE.Vector2(0.0592, 0.0278), // Base bevel
+          new THREE.Vector2(0.0777, 0.0833), // Lower taper
+          new THREE.Vector2(0.1073, 0.2035), // Lower belly
+          new THREE.Vector2(0.1129, 0.2682), // Max belly diameter (22.6cm)
+          new THREE.Vector2(0.0999, 0.3515), // Upper belly
+          new THREE.Vector2(0.0592, 0.4718), // Lower neck
+          new THREE.Vector2(0.0407, 0.5457), // Neck waist (radius: 4.07cm)
+          new THREE.Vector2(0.0481, 0.6105), // Upper neck flare
+          new THREE.Vector2(0.0592, 0.6567), // Head widest diameter (11.8cm)
+          new THREE.Vector2(0.0444, 0.6938), // Head crown curve
+          new THREE.Vector2(0.0000, 0.7049)  // Crown apex (Total height: 70.5cm)
+        ];
+        _bowlingPinLatheGeo = new THREE.LatheGeometry(pts, 32);
+        return _bowlingPinLatheGeo;
+      }
+
+      // Custom Bowling Ball Swirl Materials
+      const _bowlingBallMaterials = {};
+      const BOWLING_BALL_THEMES = [
+        { name: 'Cosmic Amethyst', base: '#581c87', swirl: '#d8b4fe', accent: '#2e1065', hex: 0x8b5cf6 },
+        { name: 'Midnight Sapphire', base: '#1e3a8a', swirl: '#93c5fd', accent: '#0c4a6e', hex: 0x3b82f6 },
+        { name: 'Dragon Ruby', base: '#881337', swirl: '#fecdd3', accent: '#4c0519', hex: 0xef4444 },
+        { name: 'Emerald Galaxy', base: '#064e3b', swirl: '#a7f3d0', accent: '#022c22', hex: 0x10b981 },
+        { name: 'Gold Obsidian', base: '#18181b', swirl: '#fde047', accent: '#78350f', hex: 0xf59e0b },
+        { name: 'Cyber Neon Pink', base: '#831843', swirl: '#fbcfe8', accent: '#500724', hex: 0xec4899 },
+        { name: 'Electric Cyan', base: '#083344', swirl: '#a5f3fc', accent: '#164e63', hex: 0x06b6d4 },
+        { name: 'Sunset Amber', base: '#7c2d12', swirl: '#fed7aa', accent: '#431407', hex: 0xf97316 }
+      ];
+
+      function getCustomBowlingBallMaterial(themeIdx = 0) {
+        const t = BOWLING_BALL_THEMES[themeIdx % BOWLING_BALL_THEMES.length];
+        if (_bowlingBallMaterials[t.name]) return _bowlingBallMaterials[t.name];
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+
+        // Dynamic Swirled Reactive Resin Texture
+        ctx.fillStyle = t.base;
+        ctx.fillRect(0, 0, 512, 512);
+
+        for (let i = 0; i < 20; i++) {
+          const grad = ctx.createRadialGradient(
+            128 + Math.sin(i * 1.3) * 160,
+            128 + Math.cos(i * 1.7) * 160,
+            20,
+            256 + Math.cos(i * 0.9) * 120,
+            256 + Math.sin(i * 1.1) * 120,
+            200
+          );
+          grad.addColorStop(0, t.swirl);
+          grad.addColorStop(0.5, t.base);
+          grad.addColorStop(1, t.accent);
+          ctx.fillStyle = grad;
+          ctx.globalAlpha = 0.55;
+          ctx.beginPath();
+          ctx.arc(256 + Math.sin(i) * 150, 256 + Math.cos(i) * 150, 180, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+
+        // Gold Specks & Bowling Weight Stamp
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '900 28px "Segoe UI", Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('16 LBS', 256, 120);
+        ctx.font = 'bold 18px "Segoe UI", Arial';
+        ctx.fillText('★ MIDNIGHT VIP ★', 256, 150);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+
+        const mat = new THREE.MeshStandardMaterial({
+          map: tex,
+          roughness: 0.10,
+          metalness: 0.50
+        });
+        _bowlingBallMaterials[t.name] = mat;
+        return mat;
+      }
+
+      // Large Scale 3D Bowling Ball with 3 Mathematically Aligned Drilled Finger Holes
+      function createSingle3DBowlingBall(themeIdx = 0, radius = 0.25) {
+        const ballGroup = new THREE.Group();
+        const ballMat = getCustomBowlingBallMaterial(themeIdx);
+        const sphereGeo = new THREE.SphereGeometry(radius, 32, 32);
+        const ballMesh = new THREE.Mesh(sphereGeo, ballMat);
+        ballMesh.castShadow = true; ballMesh.receiveShadow = true;
+        ballGroup.add(ballMesh);
+
+        // 3 Ergonomically Drilled Finger Grip Holes (Thumb + Middle + Ring)
+        const holeDepth = 0.085;
+        const thumbRadius = 0.030;
+        const fingerRadius = 0.025;
+
+        const thumbGeo = new THREE.CylinderGeometry(thumbRadius, thumbRadius, holeDepth, 24);
+        const fingerGeo = new THREE.CylinderGeometry(fingerRadius, fingerRadius, holeDepth, 24);
+
+        const thumbRingGeo = new THREE.TorusGeometry(thumbRadius + 0.003, 0.004, 12, 24);
+        const fingerRingGeo = new THREE.TorusGeometry(fingerRadius + 0.003, 0.004, 12, 24);
+
+        const holeMat = new THREE.MeshStandardMaterial({ color: 0x040206, roughness: 0.95, metalness: 0.1 });
+        const ringMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
+
+        function addDrilledHole(normalVec, isThumb = false) {
+          const norm = normalVec.clone().normalize();
+          const pos = norm.clone().multiplyScalar(radius - holeDepth / 2 + 0.002);
+          const ringPos = norm.clone().multiplyScalar(radius + 0.001);
+
+          const hMesh = new THREE.Mesh(isThumb ? thumbGeo : fingerGeo, holeMat);
+          hMesh.position.copy(pos);
+          hMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), norm);
+
+          const rMesh = new THREE.Mesh(isThumb ? thumbRingGeo : fingerRingGeo, ringMat);
+          rMesh.position.copy(ringPos);
+          rMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), norm);
+
+          ballGroup.add(hMesh, rMesh);
+        }
+
+        // 1. Thumb Hole: Placed lower, centered (elevated 25 deg toward player +Z)
+        const thumbNorm = new THREE.Vector3(0, Math.sin(0.44), Math.cos(0.44));
+        addDrilledHole(thumbNorm, true);
+
+        // 2. Middle Finger Hole: Placed higher (elevated 58 deg), offset left
+        const midNorm = new THREE.Vector3(-0.20, Math.sin(1.02), Math.cos(1.02));
+        addDrilledHole(midNorm, false);
+
+        // 3. Ring Finger Hole: Placed higher (elevated 58 deg), offset right
+        const ringNorm = new THREE.Vector3(0.20, Math.sin(1.02), Math.cos(1.02));
+        addDrilledHole(ringNorm, false);
+
+        return ballGroup;
+      }
+
+      function createSingle3DBowlingPin() {
+        const pinGroup = new THREE.Group();
+        const pinMat = new THREE.MeshStandardMaterial({
+          map: getBowlingPinTexture(),
+          roughness: 0.16,
+          metalness: 0.18
+        });
+        const pinGeo = getBowlingPinGeometry();
+        const pinMesh = new THREE.Mesh(pinGeo, pinMat);
+        pinMesh.castShadow = true; pinMesh.receiveShadow = true;
+        pinGroup.add(pinMesh);
+
+        // Gold Brass Base Trim Ring
+        const ringGeo = new THREE.TorusGeometry(0.058, 0.006, 12, 24);
+        const ringMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
+        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        ringMesh.rotation.x = Math.PI / 2;
+        ringMesh.position.y = 0.015;
+        pinGroup.add(ringMesh);
+
+        return pinGroup;
       }
 
       function createBowling3DAlley() {
         const g = new THREE.Group();
-        const ballCols = [0x3b82f6, 0xef4444, 0x10b981, 0x8b5cf6, 0xf59e0b, 0xec4899, 0x06b6d4, 0xf97316];
-
         const numLanes = 6;
-        const laneSpacing = 3.0;
+        const laneSpacing = 3.30;
+        const laneWidth = 2.22;
+        const laneLength = 48.0;
         const startX = -((numLanes - 1) * laneSpacing) / 2;
+
+        const laneMat = new THREE.MeshStandardMaterial({
+          map: getBowlingLaneTexture(),
+          roughness: 0.08,
+          metalness: 0.18
+        });
+
+        const gutterMat = new THREE.MeshStandardMaterial({
+          color: 0x08060e,
+          roughness: 0.35,
+          metalness: 0.50
+        });
+
+        const dividerMat = new THREE.MeshStandardMaterial({
+          color: 0x120a20,
+          roughness: 0.20,
+          metalness: 0.85
+        });
+
+        const dividerGoldTrimMat = new THREE.MeshStandardMaterial({
+          color: 0xd4af37,
+          metalness: 0.95,
+          roughness: 0.15
+        });
+
+        const neonBlueMat = new THREE.MeshStandardMaterial({
+          color: 0x38bdf8,
+          emissive: 0x0284c7,
+          emissiveIntensity: 2.8,
+          roughness: 0.2
+        });
+
+        const neonCyanMat = new THREE.MeshStandardMaterial({
+          color: 0x06b6d4,
+          emissive: 0x0891b2,
+          emissiveIntensity: 2.5,
+          roughness: 0.2
+        });
 
         for (let l = 0; l < numLanes; l++) {
           const laneX = startX + l * laneSpacing;
+          const laneGroup = new THREE.Group();
+          laneGroup.position.x = laneX;
 
-          // 1. Long 48m Regulation Wood Lane Bed
-          const bed = new THREE.Mesh(BOWLING_LANE_GEO, BOWLING_LANE_MAT);
-          bed.position.set(laneX, 0.05, -2.5);
+          // 1. Premium 48m Canadian Maple Hardwood Regulation Lane Bed
+          const bedGeo = new THREE.BoxGeometry(laneWidth, 0.12, laneLength);
+          const bed = new THREE.Mesh(bedGeo, laneMat);
+          bed.position.set(0, 0.06, -2.5);
           bed.receiveShadow = true;
-          g.add(bed);
+          laneGroup.add(bed);
 
-          // 2. Left & Right Gutters with Blue LED Underglow
-          const gutL = new THREE.Mesh(BOWLING_GUTTER_GEO, BOWLING_GUTTER_MAT);
-          gutL.position.set(laneX - 1.28, 0.03, -2.5);
-          const gutR = new THREE.Mesh(BOWLING_GUTTER_GEO, BOWLING_GUTTER_MAT);
-          gutR.position.set(laneX + 1.28, 0.03, -2.5);
+          // 2. Concave Deep Curved Gutters (Canales Izquierdo y Derecho)
+          const gutterW = 0.36;
+          const gutterDepth = 0.08;
+          const gutterOffset = laneWidth / 2 + gutterW / 2;
 
-          const gutNeonL = new THREE.Mesh(BOWLING_GUTTER_NEON_GEO, BOWLING_GUTTER_NEON_MAT);
-          gutNeonL.position.set(laneX - 1.28, 0.065, -2.5);
-          const gutNeonR = new THREE.Mesh(BOWLING_GUTTER_NEON_GEO, BOWLING_GUTTER_NEON_MAT);
-          gutNeonR.position.set(laneX + 1.28, 0.065, -2.5);
+          const gutL = new THREE.Mesh(new THREE.BoxGeometry(gutterW, gutterDepth, laneLength), gutterMat);
+          gutL.position.set(-gutterOffset, 0.025, -2.5);
+          gutL.receiveShadow = true;
 
-          g.add(gutL, gutR, gutNeonL, gutNeonR);
+          const gutR = new THREE.Mesh(new THREE.BoxGeometry(gutterW, gutterDepth, laneLength), gutterMat);
+          gutR.position.set(gutterOffset, 0.025, -2.5);
+          gutR.receiveShadow = true;
 
-          // 3. Lane Dividers
-          const div = new THREE.Mesh(BOWLING_DIVIDER_GEO, BOWLING_DIVIDER_MAT);
-          div.position.set(laneX - laneSpacing / 2, 0.11, -2.5);
-          g.add(div);
+          // 3. Cyber Neon Ambient Light Tracks running along both gutters
+          const gutNeonL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.025, laneLength), (l % 2 === 0) ? neonBlueMat : neonCyanMat);
+          gutNeonL.position.set(-gutterOffset, 0.068, -2.5);
+
+          const gutNeonR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.025, laneLength), (l % 2 === 0) ? neonBlueMat : neonCyanMat);
+          gutNeonR.position.set(gutterOffset, 0.068, -2.5);
+
+          laneGroup.add(gutL, gutR, gutNeonL, gutNeonR);
+
+          // 4. Polished Divider Wall with Gold Railings
+          const divW = 0.16;
+          const divH = 0.28;
+          const divX = -laneSpacing / 2;
+
+          const divMesh = new THREE.Mesh(new THREE.BoxGeometry(divW, divH, laneLength), dividerMat);
+          divMesh.position.set(divX, 0.14, -2.5);
+          divMesh.castShadow = true;
+
+          const divGoldRail = new THREE.Mesh(new THREE.BoxGeometry(divW + 0.03, 0.025, laneLength), dividerGoldTrimMat);
+          divGoldRail.position.set(divX, divH + 0.015, -2.5);
+
+          laneGroup.add(divMesh, divGoldRail);
+
           if (l === numLanes - 1) {
-            const divEnd = new THREE.Mesh(BOWLING_DIVIDER_GEO, BOWLING_DIVIDER_MAT);
-            divEnd.position.set(laneX + laneSpacing / 2, 0.11, -2.5);
-            g.add(divEnd);
+            const divEnd = new THREE.Mesh(new THREE.BoxGeometry(divW, divH, laneLength), dividerMat);
+            divEnd.position.set(laneSpacing / 2, 0.14, -2.5);
+            divEnd.castShadow = true;
+
+            const divEndGold = new THREE.Mesh(new THREE.BoxGeometry(divW + 0.03, 0.025, laneLength), dividerGoldTrimMat);
+            divEndGold.position.set(laneSpacing / 2, divH + 0.015, -2.5);
+
+            laneGroup.add(divEnd, divEndGold);
           }
 
-          // 4. Pinsetter Pit & 10 Regulation Bowling Pins at Deep End (z = -24.5)
-          const pinRows = [[0], [-0.22, 0.22], [-0.44, 0, 0.44], [-0.66, -0.22, 0.22, 0.66]];
-          pinRows.forEach((rowPins, rIdx) => {
-            const pinZ = -24.5 - rIdx * 0.38;
-            rowPins.forEach(px => {
-              const pinGrp = new THREE.Group();
-              const pinBody = new THREE.Mesh(BOWLING_PIN_BODY_GEO, BOWLING_PIN_MAT);
-              pinBody.position.y = 0.32;
-              const pinHead = new THREE.Mesh(BOWLING_PIN_HEAD_GEO, BOWLING_PIN_MAT);
-              pinHead.position.y = 0.56;
-              const pinStripe = new THREE.Mesh(BOWLING_PIN_STRIPE_GEO, BOWLING_PIN_RED_MAT);
-              pinStripe.position.y = 0.48;
-              pinGrp.add(pinBody, pinHead, pinStripe);
-              pinGrp.position.set(laneX + px, 0, pinZ);
-              g.add(pinGrp);
+          // 5. Pin Deck Hardwood Frame & 10 Glowing Physical 3D Pin Deck Spots
+          const pinDeckFrameMat = new THREE.MeshStandardMaterial({ color: 0x090514, roughness: 0.35, metalness: 0.85 });
+          const pinSpotRingMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 2.2, roughness: 0.2 });
+          const pinSpotCenterMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xd97706, emissiveIntensity: 1.2, roughness: 0.2 });
+
+          // Pin Deck Base Frame (Marco perimetral del Pin Deck z = -22.5 a -26.0)
+          const pinDeckLength = 3.6;
+          const pinDeckZ = -24.2;
+          const deckBorderL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, pinDeckLength), dividerGoldTrimMat);
+          deckBorderL.position.set(-laneWidth / 2 + 0.02, 0.122, pinDeckZ);
+          const deckBorderR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, pinDeckLength), dividerGoldTrimMat);
+          deckBorderR.position.set(laneWidth / 2 - 0.02, 0.122, pinDeckZ);
+          const deckTailPlank = new THREE.Mesh(new THREE.BoxGeometry(laneWidth, 0.04, 0.14), pinDeckFrameMat);
+          deckTailPlank.position.set(0, 0.11, -25.95);
+          const deckTailTrim = new THREE.Mesh(new THREE.BoxGeometry(laneWidth, 0.02, 0.03), dividerGoldTrimMat);
+          deckTailTrim.position.set(0, 0.125, -25.88);
+
+          laneGroup.add(deckBorderL, deckBorderR, deckTailPlank, deckTailTrim);
+
+          // 10 Regulation Sculpted Pins aligned with the Pin Deck Frame (z = -23.0 to -25.4)
+          const pinRows = [
+            [0],                          // Pin 1 (Apex headpin)
+            [-0.30, 0.30],                // Pins 2, 3
+            [-0.60, 0, 0.60],             // Pins 4, 5, 6
+            [-0.90, -0.30, 0.30, 0.90]    // Pins 7, 8, 9, 10 (Back row)
+          ];
+
+          pinRows.forEach((rowOffsets, rIdx) => {
+            const pinZ = -23.00 - rIdx * 0.80;
+            rowOffsets.forEach(px => {
+              // 3D Glowing Circular Pin Spot on Deck
+              const spotRing = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.008, 12, 24), pinSpotRingMat);
+              spotRing.rotation.x = Math.PI / 2;
+              spotRing.position.set(px, 0.122, pinZ);
+
+              const spotCenter = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.005, 16), pinSpotCenterMat);
+              spotCenter.position.set(px, 0.122, pinZ);
+
+              // 1.85x Scaled Sculpted Pin perfectly centered on its spot
+              const pin = createSingle3DBowlingPin();
+              pin.position.set(px, 0.126, pinZ);
+
+              laneGroup.add(spotRing, spotCenter, pin);
             });
           });
 
-          // Pinsetter Hood Box with Neon Backlit Number
-          const hood = new THREE.Mesh(BOWLING_HOOD_GEO, BOWLING_HOOD_MAT);
-          hood.position.set(laneX, 1.25, -26.2);
-          g.add(hood);
+          // 6. High-Tech Pinsetter Hood Enclosure with Animated Backlit Number Badge & Sweep Bar
+          const hoodGroup = new THREE.Group();
+          hoodGroup.position.set(0, 1.45, -26.20);
 
-          // Suspended Overhead Score Monitors along the Runway
+          const hoodMat = new THREE.MeshStandardMaterial({ color: 0x0a0614, roughness: 0.2, metalness: 0.8 });
+          const hoodBox = new THREE.Mesh(new THREE.BoxGeometry(laneWidth + 0.95, 2.6, 2.0), hoodMat);
+          hoodBox.castShadow = true;
+
+          const hoodGoldBezel = new THREE.Mesh(new THREE.BoxGeometry(laneWidth + 0.98, 2.64, 0.06), dividerGoldTrimMat);
+          hoodGoldBezel.position.z = 1.01;
+
+          // Digital Lane Number Canvas Badge (e.g. "LANE 1" ... "LANE 6")
+          const laneSignCanvas = document.createElement('canvas');
+          laneSignCanvas.width = 512; laneSignCanvas.height = 256;
+          const sCtx = laneSignCanvas.getContext('2d');
+          sCtx.fillStyle = '#05020a'; sCtx.fillRect(0, 0, 512, 256);
+          sCtx.strokeStyle = '#38bdf8'; sCtx.lineWidth = 8;
+          sCtx.strokeRect(10, 10, 492, 236);
+          sCtx.font = '900 76px "Segoe UI", Arial';
+          sCtx.fillStyle = '#38bdf8'; sCtx.textAlign = 'center'; sCtx.textBaseline = 'middle';
+          sCtx.fillText(`PISTA 0${l + 1}`, 256, 95);
+          sCtx.font = 'bold 34px "Segoe UI", Arial';
+          sCtx.fillStyle = '#fbbf24';
+          sCtx.fillText('★ MIDNIGHT CHAMPIONSHIP ★', 256, 175);
+
+          const signTex = new THREE.CanvasTexture(laneSignCanvas);
+          const signMat = new THREE.MeshStandardMaterial({
+            map: signTex,
+            emissive: 0x38bdf8,
+            emissiveMap: signTex,
+            emissiveIntensity: 0.85
+          });
+          const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.85), signMat);
+          signMesh.position.set(0, 0.40, 1.04);
+
+          // Mechanical Sweep Rake Arm (Barra de barrido)
+          const sweepBar = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, laneWidth + 0.5, 16), dividerGoldTrimMat);
+          sweepBar.rotation.z = Math.PI / 2;
+          sweepBar.position.set(0, -0.65, 0.85);
+
+          hoodGroup.add(hoodBox, hoodGoldBezel, signMesh, sweepBar);
+          laneGroup.add(hoodGroup);
+
+          // 7. Suspended Overhead Score TV Monitors (Dual Displays along the runway)
           [-10.0, 6.0, 20.0].forEach(mz => {
-            const monitorPole = new THREE.Mesh(BOWLING_MONITOR_POLE_GEO, BOWLING_DIVIDER_MAT);
-            monitorPole.position.set(laneX, 4.2, mz);
-            const monitor = new THREE.Mesh(BOWLING_MONITOR_BOX_GEO, BOWLING_MONITOR_MAT);
-            monitor.position.set(laneX, 3.2, mz);
-            g.add(monitorPole, monitor);
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.6, 16), dividerGoldTrimMat);
+            pole.position.set(0, 4.4, mz);
+
+            const tvFrame = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.15, 0.20), hoodMat);
+            tvFrame.position.set(0, 3.2, mz);
+
+            // Overhead Score Monitor Canvas
+            const mCanvas = document.createElement('canvas');
+            mCanvas.width = 512; mCanvas.height = 256;
+            const mCtx = mCanvas.getContext('2d');
+            mCtx.fillStyle = '#070312'; mCtx.fillRect(0, 0, 512, 256);
+            mCtx.strokeStyle = '#d4af37'; mCtx.lineWidth = 6; mCtx.strokeRect(6, 6, 500, 244);
+            mCtx.font = '900 48px "Segoe UI", Arial';
+            mCtx.fillStyle = '#22c55e'; mCtx.textAlign = 'center';
+            mCtx.fillText('🎳 STRIKE! 🎳', 256, 70);
+            mCtx.font = 'bold 36px "Segoe UI", Arial';
+            mCtx.fillStyle = '#ffffff';
+            mCtx.fillText(`JUGADOR: 248 PTS`, 256, 140);
+            mCtx.font = 'bold 24px "Segoe UI", Arial';
+            mCtx.fillStyle = '#38bdf8';
+            mCtx.fillText(`CUADRO 10 · PISTA 0${l + 1}`, 256, 200);
+
+            const mTex = new THREE.CanvasTexture(mCanvas);
+            const mMat = new THREE.MeshStandardMaterial({
+              map: mTex,
+              emissive: 0x38bdf8,
+              emissiveMap: mTex,
+              emissiveIntensity: 0.65
+            });
+            const tvScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.98, 1.05), mMat);
+            tvScreen.position.set(0, 3.2, mz + 0.11);
+
+            laneGroup.add(pole, tvFrame, tvScreen);
           });
 
-          // Ball Return Rack with Return Track & 5 Bowling Balls
-          const rack = new THREE.Mesh(BOWLING_RACK_GEO, BOWLING_RACK_MAT);
-          rack.position.set(laneX - laneSpacing / 2, 0.35, 19.5);
-          g.add(rack);
+          // 8. Ball Return Elevator & Scaled-Up Rack Stand with 6 Large Bowling Balls (radius = 0.25m)
+          const rackGroup = new THREE.Group();
+          rackGroup.position.set(-laneSpacing / 2, 0.05, 19.5);
 
-          for (let b = 0; b < 5; b++) {
-            const ballMat = getBowlingBallMaterial(ballCols[(l * 5 + b) % ballCols.length]);
-            const ball = new THREE.Mesh(BOWLING_BALL_GEO, ballMat);
-            ball.position.set(laneX - laneSpacing / 2, 0.76, 17.8 + b * 0.42);
-            g.add(ball);
+          const rackBaseMat = new THREE.MeshStandardMaterial({ color: 0x110822, metalness: 0.8, roughness: 0.25 });
+          const rackConsole = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.88, 6.5), rackBaseMat);
+          rackConsole.position.y = 0.44;
+          rackConsole.castShadow = true;
+
+          const rackGoldTrim = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.05, 6.55), dividerGoldTrimMat);
+          rackGoldTrim.position.y = 0.89;
+
+          // Double Polished Chrome Return Tubular Rails
+          const railL = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 6.3, 16), dividerGoldTrimMat);
+          railL.rotation.x = Math.PI / 2;
+          railL.position.set(-0.16, 0.92, 0);
+
+          const railR = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 6.3, 16), dividerGoldTrimMat);
+          railR.rotation.x = Math.PI / 2;
+          railR.position.set(0.16, 0.92, 0);
+
+          // LED Ambient Underglow strip under rack
+          const rackNeon = new THREE.Mesh(new THREE.BoxGeometry(0.90, 0.04, 6.3), neonBlueMat);
+          rackNeon.position.set(0, 0.06, 0);
+
+          rackGroup.add(rackConsole, rackGoldTrim, railL, railR, rackNeon);
+
+          // 6 Large Marbled 3-Hole Bowling Balls placed in the rack
+          for (let b = 0; b < 6; b++) {
+            const ball = createSingle3DBowlingBall(l * 3 + b, 0.25);
+            ball.position.set(0, 1.05, -2.40 + b * 0.96);
+            rackGroup.add(ball);
           }
+
+          laneGroup.add(rackGroup);
+          g.add(laneGroup);
         }
 
-        // Approach Hardwood Floor Area
-        const approachFloor = new THREE.Mesh(new THREE.BoxGeometry(numLanes * laneSpacing + 1.6, 0.08, 8.5),
-          new THREE.MeshStandardMaterial({ color: 0x140d24, roughness: 0.5 }));
-        approachFloor.position.set(0, 0.04, 25.5);
+        // -------------------------------------------------------------
+        // Approach Runway, VIP Lounge Sofas, Tables, Palms & Chandeliers
+        // -------------------------------------------------------------
+        const approachW = numLanes * laneSpacing + 2.8;
+        const approachFloor = new THREE.Mesh(
+          new THREE.BoxGeometry(approachW, 0.10, 9.8),
+          new THREE.MeshStandardMaterial({
+            color: 0x180f2e,
+            roughness: 0.35,
+            metalness: 0.25
+          })
+        );
+        approachFloor.position.set(0, 0.05, 26.2);
+        approachFloor.receiveShadow = true;
         g.add(approachFloor);
 
-        // Player VIP Lounges (Sectional Sofas & Tables)
-        const sofaMat = new THREE.MeshStandardMaterial({ color: 0x1c1032, emissive: 0x3b82f6, emissiveIntensity: 0.2 });
-        const sofaL = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.55, 1.4), sofaMat);
-        sofaL.position.set(-4.8, 0.40, 28.5);
-        const sofaR = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.55, 1.4), sofaMat);
-        sofaR.position.set(4.8, 0.40, 28.5);
-        g.add(sofaL, sofaR);
+        // Gold Trim Line surrounding approach floor
+        const approachGoldTrim = new THREE.Mesh(
+          new THREE.BoxGeometry(approachW + 0.10, 0.025, 9.88),
+          dividerGoldTrimMat
+        );
+        approachGoldTrim.position.set(0, 0.11, 26.2);
+        g.add(approachGoldTrim);
 
-        // Palm Trees & Golden Lamps
-        const p1 = createCasinoPalmTree(); p1.position.set(-10.5, 0, 28.5);
-        const p2 = createCasinoPalmTree(); p2.position.set(10.5, 0, 28.5);
-        const l1 = createGoldenLampPost(); l1.position.set(-10.5, 0, 24.0);
-        const l2 = createGoldenLampPost(); l2.position.set(10.5, 0, 24.0);
+        // Player VIP Lounges (Curved Velvet Sofas & Gold Champagne Tables)
+        const sofaVelvetMat = new THREE.MeshStandardMaterial({
+          color: 0x311b92,
+          emissive: 0x4a148c,
+          emissiveIntensity: 0.3,
+          roughness: 0.55,
+          metalness: 0.15
+        });
+
+        [-7.8, 7.8].forEach(sofaX => {
+          const sofaGrp = new THREE.Group();
+          sofaGrp.position.set(sofaX, 0, 28.5);
+
+          const sofaBase = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.46, 1.5), sofaVelvetMat);
+          sofaBase.position.y = 0.23;
+          sofaBase.castShadow = true;
+
+          const sofaBack = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.60, 0.38), sofaVelvetMat);
+          sofaBack.position.set(0, 0.60, 0.56);
+          sofaBack.castShadow = true;
+
+          const sofaGoldBezel = new THREE.Mesh(new THREE.BoxGeometry(7.66, 0.045, 1.54), dividerGoldTrimMat);
+          sofaGoldBezel.position.y = 0.47;
+
+          sofaGrp.add(sofaBase, sofaBack, sofaGoldBezel);
+
+          // Cocktail Table with Champagne Chiller & Glass Flutes
+          const tableBase = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.50, 0.46, 24), dividerMat);
+          tableBase.position.set(0, 0.23, -1.3);
+
+          const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(0.60, 0.60, 0.045, 24), dividerGoldTrimMat);
+          tableTop.position.set(0, 0.47, -1.3);
+
+          const chiller = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.10, 0.22, 16), dividerGoldTrimMat);
+          chiller.position.set(0, 0.58, -1.3);
+
+          const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.26, 12),
+            new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.15 }));
+          bottle.position.set(0, 0.69, -1.3);
+          bottle.rotation.z = 0.18;
+
+          sofaGrp.add(tableBase, tableTop, chiller, bottle);
+          g.add(sofaGrp);
+        });
+
+        // Exotic Royal Palm Trees & Art Deco Lamp Posts
+        const p1 = createCasinoPalmTree(); p1.position.set(-11.8, 0, 28.5);
+        const p2 = createCasinoPalmTree(); p2.position.set(11.8, 0, 28.5);
+        const l1 = createGoldenLampPost(); l1.position.set(-11.8, 0, 23.5);
+        const l2 = createGoldenLampPost(); l2.position.set(11.8, 0, 23.5);
         g.add(p1, p2, l1, l2);
 
-        // 4 Overhead Runway Floodlights
-        [-20.0, -7.0, 6.0, 19.0].forEach(lz => {
-          const bLight = new THREE.PointLight(0x3b82f6, 2.8, 30);
-          bLight.position.set(0, 6.0, lz);
+        // 6 High-Power Overhead Runway Floodlights
+        [-24.0, -14.0, -4.0, 6.0, 16.0, 25.0].forEach(lz => {
+          const bLight = new THREE.PointLight(0x38bdf8, 2.5, 30);
+          bLight.position.set(0, 6.8, lz);
           g.add(bLight);
         });
 
         return g;
       }
-
       // 7. Traditional Cinema Seat 3D Model (Butaca de Cine Clásica de Terciopelo Rojo con Portavasos)
       function createTraditionalCinemaSeat(seatLabel = 'VIP', hasPopcorn = false) {
         const seatGroup = new THREE.Group();
@@ -4439,7 +4967,7 @@
         return pokerGroup;
       }
 
-      ZONES.forEach(z => {
+      (window.ZONES || ZONES).forEach(z => {
         const g = new THREE.Group();
         g.position.set(z.x, 0, z.z);
 
@@ -4494,7 +5022,7 @@
 
         // 1. Plataforma cuadrada de lujo con bordes redondeados (Omitida para la gramola para que no tenga plataforma sobrante)
         let ring = null;
-        if (z.id !== 'jukebox' && z.id !== 'cinema') {
+        if (z.id !== 'jukebox' && z.id !== 'cinema' && z.id !== 'bowling') {
           const plat = createRoundedPlatformMesh(platW, platD, platH, cornerR, 0x1a1030, z.color);
           g.add(plat);
 
@@ -4808,6 +5336,19 @@
           function getBetCanvasCenter(key) {
             if (key === undefined || key === null) return { x: 1024, y: 512 };
             const sKey = String(key).trim();
+
+            // CASILLAS DOBLES (SPLIT BETS) -> Posicionamiento 3D exacto en la lÃ­nea divisoria entre ambas casillas
+            if (sKey.startsWith('split-')) {
+              const parts = sKey.replace('split-', '').split('-').map(Number);
+              if (parts.length === 2) {
+                const c1 = getBetCanvasCenter('num-' + parts[0]);
+                const c2 = getBetCanvasCenter('num-' + parts[1]);
+                return {
+                  x: (c1.x + c2.x) / 2,
+                  y: (c1.y + c2.y) / 2
+                };
+              }
+            }
 
             let numVal = null;
             if (sKey === '0' || sKey === 'num-0') numVal = 0;

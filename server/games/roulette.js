@@ -177,6 +177,17 @@ function setupRouletteSocketEvents(io, socket, players) {
           if (!r.userBets[socket.id]) r.userBets[socket.id] = {};
           r.userBets[socket.id][data.betKey] = roundMoney((r.userBets[socket.id][data.betKey] || 0) + amt);
           broadcastRouletteState(io, rId);
+        } else if (amt < 0) {
+          const refundAmt = Math.abs(amt);
+          const curUserBet = (r.userBets && r.userBets[socket.id] && r.userBets[socket.id][data.betKey]) || 0;
+          const actualRefund = Math.min(refundAmt, curUserBet);
+          if (actualRefund > 0) {
+            r.userBets[socket.id][data.betKey] = roundMoney(curUserBet - actualRefund);
+            if (r.userBets[socket.id][data.betKey] <= 0) delete r.userBets[socket.id][data.betKey];
+            r.bets[data.betKey] = Math.max(0, roundMoney((r.bets[data.betKey] || 0) - actualRefund));
+            if (r.bets[data.betKey] <= 0) delete r.bets[data.betKey];
+            broadcastRouletteState(io, rId);
+          }
         }
       }
     }

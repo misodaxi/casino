@@ -326,13 +326,15 @@
       }
 
       // 2. Slots Spin Button & Chip Selector
-      let slotsBet = 20;
+      window.slotsBet = (typeof window.slotsBet === 'number' && window.slotsBet > 0) ? window.slotsBet : 20;
       document.querySelectorAll('#slotsChipRack .chip').forEach(c => {
         c.addEventListener('click', () => {
+          playSound('chip');
           document.querySelectorAll('#slotsChipRack .chip').forEach(x => x.classList.remove('selected'));
           c.classList.add('selected');
-          slotsBet = parseInt(c.dataset.v, 10);
-          document.getElementById('slotsBetDisplay').textContent = '$' + slotsBet;
+          window.slotsBet = roundMoney(c.dataset.v);
+          const d = document.getElementById('slotsBetDisplay');
+          if (d) d.textContent = formatMoney(window.slotsBet);
         });
       });
       const slotsBtn = document.getElementById('slotsSpinBtn');
@@ -343,13 +345,15 @@
       }
 
       // 3. Pachinko Drop Button
-      window.pachinkoBet = 300;
+      window.pachinkoBet = (typeof window.pachinkoBet === 'number' && window.pachinkoBet >= 300) ? window.pachinkoBet : 300;
       document.querySelectorAll('#pachinkoChipRack .chip').forEach(c => {
         c.addEventListener('click', () => {
+          playSound('chip');
           document.querySelectorAll('#pachinkoChipRack .chip').forEach(x => x.classList.remove('selected'));
           c.classList.add('selected');
-          window.pachinkoBet = parseInt(c.dataset.v, 10);
-          document.getElementById('pachinkoBetDisplay').textContent = '$' + window.pachinkoBet;
+          window.pachinkoBet = Math.max(300, roundMoney(c.dataset.v));
+          const d = document.getElementById('pachinkoBetDisplay');
+          if (d) d.textContent = formatMoney(window.pachinkoBet);
         });
       });
       const pachinkoBtn = document.getElementById('pachinkoDropBtn');
@@ -360,13 +364,15 @@
       }
 
       // 4. Tragaperras Pull Button
-      let tragaBet = 10;
+      window.tragaBet = (typeof window.tragaBet === 'number' && window.tragaBet > 0) ? window.tragaBet : 10;
       document.querySelectorAll('#tragaperrasChipRack .chip').forEach(c => {
         c.addEventListener('click', () => {
+          playSound('chip');
           document.querySelectorAll('#tragaperrasChipRack .chip').forEach(x => x.classList.remove('selected'));
           c.classList.add('selected');
-          tragaBet = parseInt(c.dataset.v, 10);
-          document.getElementById('tragaperrasBetDisplay').textContent = '$' + tragaBet;
+          window.tragaBet = roundMoney(c.dataset.v);
+          const d = document.getElementById('tragaperrasBetDisplay');
+          if (d) d.textContent = formatMoney(window.tragaBet);
         });
       });
       const tragaBtn = document.getElementById('tragaperrasPullBtn');
@@ -414,7 +420,278 @@
         });
       }
 
+            /* ============================================================
+         GLOBAL MOUSE WHEEL FAST BET ADJUSTMENT (ALL CASINO MACHINES)
+      ============================================================ */
+      function handleGlobalWheelBet(deltaY) {
+        const dir = (deltaY < 0) ? 1 : -1; // 1 = scroll up (increase), -1 = scroll down (decrease)
+        const currentMode = (typeof state !== 'undefined' && state.mode) ? state.mode : null;
+        const currentSeatZone = (typeof state !== 'undefined' && state.player && state.player.currentSeat) ? state.player.currentSeat.zone : null;
+        const activeZoneId = (currentMode && currentMode !== 'casino' && currentMode !== 'transition') ? currentMode : currentSeatZone;
+
+        if (!activeZoneId || activeZoneId === 'casino' || activeZoneId === 'transition') {
+          return false;
+        }
+
+        // 1. DADOS (DICE)
+        if (activeZoneId === 'dice') {
+          if (typeof dState !== 'undefined' && !dState.rolling) {
+            const step = roundMoney((typeof dState.selectedChip === 'number' && dState.selectedChip > 0) ? dState.selectedChip : 50);
+            let curBet = (typeof dState.bet === 'number' && dState.bet > 0) ? dState.bet : step;
+            let nextBet = (dir > 0) ? roundMoney(curBet + step) : roundMoney(curBet - step);
+            nextBet = Math.max(step, Math.min(state.balance, nextBet));
+            if (nextBet !== curBet) {
+              dState.bet = nextBet;
+              const d = document.getElementById('diceBetDisplay');
+              if (d) d.textContent = formatMoney(nextBet);
+              if (typeof update3DDiceChips === 'function') update3DDiceChips(nextBet);
+              if (typeof updateDiceTableUI === 'function' && window.diceServerState) updateDiceTableUI(window.diceServerState);
+              playSound('chip', 0.85);
+              return true;
+            }
+          }
+        }
+
+        // 2. COIN FLIP
+        if (activeZoneId === 'coin') {
+          if (typeof coinState !== 'undefined') {
+            const step = roundMoney((typeof coinState.selectedChip === 'number' && coinState.selectedChip > 0) ? coinState.selectedChip : 50);
+            let curBet = (typeof coinState.bet === 'number' && coinState.bet > 0) ? coinState.bet : step;
+            let nextBet = (dir > 0) ? roundMoney(curBet + step) : roundMoney(curBet - step);
+            nextBet = Math.max(step, Math.min(state.balance, nextBet));
+            if (nextBet !== curBet) {
+              coinState.bet = nextBet;
+              const d = document.getElementById('coinBetDisplay');
+              if (d) d.textContent = formatMoney(nextBet);
+              if (typeof update3DCoinChips === 'function') update3DCoinChips(nextBet);
+              if (typeof updateCoinTableUI === 'function' && window.coinServerState) updateCoinTableUI(window.coinServerState);
+              playSound('chip', 0.85);
+              return true;
+            }
+          }
+        }
+
+        // 3. BLACKJACK
+        if (activeZoneId === 'blackjack') {
+          if (typeof bjState !== 'undefined' && !bjState.active) {
+            const step = roundMoney((typeof bjState.selectedChip === 'number' && bjState.selectedChip > 0) ? bjState.selectedChip : 50);
+            let curBet = (typeof bjState.bet === 'number' && bjState.bet > 0) ? bjState.bet : 0;
+            let nextBet = (dir > 0) ? roundMoney(curBet + step) : roundMoney(curBet - step);
+            nextBet = Math.max(step, Math.min(state.balance, nextBet));
+            if (nextBet !== curBet) {
+              bjState.bet = nextBet;
+              if (typeof bjBetFirstClick !== 'undefined') bjBetFirstClick = false;
+              const d = document.getElementById('bjBetDisplay');
+              if (d) d.textContent = formatMoney(nextBet);
+              if (window.bj3DRefs && typeof update3DBJChips === 'function') update3DBJChips(nextBet);
+              if (typeof socket !== 'undefined' && socket && socket.connected) {
+                const mySeat = (state.player.currentSeat && typeof state.player.currentSeat.seatIndex === 'number') ? state.player.currentSeat.seatIndex : 1;
+                socket.emit('blackjackBetChange', { bet: nextBet, seatIndex: mySeat });
+              }
+              playSound('chip', 0.85);
+              return true;
+            }
+          }
+        }
+
+        // 4. SLOTS 5x5
+        if (activeZoneId === 'slots') {
+          const selEl = document.querySelector('#slotsChipRack .chip.selected');
+          const step = selEl ? roundMoney(selEl.dataset.v) : 20;
+          let curBet = (typeof window.slotsBet === 'number' && window.slotsBet > 0) ? window.slotsBet : 20;
+          let nextBet = (dir > 0) ? roundMoney(curBet + step) : roundMoney(curBet - step);
+          nextBet = Math.max(step, Math.min(state.balance, nextBet));
+          if (nextBet !== curBet) {
+            window.slotsBet = nextBet;
+            const d = document.getElementById('slotsBetDisplay');
+            if (d) d.textContent = formatMoney(nextBet);
+            playSound('chip', 0.85);
+            return true;
+          }
+        }
+
+        // 5. PACHINKO / GACHAPON
+        if (activeZoneId === 'pachinko') {
+          const selEl = document.querySelector('#pachinkoChipRack .chip.selected');
+          const step = selEl ? parseInt(selEl.dataset.v, 10) : 300;
+          let curBet = (typeof window.pachinkoBet === 'number') ? window.pachinkoBet : 300;
+          let nextBet = (dir > 0) ? roundMoney(curBet + step) : roundMoney(curBet - step);
+          nextBet = Math.max(300, Math.min(state.balance, nextBet));
+          if (nextBet !== curBet) {
+            window.pachinkoBet = nextBet;
+            const d = document.getElementById('pachinkoBetDisplay');
+            if (d) d.textContent = '$' + nextBet;
+            playSound('chip', 0.85);
+            return true;
+          }
+        }
+
+        // 6. TRAGAPERRAS 777
+        if (activeZoneId === 'tragaperras') {
+          const selEl = document.querySelector('#tragaperrasChipRack .chip.selected');
+          const step = selEl ? roundMoney(selEl.dataset.v) : 10;
+          let curBet = (typeof window.tragaBet === 'number' && window.tragaBet > 0) ? window.tragaBet : 10;
+          let nextBet = (dir > 0) ? roundMoney(curBet + step) : roundMoney(curBet - step);
+          nextBet = Math.max(step, Math.min(state.balance, nextBet));
+          if (nextBet !== curBet) {
+            window.tragaBet = nextBet;
+            const d = document.getElementById('tragaperrasBetDisplay');
+            if (d) d.textContent = formatMoney(nextBet);
+            playSound('chip', 0.85);
+            return true;
+          }
+        }
+
+        // 7. FORTUNE WHEEL
+        if (activeZoneId === 'wheel') {
+          const selEl = document.querySelector('#chipRackWheel .chip.selected');
+          const step = selEl ? roundMoney(selEl.dataset.v) : 50;
+          let curBet = (typeof window.wheelBet === 'number') ? window.wheelBet : 50;
+          let nextBet = (dir > 0) ? roundMoney(curBet + step) : roundMoney(curBet - step);
+          nextBet = Math.max(step, Math.min(state.balance, nextBet));
+          if (nextBet !== curBet) {
+            window.wheelBet = nextBet;
+            const d = document.getElementById('wheelBetDisplay');
+            if (d) d.textContent = formatMoney(nextBet);
+            if (typeof update3DWheelChips === 'function') update3DWheelChips();
+            playSound('chip', 0.85);
+            return true;
+          }
+        }
+
+        // 8. PLINKO
+        if (activeZoneId === 'plinko') {
+          const selEl = document.querySelector('#chipRackPlinko .chip.selected');
+          const step = selEl ? roundMoney(selEl.dataset.v) : 50;
+          let curBet = (typeof plinkoBet === 'number') ? plinkoBet : 50;
+          let nextBet = (dir > 0) ? roundMoney(curBet + step) : roundMoney(curBet - step);
+          nextBet = Math.max(step, Math.min(state.balance, nextBet));
+          if (nextBet !== curBet) {
+            plinkoBet = nextBet;
+            if (typeof pState !== 'undefined') pState.bet = nextBet;
+            const d = document.getElementById('plinkoBetDisplay');
+            if (d) d.textContent = formatMoney(nextBet);
+            playSound('chip', 0.85);
+            return true;
+          }
+        }
+
+        // 9. MINES
+        if (activeZoneId === 'mines') {
+          if (typeof mState !== 'undefined' && !mState.active) {
+            const step = 50;
+            let curBet = (typeof mState.bet === 'number') ? mState.bet : 50;
+            let nextBet = (dir > 0) ? roundMoney(curBet + step) : roundMoney(curBet - step);
+            nextBet = Math.max(step, Math.min(state.balance, nextBet));
+            if (nextBet !== curBet) {
+              mState.bet = nextBet;
+              const d = document.getElementById('minesBetDisplay');
+              if (d) d.textContent = formatMoney(nextBet);
+              playSound('chip', 0.85);
+              return true;
+            }
+          }
+        }
+
+        // 10. POKER 3D (Full synchronized 3D chip stacks in front of player's seat)
+        if (activeZoneId === 'poker') {
+          const p = (typeof pokerState !== 'undefined') ? pokerState : (typeof window.pokerState !== 'undefined' ? window.pokerState : null);
+          if (p && (!p.inHand || p.phase === 'WAITING' || p.phase === 'ENDED')) {
+            const step = roundMoney((typeof p.selectedChip === 'number' && p.selectedChip > 0) ? p.selectedChip : 50);
+            let curBet = (typeof p.bet === 'number' && p.bet > 0) ? p.bet : step;
+            let nextBet = (dir > 0) ? roundMoney(curBet + step) : roundMoney(curBet - step);
+            nextBet = Math.max(step, Math.min(state.balance, nextBet));
+            if (nextBet !== curBet) {
+              p.bet = nextBet;
+              p.currentBet = nextBet;
+              const mySeatIdx = (state.player.currentSeat && typeof state.player.currentSeat.seatIndex === 'number')
+                ? state.player.currentSeat.seatIndex
+                : (p.mySeatIndex || 0);
+
+              if (p.seats && p.seats[mySeatIdx]) {
+                p.seats[mySeatIdx].bet = nextBet;
+              }
+
+              const d = document.getElementById('pokerBetDisplay');
+              if (d) d.textContent = formatMoney(nextBet);
+
+              if (typeof updatePokerHUD === 'function') updatePokerHUD();
+              if (typeof update3DPokerChips === 'function') update3DPokerChips();
+              if (window.poker3DRefs && window.poker3DRefs.update3DPokerChips) window.poker3DRefs.update3DPokerChips();
+              if (window.poker3DRefs && window.poker3DRefs.update3DPokerChipRackSelection) window.poker3DRefs.update3DPokerChipRackSelection();
+
+              playSound('chip', 0.85);
+              return true;
+            }
+          }
+        }
+
+        // 11. ROULETTE 3D (Hovered spot bet adjust OR cycling active chip in rack)
+        if (activeZoneId === 'roulette') {
+          if (typeof rState !== 'undefined' && !rState.spinning) {
+            // Check if hovering over a 3D felt spot or 2D bet cell
+            let hoveredBetKey = null;
+            if (typeof getHoveredRouletteBetKey === 'function' && typeof lastMouseClientX === 'number' && typeof lastMouseClientY === 'number') {
+              hoveredBetKey = getHoveredRouletteBetKey(lastMouseClientX, lastMouseClientY);
+            }
+            if (!hoveredBetKey) {
+              const hoveredCell = document.querySelector('#betGrid .cell:hover');
+              if (hoveredCell && hoveredCell.dataset.key) hoveredBetKey = hoveredCell.dataset.key;
+            }
+
+            if (hoveredBetKey) {
+              const chipVal = roundMoney(rState.selectedChip || 50);
+              if (dir > 0) {
+                // Scroll UP over spot -> Add bet
+                if (typeof placeBetR === 'function') placeBetR(hoveredBetKey);
+                return true;
+              } else {
+                // Scroll DOWN over spot -> Remove/Refund bet
+                if (rState.bets[hoveredBetKey] && rState.bets[hoveredBetKey] > 0) {
+                  const removeAmt = Math.min(chipVal, rState.bets[hoveredBetKey]);
+                  rState.bets[hoveredBetKey] = roundMoney(rState.bets[hoveredBetKey] - removeAmt);
+                  state.balance = roundMoney(state.balance + removeAmt);
+                  rState.totalBet = Math.max(0, roundMoney(rState.totalBet - removeAmt));
+                  if (rState.bets[hoveredBetKey] <= 0) delete rState.bets[hoveredBetKey];
+
+                  updateBalanceUI();
+                  const tb = document.getElementById('totalBetDisplay');
+                  if (tb) tb.textContent = formatMoney(rState.totalBet);
+                  if (typeof renderStakesR === 'function') renderStakesR();
+                  if (roulette3DRefs && roulette3DRefs.update3DPlacedChips) roulette3DRefs.update3DPlacedChips();
+
+                  if (typeof socket !== 'undefined' && socket && socket.connected) {
+                    socket.emit('rouletteBet', { rouletteId: 'roulette', betKey: hoveredBetKey, amount: -removeAmt });
+                  }
+                  playSound('chip', 0.85);
+                  return true;
+                }
+              }
+            }
+
+            // If not hovering over a specific cell -> cycle selected chip rack up/down
+            const chipRack = document.getElementById('chipRackR') || document.getElementById('chipRackRoulette');
+            if (chipRack) {
+              const chips = Array.from(chipRack.querySelectorAll('.chip'));
+              if (chips.length > 0) {
+                const currentIdx = chips.findIndex(c => c.classList.contains('selected'));
+                let nextIdx = (currentIdx === -1) ? 0 : (currentIdx + dir);
+                nextIdx = Math.max(0, Math.min(chips.length - 1, nextIdx));
+                if (nextIdx !== currentIdx) {
+                  chips[nextIdx].click();
+                  return true;
+                }
+              }
+            }
+          }
+        }
+
+        return false;
+      }
+      window.handleGlobalWheelBet = handleGlobalWheelBet;
+
 // --- Explicit Global Window Bindings ---
+if (typeof handleGlobalWheelBet !== 'undefined') window.handleGlobalWheelBet = handleGlobalWheelBet;
 if (typeof updateParticles !== 'undefined') window.updateParticles = updateParticles;
 if (typeof spawnConfetti !== 'undefined') window.spawnConfetti = spawnConfetti;
 if (typeof spawnSparks !== 'undefined') window.spawnSparks = spawnSparks;

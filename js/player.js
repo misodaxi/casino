@@ -185,10 +185,46 @@
 
       window.addEventListener('touchend', () => { isDraggingCam = false; });
 
-      // Mouse Wheel Zoom
-      window.addEventListener('wheel', e => {
-        targetCamDist = Math.max(7, Math.min(35, targetCamDist + e.deltaY * 0.015));
+            // Mouse Position Tracker for 3D Table Raycasting & Wheel Bets
+      var lastMouseClientX = window.innerWidth / 2;
+      var lastMouseClientY = window.innerHeight / 2;
+      window.addEventListener('mousemove', e => {
+        lastMouseClientX = e.clientX;
+        lastMouseClientY = e.clientY;
+        window.lastMouseClientX = e.clientX;
+        window.lastMouseClientY = e.clientY;
       }, { passive: true });
+
+      function getHoveredRouletteBetKey(clientX, clientY) {
+        if (typeof roulette3DRefs === 'undefined' || !roulette3DRefs || !roulette3DRefs.feltMesh) return null;
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2(
+          (clientX / window.innerWidth) * 2 - 1,
+          -(clientY / window.innerHeight) * 2 + 1
+        );
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObject(roulette3DRefs.feltMesh);
+        if (intersects.length > 0) {
+          const uv = intersects[0].uv;
+          return getBetKeyFromUV(uv.x, uv.y);
+        }
+        return null;
+      }
+      window.getHoveredRouletteBetKey = getHoveredRouletteBetKey;
+
+      // Mouse Wheel Zoom (Casino Roam) & Fast Bet Adjustment (In-Game / Machines)
+      window.addEventListener('wheel', e => {
+        if (state.mode !== 'casino' || (state.player && state.player.currentSeat)) {
+          if (typeof handleGlobalWheelBet === 'function') {
+            const handled = handleGlobalWheelBet(e.deltaY);
+            if (handled) {
+              e.preventDefault();
+              return;
+            }
+          }
+        }
+        targetCamDist = Math.max(7, Math.min(35, targetCamDist + e.deltaY * 0.015));
+      }, { passive: false });
 
       function isMovementInputBlocked() {
         if (state.mode !== 'casino') return true;
@@ -1310,20 +1346,61 @@
           const idx = Math.floor((canvasX - 240) / 504);
           var keys = ['dozen1', 'dozen2', 'dozen3'];
           return keys[Math.min(2, Math.max(0, idx))];
-        } else {
-          if (canvasX < 240) return 'num-0';
+        } else if (canvasY >= 30 && canvasY < 660) {
+          if (canvasX < 50) return null;
+          if (canvasX < 240) {
+            // Zona del 0: Borde derecho con las casillas 1, 2, 3 -> Casilla Doble Split (0-1, 0-2, 0-3)
+            if (canvasX >= 210) {
+              const rowIdx = Math.floor((canvasY - 30) / 210);
+              const safeR = Math.min(2, Math.max(0, rowIdx));
+              const numOnRight = NUM_ROWS[safeR][0];
+              return `split-0-${numOnRight}`;
+            }
+            return 'num-0';
+          }
           if (canvasX >= 1752) {
             const rowIdx = Math.floor(Math.max(0, canvasY - 30) / 210);
             var keys = ['col3', 'col2', 'col1'];
             return keys[Math.min(2, Math.max(0, rowIdx))];
           }
-          const colIdx = Math.floor(Math.max(0, canvasX - 240) / 126);
-          const rowIdx = Math.floor(Math.max(0, canvasY - 30) / 210);
+
+          // Matriz de números 3x12 (1 al 36)
+          const colIdx = Math.floor((canvasX - 240) / 126);
+          const rowIdx = Math.floor((canvasY - 30) / 210);
           const safeC = Math.min(11, Math.max(0, colIdx));
           const safeR = Math.min(2, Math.max(0, rowIdx));
-          if (NUM_ROWS[safeR] && NUM_ROWS[safeR][safeC] !== undefined) {
-            return 'num-' + NUM_ROWS[safeR][safeC];
+          const curNum = NUM_ROWS[safeR][safeC];
+
+          const relX = (canvasX - 240) % 126;
+          const relY = (canvasY - 30) % 210;
+
+          // 1. Detección de Casilla Doble con el Cero (0) en el borde izquierdo de columna 0
+          if (safeC === 0 && relX < 28) {
+            return `split-0-${curNum}`;
           }
+
+          // 2. Detección de Casilla Doble Horizontal (Split con columna adyacente)
+          if (relX < 22 && safeC > 0) {
+            const leftNum = NUM_ROWS[safeR][safeC - 1];
+            return `split-${Math.min(curNum, leftNum)}-${Math.max(curNum, leftNum)}`;
+          }
+          if (relX > 104 && safeC < 11) {
+            const rightNum = NUM_ROWS[safeR][safeC + 1];
+            return `split-${Math.min(curNum, rightNum)}-${Math.max(curNum, rightNum)}`;
+          }
+
+          // 3. Detección de Casilla Doble Vertical (Split con fila adyacente arriba/abajo)
+          if (relY < 28 && safeR > 0) {
+            const topNum = NUM_ROWS[safeR - 1][safeC];
+            return `split-${Math.min(curNum, topNum)}-${Math.max(curNum, topNum)}`;
+          }
+          if (relY > 182 && safeR < 2) {
+            const bottomNum = NUM_ROWS[safeR + 1][safeC];
+            return `split-${Math.min(curNum, bottomNum)}-${Math.max(curNum, bottomNum)}`;
+          }
+
+          // Casilla individual estándar
+          return 'num-' + curNum;
         }
         return null;
       }

@@ -228,14 +228,15 @@
     }
 
     const edgeMat = (typeof CARD_EDGE_MAT !== 'undefined') ? CARD_EDGE_MAT : new THREE.MeshStandardMaterial({ color: 0xefeee8 });
-    const frontMat = getCardFrontMaterial(cardObj);
+    // Si la carta no está descubierta, ocultar totalmente la cara frontal para privacidad absoluta
+    const frontMat = isFaceUp ? getCardFrontMaterial(cardObj) : getCardFrontMaterial({ hidden: true, v: '?', s: '' });
     const backMat = getCardBackMaterial();
 
     const materials = [
       edgeMat,
       edgeMat,
-      isFaceUp ? frontMat : backMat,
-      isFaceUp ? backMat : frontMat,
+      frontMat, // Material 2 (+Y, cara superior de la caja)
+      backMat,  // Material 3 (-Y, cara inferior con patrón dorsal de lujo)
       edgeMat,
       edgeMat
     ];
@@ -243,7 +244,10 @@
     const mesh = new THREE.Mesh(CARD_GEO, materials);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.userData = { cardObj, isFaceUp };
+    mesh.userData = { cardObj: isFaceUp ? cardObj : null, isFaceUp };
+    if (!isFaceUp) {
+      mesh.rotation.z = Math.PI; // Vuelta completa hacia abajo: el dorsal queda arriba
+    }
     return mesh;
   }
 
@@ -433,14 +437,14 @@
       // Card 1
       const c1Mesh = create3DCardMesh(seat.cards[0], isFaceUp);
       c1Mesh.position.copy(tf.pos1);
-      c1Mesh.rotation.y = tf.rotY;
+      c1Mesh.rotation.set(0, tf.rotY, isFaceUp ? 0 : Math.PI);
       grp.add(c1Mesh);
       poker3DCardMeshes.push(c1Mesh);
 
       // Card 2
       const c2Mesh = create3DCardMesh(seat.cards[1], isFaceUp);
       c2Mesh.position.copy(tf.pos2);
-      c2Mesh.rotation.y = tf.rotY;
+      c2Mesh.rotation.set(0, tf.rotY, isFaceUp ? 0 : Math.PI);
       grp.add(c2Mesh);
       poker3DCardMeshes.push(c2Mesh);
     });
