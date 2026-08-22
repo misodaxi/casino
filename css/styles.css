@@ -210,6 +210,156 @@
       transform: translate(-50%, -50%) scale(1);
     }
 
+    /* ---------- PERKS TABBED MODAL ---------- */
+    .perks-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      width: 560px;
+      max-width: 94vw;
+      min-height: 380px;
+      background: rgba(15, 9, 31, 0.98);
+      border: 1px solid rgba(139, 92, 246, 0.55);
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.92), 0 0 35px rgba(139, 92, 246, 0.4);
+      padding: 24px;
+      z-index: 10005;
+      pointer-events: auto;
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+      opacity: 0;
+      backdrop-filter: blur(20px);
+      transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+    }
+
+    .perks-modal.show {
+      display: flex !important;
+      opacity: 1 !important;
+      transform: translate(-50%, -50%) scale(1) !important;
+    }
+
+    .perks-tab-bar {
+      display: flex;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      flex-wrap: wrap;
+    }
+
+    .perks-tab-btn {
+      flex: 1 1 calc(16.66% - 6px);
+      min-width: 80px;
+      padding: 7px 10px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #94a3b8;
+      font-family: inherit;
+      font-weight: 800;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.2s;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .perks-tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .perks-tab-btn.active {
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .perks-tab-btn[data-rarity="comun"].active {
+      background: rgba(148, 163, 184, 0.22);
+      border-color: #94a3b8;
+      box-shadow: 0 0 14px rgba(148, 163, 184, 0.4);
+    }
+    .perks-tab-btn[data-rarity="pocoComun"].active {
+      background: rgba(52, 211, 153, 0.22);
+      border-color: #34d399;
+      box-shadow: 0 0 14px rgba(52, 211, 153, 0.4);
+    }
+    .perks-tab-btn[data-rarity="raro"].active {
+      background: rgba(56, 189, 248, 0.22);
+      border-color: #38bdf8;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+    }
+    .perks-tab-btn[data-rarity="epico"].active {
+      background: rgba(192, 132, 252, 0.22);
+      border-color: #c084fc;
+      box-shadow: 0 0 14px rgba(192, 132, 252, 0.4);
+    }
+    .perks-tab-btn[data-rarity="legendario"].active {
+      background: rgba(250, 204, 21, 0.22);
+      border-color: #facc15;
+      box-shadow: 0 0 14px rgba(250, 204, 21, 0.4);
+    }
+    .perks-tab-btn[data-rarity="mitico"].active {
+      background: rgba(255, 0, 85, 0.25);
+      border-color: #ff0055;
+      box-shadow: 0 0 16px rgba(255, 0, 85, 0.55);
+    }
+
+    .perks-tab-content {
+      flex: 1;
+      min-height: 180px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .perks-tab-pane {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      animation: perksTabFadeIn 0.2s ease-out;
+    }
+
+    .perks-tab-pane.active {
+      display: flex;
+    }
+
+    @keyframes perksTabFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .perks-pane-header {
+      text-align: center;
+      padding: 28px 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px dashed rgba(139, 92, 246, 0.3);
+      border-radius: 14px;
+    }
+
+    .perks-pane-header .pane-icon {
+      font-size: 38px;
+      margin-bottom: 8px;
+    }
+
+    .perks-pane-header .pane-title {
+      font-weight: 900;
+      color: #fff;
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .perks-pane-header .pane-desc {
+      color: #94a3b8;
+      font-size: 12px;
+    }
+
     .tv-modal-title {
       font-weight: 900;
       font-size: 16px;
@@ -2205,14 +2355,144 @@
     .badge-good { background: rgba(56, 189, 248, 0.25); color: #38bdf8; border: 1px solid #0284c7; }
     .badge-fair { background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid #d97706; }
     .badge-poor { background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid #dc2626; }
-    .debug-bottom-bar {
+    /* ---------- BOTTOM LEFT HUD PERKS BUTTON ---------- */
+    .bottom-left {
+      position: absolute;
+      bottom: 24px;
+      left: 20px;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    /* ---------- PERKS TABBED MODAL ---------- */
+    .perks-modal {
       position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      width: 580px;
+      max-width: 94vw;
+      min-height: 380px;
+      background: rgba(15, 9, 31, 0.98);
+      border: 1px solid rgba(139, 92, 246, 0.5);
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 35px rgba(139, 92, 246, 0.35);
+      padding: 24px;
+      z-index: 10005;
+      pointer-events: auto;
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+      opacity: 0;
+      backdrop-filter: blur(18px);
+      transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+    }
+
+    .perks-modal.show {
+      display: flex !important;
+      opacity: 1 !important;
+      transform: translate(-50%, -50%) scale(1) !important;
+    }
+
+    .perks-tab-bar {
+      display: flex;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .perks-tab-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #94a3b8;
+      font-family: inherit;
+      font-weight: 800;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .perks-tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .perks-tab-btn.active {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.8), rgba(225, 31, 209, 0.8));
+      color: #fff;
+      border-color: rgba(251, 191, 36, 0.7);
+      box-shadow: 0 0 14px rgba(139, 92, 246, 0.5);
+    }
+
+    .perks-tab-content {
+      flex: 1;
+      min-height: 180px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .perks-tab-pane {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      animation: perksTabFadeIn 0.2s ease-out;
+    }
+
+    .perks-tab-pane.active {
+      display: flex;
+    }
+
+    @keyframes perksTabFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .perks-pane-header {
+      text-align: center;
+      padding: 28px 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px dashed rgba(139, 92, 246, 0.3);
+      border-radius: 14px;
+    }
+
+    .perks-pane-header .pane-icon {
+      font-size: 38px;
+      margin-bottom: 8px;
+    }
+
+    .perks-pane-header .pane-title {
+      font-weight: 900;
+      color: #fff;
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .perks-pane-header .pane-desc {
+      color: #94a3b8;
+      font-size: 12px;
+    }
+
+    .debug-bottom-bar {
+      position: absolute;
       bottom: 20px;
       left: 20px;
       display: flex;
       align-items: center;
       gap: 8px;
-      z-index: 9998;
+      z-index: 120;
       pointer-events: auto;
     }
     .debug-toggle-btn {

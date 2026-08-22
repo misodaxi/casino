@@ -34,6 +34,13 @@
       const debugSlotsEl = document.getElementById('debugSlots');
       const debugPhysicsEl = document.getElementById('debugPhysics');
 
+      const perksBtn = document.getElementById('perksBtn');
+      if (perksBtn) {
+        perksBtn.addEventListener('click', () => {
+          if (typeof openPerksModal === 'function') openPerksModal();
+        });
+      }
+
       if (debugToggleBtn) {
         debugToggleBtn.addEventListener('click', () => {
           if (debugHudEl) debugHudEl.classList.toggle('show');

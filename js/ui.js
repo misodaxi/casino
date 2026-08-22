@@ -690,9 +690,49 @@
       }
       window.handleGlobalWheelBet = handleGlobalWheelBet;
 
+// ================= PERKS MODAL HANDLERS =================
+let _isPerksModalOpen = false;
+function openPerksModal() {
+  _isPerksModalOpen = true;
+  const modal = document.getElementById('perksModal');
+  if (modal) modal.classList.add('show');
+  if (typeof playSound === 'function') playSound('chip', 0.9);
+}
+function closePerksModal() {
+  _isPerksModalOpen = false;
+  const modal = document.getElementById('perksModal');
+  if (modal) modal.classList.remove('show');
+}
+
+function switchPerksTab(tabId, clickedBtn) {
+  const modal = document.getElementById('perksModal');
+  if (!modal) return;
+  modal.querySelectorAll('.perks-tab-btn').forEach(btn => btn.classList.remove('active'));
+  if (clickedBtn) clickedBtn.classList.add('active');
+
+  modal.querySelectorAll('.perks-tab-pane').forEach(pane => pane.classList.remove('active'));
+  const targetPane = document.getElementById(tabId);
+  if (targetPane) targetPane.classList.add('active');
+
+  if (typeof playSound === 'function') playSound('chip', 0.6);
+}
+
+window.openPerksModal = openPerksModal;
+window.closePerksModal = closePerksModal;
+window.switchPerksTab = switchPerksTab;
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && _isPerksModalOpen) {
+    closePerksModal();
+  }
+});
+
 // --- Explicit Global Window Bindings ---
 if (typeof handleGlobalWheelBet !== 'undefined') window.handleGlobalWheelBet = handleGlobalWheelBet;
 if (typeof updateParticles !== 'undefined') window.updateParticles = updateParticles;
 if (typeof spawnConfetti !== 'undefined') window.spawnConfetti = spawnConfetti;
 if (typeof spawnSparks !== 'undefined') window.spawnSparks = spawnSparks;
 if (typeof updateAvatarTag !== 'undefined') window.updateAvatarTag = updateAvatarTag;
+if (typeof openPerksModal !== 'undefined') window.openPerksModal = openPerksModal;
+if (typeof closePerksModal !== 'undefined') window.closePerksModal = closePerksModal;
+if (typeof switchPerksTab !== 'undefined') window.switchPerksTab = switchPerksTab;

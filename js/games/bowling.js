@@ -319,33 +319,59 @@
     // Reproducir sonido hiperrealista de rodaje sobre madera de arce
     playBowlingSound('roll', { duration, power: shotPower });
 
+    // Variables de control de encarrilamiento en canaleta lateral
+    let isInGutter = false;
+    let gutterSide = 0;
+    let gutterDropProgress = 0;
+    let gutterDropStartX = 0;
+
     function animateBall(now) {
       if (!bowlingState.active || !ballMesh) return;
       const elapsed = now - startTime;
       const progress = Math.min(1.0, elapsed / duration);
 
-      // Trajectory: spin curve + dynamic power inaccuracy deviation
       const currentZ = startZ + (targetZ - startZ) * progress;
-      const spinCurve = Math.pow(progress, 2.2) * (bowlingState.spin * 0.35);
-      const powerDeviation = lateralDrift * Math.pow(progress, 1.70); // Magnificado a lo largo de la pista
-      const currentX = startXPos + (bowlingState.aimAngle * (startZ - currentZ)) + spinCurve + powerDeviation;
-
-      ballMesh.position.x = currentX;
       ballMesh.position.z = currentZ;
+
+      if (!isInGutter) {
+        // Trayectoria normal en pista de madera
+        const spinCurve = Math.pow(progress, 2.2) * (bowlingState.spin * 0.35);
+        const powerDeviation = lateralDrift * Math.pow(progress, 1.70);
+        const currentX = startXPos + (bowlingState.aimAngle * (startZ - currentZ)) + spinCurve + powerDeviation;
+        const offsetFromCenter = currentX - bowlingState.worldLaneX;
+
+        if (Math.abs(offsetFromCenter) >= 1.11) {
+          // La bola cae de la pista al canal lateral
+          isInGutter = true;
+          gutterSide = (offsetFromCenter > 0 ? 1 : -1);
+          gutterDropStartX = currentX;
+          gutterDropProgress = 0;
+          playBowlingSound('gutter');
+        } else {
+          ballMesh.position.x = currentX;
+          ballMesh.position.y = 0.37; // Altura perfecta sobre parqué de madera (0.12m + 0.25m)
+        }
+      }
+
+      if (isInGutter) {
+        // Encarrilamiento físico fluido en el centro de la canaleta cóncava (offset = ±1.29m)
+        gutterDropProgress = Math.min(1.0, gutterDropProgress + 0.07);
+        const smoothT = Math.sin(gutterDropProgress * Math.PI * 0.5);
+        const targetGutterX = bowlingState.worldLaneX + (gutterSide * 1.29);
+
+        ballMesh.position.x = gutterDropStartX + (targetGutterX - gutterDropStartX) * smoothT;
+        ballMesh.position.y = 0.37 - (0.09 * smoothT); // Desciende suavemente al lecho del canal (0.28m)
+        ballMesh.rotation.z += gutterSide * 0.10; // Giro por fricción contra el flanco de la canaleta
+      }
+
       ballMesh.rotation.x -= 0.32 * (shotPower / 50);
       ballMesh.rotation.y += bowlingState.spin * 0.06;
-
-      // Si la bola se desvía a la canaleta (|x| > 1.11m respecto al centro de la pista)
-      const distFromCenter = Math.abs(currentX - bowlingState.worldLaneX);
-      if (distFromCenter > 1.11) {
-        ballMesh.position.y = 0.06; // Desciende al canal de desagüe lateral
-      }
 
       if (progress < 1.0) {
         requestAnimationFrame(animateBall);
       } else {
-        // Impact with Pins
-        evaluatePinImpact(currentX - bowlingState.worldLaneX, isForcedGutter);
+        // Impact with Pins or Gutter pit
+        evaluatePinImpact(ballMesh.position.x - bowlingState.worldLaneX, isInGutter || isForcedGutter);
       }
     }
 

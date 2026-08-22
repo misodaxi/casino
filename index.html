@@ -59,6 +59,7 @@
 
     <!-- top right -->
     <div class="top-right">
+      <button class="tv-change-btn" id="perksBtn" onclick="openPerksModal()" title="Menú de Ventajas y Habilidades Especiales (Perks)">⚡ PERKS</button>
       <button class="tv-change-btn" id="tvChangeBtn" onclick="openTVModal()">📺 CAMBIAR VÍDEO / CANAL</button>
       <div class="icon-btn" id="tvBtn" onclick="openTVModal()" title="Reproductor TV Casino 3D (YouTube)">📺</div>
       <div class="icon-btn" id="fullscreenBtn" title="Pantalla Completa (F11)">⛶</div>
@@ -114,7 +115,8 @@
       <span>Axel</span>
       <span class="tag-status">🟢 Explorando</span>
     </div>
-    <!-- Performance & Network Debug HUD -->
+
+    <!-- Performance & Network Debug HUD (F3 Toggle) -->
     <div class="debug-perf-hud" id="debugPerfHud">
       <div class="title"><span>⚡ MIDNIGHT ENGINE DEBUG</span><span id="debugQualityBadge" class="badge badge-excellent">HIGH</span></div>
       <div class="row"><span>FPS / Frame Time:</span><span class="val" id="debugFps">60 FPS (16.6ms)</span></div>
@@ -128,7 +130,9 @@
       <div class="row"><span>Active Slots / Tex Upd:</span><span class="val" id="debugSlots">0 / 30 (0/s)</span></div>
       <div class="row"><span>Active 3D Physics:</span><span class="val" id="debugPhysics">0 activas</span></div>
     </div>
-    <div class="debug-bottom-bar">
+
+    <!-- Bottom Left Realtime FPS & Debug HUD Bar -->
+    <div class="debug-bottom-bar" id="debugBottomBar">
       <button class="debug-toggle-btn" id="debugToggleBtn" title="Alternar panel de diagnóstico (F3)">⚡ DEBUG (F3)</button>
       <div class="fps-counter-badge fps-good" id="fpsCounterBadge" title="Contador de FPS en tiempo real">
         <span class="fps-dot"></span>
@@ -847,6 +851,79 @@
       <button class="action-btn" id="tvSeekForwardBtn" style="padding:8px 12px; font-size:12px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);" title="Adelantar 10s para todos">+10s ⏩</button>
       <button class="action-btn" id="tvMuteBtn"
         style="padding:8px 16px; font-size:12px; background:linear-gradient(135deg,#64748b,#475569);">MUTEAR 🔇</button>
+    </div>
+  </div>
+
+  <!-- ================= PERKS TABBED MENU MODAL ================= -->
+  <div class="perks-modal" id="perksModal">
+    <div class="tv-modal-title">
+      <span style="display:flex; align-items:center; gap:8px;">⚡ MENÚ DE PERKS</span>
+      <button class="icon-btn" id="closePerksModalBtn" onclick="closePerksModal()" style="width:32px; height:32px; cursor:pointer; font-size:16px;" title="Cerrar [ESC]">✕</button>
+    </div>
+
+    <!-- Pestañas por Rarezas del Gachapón -->
+    <div class="perks-tab-bar">
+      <button class="perks-tab-btn active" data-rarity="comun" onclick="switchPerksTab('tab-comun', this)">🍀 Común</button>
+      <button class="perks-tab-btn" data-rarity="pocoComun" onclick="switchPerksTab('tab-poco-comun', this)">⭐ Poco Común</button>
+      <button class="perks-tab-btn" data-rarity="raro" onclick="switchPerksTab('tab-raro', this)">💎 Raro</button>
+      <button class="perks-tab-btn" data-rarity="epico" onclick="switchPerksTab('tab-epico', this)">🔥 Épico</button>
+      <button class="perks-tab-btn" data-rarity="legendario" onclick="switchPerksTab('tab-legendario', this)">👑 Legendario</button>
+      <button class="perks-tab-btn" data-rarity="mitico" onclick="switchPerksTab('tab-mitico', this)">🐉 Mítico</button>
+    </div>
+
+    <!-- Contenido de Pestañas -->
+    <div class="perks-tab-content">
+      <div class="perks-tab-pane active" id="tab-comun">
+        <div class="perks-pane-header" style="border-color: rgba(148, 163, 184, 0.4);">
+          <div class="pane-icon">🍀</div>
+          <div class="pane-title" style="color: #94a3b8;">Perks de Rareza Común</div>
+          <div class="pane-desc">Ventajas iniciales, bonificaciones básicas y multiplicadores de inicio.</div>
+        </div>
+      </div>
+
+      <div class="perks-tab-pane" id="tab-poco-comun">
+        <div class="perks-pane-header" style="border-color: rgba(52, 211, 153, 0.4);">
+          <div class="pane-icon">⭐</div>
+          <div class="pane-title" style="color: #34d399;">Perks Poco Comunes</div>
+          <div class="pane-desc">Potenciadores de suerte, mejoras de experiencia y recompensas aumentadas.</div>
+        </div>
+      </div>
+
+      <div class="perks-tab-pane" id="tab-raro">
+        <div class="perks-pane-header" style="border-color: rgba(56, 189, 248, 0.4);">
+          <div class="pane-icon">💎</div>
+          <div class="pane-title" style="color: #38bdf8;">Perks Raros</div>
+          <div class="pane-desc">Habilidades especiales para mesas de juegos, rachas y descuentos exclusivos.</div>
+        </div>
+      </div>
+
+      <div class="perks-tab-pane" id="tab-epico">
+        <div class="perks-pane-header" style="border-color: rgba(192, 132, 252, 0.4);">
+          <div class="pane-icon">🔥</div>
+          <div class="pane-title" style="color: #c084fc;">Perks Épicos</div>
+          <div class="pane-desc">Multiplicadores de alto calibre, inmunidad a rachas negativas y mejoras astrales.</div>
+        </div>
+      </div>
+
+      <div class="perks-tab-pane" id="tab-legendario">
+        <div class="perks-pane-header" style="border-color: rgba(250, 204, 21, 0.4);">
+          <div class="pane-icon">👑</div>
+          <div class="pane-title" style="color: #facc15;">Perks Legendarios</div>
+          <div class="pane-desc">Privilegios de la realeza dorada, jackpots aumentados y beneficios VIP supremos.</div>
+        </div>
+      </div>
+
+      <div class="perks-tab-pane" id="tab-mitico">
+        <div class="perks-pane-header" style="border-color: rgba(255, 0, 85, 0.4);">
+          <div class="pane-icon">🐉</div>
+          <div class="pane-title" style="color: #ff0055;">Perks Míticos Supremos</div>
+          <div class="pane-desc">Habilidades legendarias del Dragón Ancestral con poder y multiplicadores máximos (0.1%).</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+      <button class="action-btn" onclick="closePerksModal()" style="padding:8px 22px; font-size:12px;">CERRAR ✕</button>
     </div>
   </div>
 

@@ -134,7 +134,7 @@
 
       window.addEventListener('mousedown', e => {
         if (e.button === 0 || e.button === 2) {
-          if (e.target.closest('button, input, textarea, select, .action-btn, .chip, .exit-game-btn, #tvIframeOverlay, #tvYoutubePlayerContainer, iframe, #css3dHost, .tv-modal, .top-right')) {
+          if (e.target.closest('button, input, textarea, select, .action-btn, .chip, .exit-game-btn, #tvIframeOverlay, #tvYoutubePlayerContainer, iframe, #css3dHost, .tv-modal, .perks-modal, .top-right')) {
             return;
           }
           if (state.mode === 'cinema' || state.mode === 'bowling') return;
@@ -163,7 +163,7 @@
       // Touch Orbit for Mobile / Touchpad
       window.addEventListener('touchstart', e => {
         if (e.touches.length === 1) {
-          if (e.target.closest('button, input, textarea, select, .action-btn, .chip, .exit-game-btn, #tvIframeOverlay, #tvYoutubePlayerContainer, iframe, #css3dHost, .tv-modal, .top-right')) {
+          if (e.target.closest('button, input, textarea, select, .action-btn, .chip, .exit-game-btn, #tvIframeOverlay, #tvYoutubePlayerContainer, iframe, #css3dHost, .tv-modal, .perks-modal, .top-right')) {
             return;
           }
           if (state.mode === 'cinema' || state.mode === 'bowling') return;
