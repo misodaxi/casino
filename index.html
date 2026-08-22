@@ -444,19 +444,6 @@
     </div>
   </div>
 
-  <!-- ================= BOWLING OVERLAY ================= -->
-  <div class="game-overlay" id="bowlingWrap">
-    <button class="exit-game-btn" onclick="exitActiveGame()">🚪 LEVANTARSE DE LA PISTA [ESC]</button>
-    <div class="table-title">
-      <h2>BOWLING CASINO 3D</h2><span>PISTA PROFESIONAL · LANZA LA BOLA Y CONSIGUE STRIKE</span>
-    </div>
-    <div class="duel-bottom">
-      <div class="bet-control">
-        <button class="action-btn" id="bowlingRollBtn" style="background:linear-gradient(135deg, #3b82f6, #1d4ed8); box-shadow:0 0 20px rgba(59,130,246,0.6);">LANZAR BOLA 🎳</button>
-      </div>
-    </div>
-  </div>
-
   <!-- ================= TV CASINO SPORTS OVERLAY ================= -->
   <div class="game-overlay" id="tvcasinoWrap">
     <button class="exit-game-btn" onclick="exitActiveGame()">🚪 SALIR DEL LOUNGE TV [ESC]</button>
@@ -623,6 +610,156 @@
     <div class="duel-bottom">
       <div class="bet-control">
         <button class="action-btn" id="jackpotSpinBtn" style="background:linear-gradient(135deg, #ffd700, #b45309); color:#000; font-weight:900;">PROBAR SUERTE JACKPOT 🏆 ($100)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= BOWLING 3D CHAMPIONSHIP OVERLAY ================= -->
+  <div class="game-overlay" id="bowlingWrap">
+    <button class="exit-game-btn" onclick="exitBowlingLane()">🚪 SALIR DE LA PISTA [ESC]</button>
+    <div class="table-title">
+      <h2 id="bowlingLaneTitle">PISTA 01</h2><span>CAMPEONATO DE BOLOS 3D · 48M DE PISTA DE ARCE · LANZA Y CONSIGUE STRIKE</span>
+    </div>
+
+    <!-- Live 10-Frame Scorecard -->
+    <div id="bowlingScorecardWrap" style="position:fixed; top:75px; left:50%; transform:translateX(-50%); background:rgba(15,8,29,0.92); border:1px solid #3b82f6; border-radius:18px; padding:10px 18px; box-shadow:0 8px 30px rgba(0,0,0,0.8); z-index:90; backdrop-filter:blur(12px); max-width:95vw; overflow-x:auto;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <div style="display:flex; gap:4px;" id="bowlingScorecard">
+          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
+            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F1</div>
+            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
+              <div id="bRoll_0_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
+              <div id="bRoll_0_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
+            </div>
+            <div id="bScore_0" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
+          </div>
+          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
+            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F2</div>
+            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
+              <div id="bRoll_1_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
+              <div id="bRoll_1_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
+            </div>
+            <div id="bScore_1" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
+          </div>
+          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
+            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F3</div>
+            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
+              <div id="bRoll_2_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
+              <div id="bRoll_2_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
+            </div>
+            <div id="bScore_2" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
+          </div>
+          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
+            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F4</div>
+            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
+              <div id="bRoll_3_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
+              <div id="bRoll_3_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
+            </div>
+            <div id="bScore_3" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
+          </div>
+          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
+            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F5</div>
+            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
+              <div id="bRoll_4_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
+              <div id="bRoll_4_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
+            </div>
+            <div id="bScore_4" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
+          </div>
+          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
+            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F6</div>
+            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
+              <div id="bRoll_5_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
+              <div id="bRoll_5_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
+            </div>
+            <div id="bScore_5" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
+          </div>
+          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
+            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F7</div>
+            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
+              <div id="bRoll_6_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
+              <div id="bRoll_6_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
+            </div>
+            <div id="bScore_6" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
+          </div>
+          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
+            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F8</div>
+            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
+              <div id="bRoll_7_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
+              <div id="bRoll_7_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
+            </div>
+            <div id="bScore_7" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
+          </div>
+          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
+            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F9</div>
+            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
+              <div id="bRoll_8_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
+              <div id="bRoll_8_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
+            </div>
+            <div id="bScore_8" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
+          </div>
+          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:56px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
+            <div style="font-size:10px; font-weight:900; background:rgba(245,158,11,0.35); color:#fde047; padding:2px 0;">F10</div>
+            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
+              <div id="bRoll_9_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
+              <div id="bRoll_9_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
+            </div>
+            <div id="bScore_9" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:center; background:rgba(59,130,246,0.25); border:1px solid #3b82f6; border-radius:10px; padding:4px 12px;">
+          <span style="font-size:10px; font-weight:900; color:#93c5fd;">TOTAL</span>
+          <span id="bowlingTotalScoreDisplay" style="font-size:18px; font-weight:900; color:#facc15;">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Bottom Controls Console -->
+    <div class="duel-bottom" style="left:50%; right:auto; transform:translateX(-50%); width:auto; max-width:94vw; bottom:20px; display:flex; flex-direction:column; align-items:center; z-index:100; pointer-events:auto;">
+      
+      <!-- Launch Instructions Banner -->
+      <div style="margin-bottom:8px; background:rgba(15,8,29,0.92); padding:6px 20px; border-radius:16px; border:1px solid rgba(59,130,246,0.4); box-shadow:0 0 15px rgba(0,0,0,0.6); font-size:12px; font-weight:800; color:#fbbf24; text-align:center;">
+        ⚡ PULSA EL BOTÓN "LANZAR BOLA 🎳" PARA FIJAR LA POTENCIA Y TIRAR
+      </div>
+
+      <div style="display:flex; align-items:center; gap:16px; background:rgba(15,8,29,0.95); border:1px solid rgba(59,130,246,0.6); box-shadow:0 0 35px rgba(0,0,0,0.9); padding:12px 26px; border-radius:24px; flex-wrap:wrap; justify-content:center; backdrop-filter:blur(16px);">
+        
+        <!-- Aim Left / Right Control -->
+        <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
+          <span style="font-size:10px; font-weight:900; color:#93c5fd;">🎯 APUNTAR (A / D)</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="mini-btn" id="bowlingAimLeftBtn" onclick="if(window.updateAimPosition && window.bowlingState){window.updateAimPosition(window.bowlingState.aimOffset-0.15); const sl=document.getElementById('bowlingAimSlider'); if(sl) sl.value=window.bowlingState.aimOffset;}" style="font-size:13px; padding:6px 12px;">◀</button>
+            <input type="range" id="bowlingAimSlider" min="-0.75" max="0.75" step="0.05" value="0" oninput="if(window.updateAimPosition){window.updateAimPosition(parseFloat(this.value));}" style="width:110px; cursor:pointer;">
+            <button class="mini-btn" id="bowlingAimRightBtn" onclick="if(window.updateAimPosition && window.bowlingState){window.updateAimPosition(window.bowlingState.aimOffset+0.15); const sl=document.getElementById('bowlingAimSlider'); if(sl) sl.value=window.bowlingState.aimOffset;}" style="font-size:13px; padding:6px 12px;">▶</button>
+          </div>
+        </div>
+
+        <!-- Spin / Effect Selector -->
+        <div style="display:flex; flex-direction:column; gap:4px; align-items:center; border-left:1px solid rgba(255,255,255,0.12); padding-left:16px;">
+          <span style="font-size:10px; font-weight:900; color:#93c5fd;">🌀 EFECTO CURVA</span>
+          <div style="display:flex; gap:6px;">
+            <button class="mini-btn bspin-btn" id="bowlingSpinLeft" onclick="if(window.bowlingState){window.bowlingState.spin=-1;document.querySelectorAll('.bspin-btn').forEach(b=>b.style.borderColor='rgba(255,255,255,0.2)');this.style.borderColor='#38bdf8';}" style="font-size:11px; padding:6px 10px;">↺ Gancho Izq</button>
+            <button class="mini-btn bspin-btn" id="bowlingSpinStraight" onclick="if(window.bowlingState){window.bowlingState.spin=0;document.querySelectorAll('.bspin-btn').forEach(b=>b.style.borderColor='rgba(255,255,255,0.2)');this.style.borderColor='#fbbf24';}" style="font-size:11px; padding:6px 10px; border-color:#fbbf24;">| Recto</button>
+            <button class="mini-btn bspin-btn" id="bowlingSpinRight" onclick="if(window.bowlingState){window.bowlingState.spin=1;document.querySelectorAll('.bspin-btn').forEach(b=>b.style.borderColor='rgba(255,255,255,0.2)');this.style.borderColor='#38bdf8';}" style="font-size:11px; padding:6px 10px;">↻ Gancho Der</button>
+          </div>
+        </div>
+
+        <!-- Minijuego: Barra Oscilante de Potencia Continua -->
+        <div style="display:flex; flex-direction:column; gap:4px; align-items:center; border-left:1px solid rgba(255,255,255,0.12); padding-left:16px;">
+          <div style="display:flex; justify-content:space-between; width:160px; font-size:10px; font-weight:900;">
+            <span style="color:#93c5fd;">⚡ POTENCIA TIRO</span>
+            <span id="bowlingPowerVal" style="color:#fbbf24; font-size:11px;">50%</span>
+          </div>
+          <div style="width:160px; height:16px; background:rgba(0,0,0,0.7); border-radius:8px; border:1px solid rgba(255,255,255,0.25); overflow:hidden; position:relative;">
+            <div id="bowlingPowerFill" style="width:50%; height:100%; background:linear-gradient(90deg, #10b981 0%, #f59e0b 60%, #ef4444 90%); border-radius:8px; transition:width 0.02s linear;"></div>
+            <!-- Sweet Spot Strike Marker at 90-100% -->
+            <div style="position:absolute; right:0; top:0; bottom:0; width:15%; border-left:2px dashed #fbbf24; background:rgba(239,68,68,0.25); pointer-events:none;"></div>
+          </div>
+        </div>
+
+        <!-- Launch / Action Button -->
+        <button class="action-btn" id="bowlingRollBtn" onclick="launchBowlingBall()" style="background:linear-gradient(135deg, #3b82f6, #1d4ed8); font-weight:900; font-size:15px; padding:12px 28px; border-radius:16px; box-shadow:0 0 25px rgba(59,130,246,0.6);">
+          LANZAR 🎳
+        </button>
       </div>
     </div>
   </div>
@@ -856,6 +993,7 @@
   <script src="js/games/fortuneWheel.js"></script>
   <script src="js/games/coin.js"></script>
   <script src="js/games/poker.js"></script>
+  <script src="js/games/bowling.js"></script>
   <script src="js/main.js"></script>
 </body>
 

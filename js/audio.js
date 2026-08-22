@@ -47,6 +47,24 @@
         return _explosionNoiseBuf;
       }
 
+      var _bowlingNoiseBuf = null;
+      function getBowlingNoiseBuffer(ctx) {
+        if (!_bowlingNoiseBuf || _cachedSampleRate !== ctx.sampleRate) {
+          _cachedSampleRate = ctx.sampleRate;
+          const bufLen = Math.floor(ctx.sampleRate * 3.2);
+          _bowlingNoiseBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+          const nData = _bowlingNoiseBuf.getChannelData(0);
+          let lastOut = 0.0;
+          for (let i = 0; i < bufLen; i++) {
+            const white = Math.random() * 2 - 1;
+            lastOut = (lastOut + 0.048 * white) / 1.048; // Brown noise de madera
+            const slatMod = 1.0 + 0.12 * Math.sin(i * 0.024) + 0.08 * Math.sin(i * 0.065);
+            nData[i] = lastOut * 3.5 * slatMod;
+          }
+        }
+        return _bowlingNoiseBuf;
+      }
+
       function initAudio() {
         if (!audioCtx) {
           const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -344,6 +362,155 @@
           noise.connect(gain); gain.connect(audioCtx.destination);
           noise.start(now);
           noise.stop(now + 0.4);
+        }
+        else if (type === 'bowling_roll') {
+          // Síntesis física hiperrealista de bola de 16 lbs rodando sobre parqué de arce encerado
+          const duration = (param && typeof param.duration === 'number') ? param.duration / 1000 : 1.6;
+          const power = (param && typeof param.power === 'number') ? param.power : 50;
+          const pNorm = Math.max(0.25, power / 100);
+
+          // 1. Sub-bass & Bass rumble profundo de resonancia de madera (75Hz - 110Hz)
+          const rumbleOsc = audioCtx.createOscillator();
+          const rumbleGain = audioCtx.createGain();
+          const lfoOsc = audioCtx.createOscillator();
+          const lfoGain = audioCtx.createGain();
+
+          rumbleOsc.type = 'triangle';
+          rumbleOsc.frequency.setValueAtTime(82 + pNorm * 24, now);
+          rumbleOsc.frequency.exponentialRampToValueAtTime(68, now + duration);
+
+          // LFO de rotación de la bola (wobble de circunferencia de giro 14-22Hz)
+          lfoOsc.type = 'sine';
+          lfoOsc.frequency.setValueAtTime(14 + pNorm * 8, now);
+          lfoGain.gain.setValueAtTime(0.09 * pNorm, now);
+          lfoOsc.connect(lfoGain);
+          lfoGain.connect(rumbleGain.gain);
+
+          // Envolvente de volumen de rodaje con atenuación espacial a lo largo de los 48m
+          rumbleGain.gain.setValueAtTime(0.30 * pNorm, now);
+          rumbleGain.gain.linearRampToValueAtTime(0.42 * pNorm, now + 0.12); // contacto inicial
+          rumbleGain.gain.exponentialRampToValueAtTime(0.14 * pNorm, now + duration * 0.85); // alejamiento
+          rumbleGain.gain.linearRampToValueAtTime(0.001, now + duration);
+
+          rumbleOsc.connect(rumbleGain);
+          rumbleGain.connect(audioCtx.destination);
+          rumbleOsc.start(now);
+          lfoOsc.start(now);
+          rumbleOsc.stop(now + duration);
+          lfoOsc.stop(now + duration);
+
+          // 2. Fricción continua y textura de grano de madera (Wood Grain Friction Noise)
+          const noiseSrc = audioCtx.createBufferSource();
+          noiseSrc.buffer = getBowlingNoiseBuffer(audioCtx);
+          const noiseFilter = audioCtx.createBiquadFilter();
+          noiseFilter.type = 'bandpass';
+          noiseFilter.frequency.setValueAtTime(380 + pNorm * 180, now);
+          noiseFilter.frequency.exponentialRampToValueAtTime(240, now + duration);
+          noiseFilter.Q.setValueAtTime(2.2, now);
+
+          const noiseLowpass = audioCtx.createBiquadFilter();
+          noiseLowpass.type = 'lowpass';
+          noiseLowpass.frequency.setValueAtTime(820, now);
+          noiseLowpass.frequency.exponentialRampToValueAtTime(350, now + duration); // absorción acústica de aire
+
+          const noiseGain = audioCtx.createGain();
+          noiseGain.gain.setValueAtTime(0.38 * pNorm, now);
+          noiseGain.gain.linearRampToValueAtTime(0.52 * pNorm, now + 0.12);
+          noiseGain.gain.exponentialRampToValueAtTime(0.18 * pNorm, now + duration * 0.85);
+          noiseGain.gain.linearRampToValueAtTime(0.001, now + duration);
+
+          noiseSrc.connect(noiseFilter);
+          noiseFilter.connect(noiseLowpass);
+          noiseLowpass.connect(noiseGain);
+          noiseGain.connect(audioCtx.destination);
+          noiseSrc.start(now);
+          noiseSrc.stop(now + duration);
+
+          return {
+            stop: function() {
+              try {
+                const stopNow = audioCtx.currentTime;
+                rumbleGain.gain.cancelScheduledValues(stopNow);
+                rumbleGain.gain.linearRampToValueAtTime(0.001, stopNow + 0.05);
+                noiseGain.gain.cancelScheduledValues(stopNow);
+                noiseGain.gain.linearRampToValueAtTime(0.001, stopNow + 0.05);
+                setTimeout(() => {
+                  try {
+                    rumbleOsc.stop();
+                    lfoOsc.stop();
+                    noiseSrc.stop();
+                  } catch (e) {}
+                }, 60);
+              } catch (e) {}
+            }
+          };
+        }
+        else if (type === 'bowling_hit' || type === 'bowling_strike') {
+          // Impacto explosivo hiperrealista contra los 10 bolos de madera de arce macizo
+          const isStrike = (type === 'bowling_strike') || (param && param.isStrike);
+          const count = (param && typeof param.count === 'number') ? param.count : (isStrike ? 10 : 7);
+          const intensity = Math.min(1.4, 0.6 + (count / 10) * 0.7);
+
+          // 1. Chasquido cortante inicial de choque directo (Sharp Hardwood Snap)
+          const snapOsc = audioCtx.createOscillator();
+          const snapGain = audioCtx.createGain();
+          snapOsc.type = 'triangle';
+          snapOsc.frequency.setValueAtTime(2600, now);
+          snapOsc.frequency.exponentialRampToValueAtTime(540, now + 0.022);
+          snapGain.gain.setValueAtTime(0.65 * intensity, now);
+          snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+          snapOsc.connect(snapGain); snapGain.connect(audioCtx.destination);
+          snapOsc.start(now); snapOsc.stop(now + 0.025);
+
+          // 2. Ruido explosivo de madera y percusión de masa
+          const crashSrc = audioCtx.createBufferSource();
+          crashSrc.buffer = getExplosionNoiseBuffer(audioCtx);
+          const crashFilter = audioCtx.createBiquadFilter();
+          crashFilter.type = 'bandpass';
+          crashFilter.frequency.setValueAtTime(1450, now);
+          crashFilter.Q.setValueAtTime(1.5, now);
+          const crashGain = audioCtx.createGain();
+          crashGain.gain.setValueAtTime(0.55 * intensity, now);
+          crashGain.gain.exponentialRampToValueAtTime(0.001, now + (isStrike ? 0.38 : 0.24));
+          crashSrc.connect(crashFilter); crashFilter.connect(crashGain); crashGain.connect(audioCtx.destination);
+          crashSrc.start(now); crashSrc.stop(now + (isStrike ? 0.38 : 0.24));
+
+          // 3. Resonancias armónicas de múltiples bolos de madera chocando entre sí
+          const freqs = [480, 740, 1150, 1680, 2350];
+          freqs.forEach((f, idx) => {
+            const delay = idx * 0.018;
+            const pOsc = audioCtx.createOscillator();
+            const pGain = audioCtx.createGain();
+            pOsc.type = (idx % 2 === 0) ? 'sine' : 'triangle';
+            pOsc.frequency.setValueAtTime(f * (0.92 + Math.random() * 0.16), now + delay);
+            pOsc.frequency.exponentialRampToValueAtTime(f * 0.6, now + delay + 0.09);
+            pGain.gain.setValueAtTime(0.32 * intensity, now + delay);
+            pGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.11);
+            pOsc.connect(pGain); pGain.connect(audioCtx.destination);
+            pOsc.start(now + delay); pOsc.stop(now + delay + 0.11);
+          });
+
+          // 4. Golpe grave de amortiguación en el foso posterior (Pit Cushion Thump)
+          const pitThud = audioCtx.createOscillator();
+          const pitGain = audioCtx.createGain();
+          pitThud.type = 'sine';
+          pitThud.frequency.setValueAtTime(130, now + 0.02);
+          pitThud.frequency.exponentialRampToValueAtTime(45, now + 0.14);
+          pitGain.gain.setValueAtTime(0.48 * intensity, now + 0.02);
+          pitGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+          pitThud.connect(pitGain); pitGain.connect(audioCtx.destination);
+          pitThud.start(now + 0.02); pitThud.stop(now + 0.14);
+        }
+        else if (type === 'bowling_gutter') {
+          const gThud = audioCtx.createOscillator();
+          const gGain = audioCtx.createGain();
+          gThud.type = 'sine';
+          gThud.frequency.setValueAtTime(160, now);
+          gThud.frequency.exponentialRampToValueAtTime(55, now + 0.12);
+          gGain.gain.setValueAtTime(0.45, now);
+          gGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          gThud.connect(gGain); gGain.connect(audioCtx.destination);
+          gThud.start(now); gThud.stop(now + 0.12);
         }
       }
 

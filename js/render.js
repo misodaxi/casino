@@ -149,47 +149,20 @@
         return g;
       }
 
-      // 2. Potted Palm Tree in Hexagonal Brass Planter (Shared Geometry & Material Pool)
-      const PALM_POT_GEO = new THREE.CylinderGeometry(0.44, 0.34, 0.70, 6);
-      const PALM_SOIL_GEO = new THREE.CylinderGeometry(0.42, 0.42, 0.05, 16);
-      const PALM_TRUNK_GEO = new THREE.CylinderGeometry(0.09, 0.14, 2.4, 12);
-      const PALM_FROND_GEO = new THREE.PlaneGeometry(0.55, 1.6);
-      const PALM_POT_MAT = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.92, roughness: 0.18 });
-      const PALM_SOIL_MAT = new THREE.MeshStandardMaterial({ color: 0x1f1610, roughness: 0.9 });
-      const PALM_TRUNK_MAT = new THREE.MeshStandardMaterial({ color: 0x3e2415, roughness: 0.8 });
-      const PALM_LEAF_MAT = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.5, side: THREE.DoubleSide });
-
+      // 2. Botanical Hedges & Planters (Desactivados / Eliminados)
       function createCasinoPalmTree() {
-        const g = new THREE.Group();
-        const pot = new THREE.Mesh(PALM_POT_GEO, PALM_POT_MAT);
-        pot.position.y = 0.35;
-        const soil = new THREE.Mesh(PALM_SOIL_GEO, PALM_SOIL_MAT);
-        soil.position.y = 0.68;
-        g.add(pot, soil);
-
-        const trunk = new THREE.Mesh(PALM_TRUNK_GEO, PALM_TRUNK_MAT);
-        trunk.position.y = 1.8;
-        g.add(trunk);
-
-        for (let f = 0; f < 8; f++) {
-          const ang = (f / 8) * Math.PI * 2;
-          const frond = new THREE.Mesh(PALM_FROND_GEO, PALM_LEAF_MAT);
-          frond.position.set(Math.sin(ang) * 0.55, 2.8, Math.cos(ang) * 0.55);
-          frond.rotation.set(-0.65, ang, 0);
-          g.add(frond);
-        }
-        return g;
+        return new THREE.Group();
       }
 
       // 3. VIP Round Cocktail Table with Velvet Club Armchairs (Shared Asset Pool)
       const VIP_TABLE_BASE_GEO = new THREE.CylinderGeometry(0.32, 0.38, 0.08, 20);
-      const VIP_TABLE_STEM_GEO = new THREE.CylinderGeometry(0.06, 0.08, 0.72, 16);
+      const VIP_TABLE_STEM_GEO = new THREE.CylinderGeometry(0.06, 0.08, 0.96, 16);
       const VIP_TABLE_TOP_GEO = new THREE.CylinderGeometry(0.68, 0.68, 0.06, 24);
       const VIP_TABLE_RIM_GEO = new THREE.TorusGeometry(0.69, 0.02, 12, 32);
       const VIP_TABLE_CANDLE_GEO = new THREE.CylinderGeometry(0.06, 0.06, 0.14, 12);
       const VIP_CHAIR_SEAT_GEO = new THREE.CylinderGeometry(0.34, 0.32, 0.22, 16);
       const VIP_CHAIR_BACK_GEO = new THREE.CylinderGeometry(0.36, 0.36, 0.48, 16, 1, false, -Math.PI * 0.45, Math.PI * 0.9);
-      const VIP_CHAIR_LEG_GEO = new THREE.CylinderGeometry(0.02, 0.02, 0.26, 8);
+      const VIP_CHAIR_LEG_GEO = new THREE.CylinderGeometry(0.02, 0.02, 0.38, 8);
 
       const VIP_GOLD_MAT = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.95, roughness: 0.15 });
       const VIP_TABLE_TOP_MAT = new THREE.MeshStandardMaterial({ color: 0x0c0717, roughness: 0.2, metalness: 0.3 });
@@ -207,19 +180,19 @@
       function createVipCocktailTable(chairCount = 4, chairColorHex = 0x221338) {
         const g = new THREE.Group();
 
-        // Table Base & Top
+        // Table Base & Top (Elevado a 1.00m para ergonomía y evitar clipeos)
         const base = new THREE.Mesh(VIP_TABLE_BASE_GEO, VIP_GOLD_MAT);
         base.position.y = 0.04;
         const stem = new THREE.Mesh(VIP_TABLE_STEM_GEO, VIP_GOLD_MAT);
-        stem.position.y = 0.40;
+        stem.position.y = 0.52;
         const top = new THREE.Mesh(VIP_TABLE_TOP_GEO, VIP_TABLE_TOP_MAT);
-        top.position.y = 0.75;
+        top.position.y = 1.00;
         const rim = new THREE.Mesh(VIP_TABLE_RIM_GEO, VIP_GOLD_MAT);
-        rim.rotation.x = Math.PI / 2; rim.position.y = 0.75;
+        rim.rotation.x = Math.PI / 2; rim.position.y = 1.00;
 
         // Glowing center cocktail / candle
         const candle = new THREE.Mesh(VIP_TABLE_CANDLE_GEO, VIP_CANDLE_MAT);
-        candle.position.y = 0.84;
+        candle.position.y = 1.10;
 
         g.add(base, stem, top, rim, candle);
 
@@ -228,8 +201,8 @@
 
         for (let i = 0; i < chairCount; i++) {
           const ang = (i / chairCount) * Math.PI * 2;
-          const cx = Math.sin(ang) * 1.25;
-          const cz = Math.cos(ang) * 1.25;
+          const cx = Math.sin(ang) * 1.35;
+          const cz = Math.cos(ang) * 1.35;
 
           const chairGrp = new THREE.Group();
           chairGrp.position.set(cx, 0, cz);
@@ -237,14 +210,14 @@
 
           // Seat cushion
           const seat = new THREE.Mesh(VIP_CHAIR_SEAT_GEO, VIP_CUSHION_MAT);
-          seat.position.y = 0.36;
+          seat.position.y = 0.48;
           // Curved tub backrest
           const back = new THREE.Mesh(VIP_CHAIR_BACK_GEO, chairMat);
-          back.position.y = 0.58;
+          back.position.y = 0.72;
           // Gold legs
           [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]].forEach(([lx, lz]) => {
             const leg = new THREE.Mesh(VIP_CHAIR_LEG_GEO, VIP_GOLD_MAT);
-            leg.position.set(lx, 0.13, lz);
+            leg.position.set(lx, 0.19, lz);
             chairGrp.add(leg);
           });
 
@@ -688,6 +661,7 @@
 
       function createBowling3DAlley() {
         const g = new THREE.Group();
+        window.bowling3DLanes = [];
         const numLanes = 6;
         const laneSpacing = 3.30;
         const laneWidth = 2.22;
@@ -737,10 +711,10 @@
           const laneGroup = new THREE.Group();
           laneGroup.position.x = laneX;
 
-          // 1. Premium 48m Canadian Maple Hardwood Regulation Lane Bed
-          const bedGeo = new THREE.BoxGeometry(laneWidth, 0.12, laneLength);
+          // 1. Premium 58m Canadian Maple Hardwood Regulation Lane Bed
+          const bedGeo = new THREE.BoxGeometry(laneWidth, 0.12, 58.0);
           const bed = new THREE.Mesh(bedGeo, laneMat);
-          bed.position.set(0, 0.06, -2.5);
+          bed.position.set(0, 0.06, -5.0);
           bed.receiveShadow = true;
           laneGroup.add(bed);
 
@@ -749,20 +723,20 @@
           const gutterDepth = 0.08;
           const gutterOffset = laneWidth / 2 + gutterW / 2;
 
-          const gutL = new THREE.Mesh(new THREE.BoxGeometry(gutterW, gutterDepth, laneLength), gutterMat);
-          gutL.position.set(-gutterOffset, 0.025, -2.5);
+          const gutL = new THREE.Mesh(new THREE.BoxGeometry(gutterW, gutterDepth, 58.0), gutterMat);
+          gutL.position.set(-gutterOffset, 0.025, -5.0);
           gutL.receiveShadow = true;
 
-          const gutR = new THREE.Mesh(new THREE.BoxGeometry(gutterW, gutterDepth, laneLength), gutterMat);
-          gutR.position.set(gutterOffset, 0.025, -2.5);
+          const gutR = new THREE.Mesh(new THREE.BoxGeometry(gutterW, gutterDepth, 58.0), gutterMat);
+          gutR.position.set(gutterOffset, 0.025, -5.0);
           gutR.receiveShadow = true;
 
           // 3. Cyber Neon Ambient Light Tracks running along both gutters
-          const gutNeonL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.025, laneLength), (l % 2 === 0) ? neonBlueMat : neonCyanMat);
-          gutNeonL.position.set(-gutterOffset, 0.068, -2.5);
+          const gutNeonL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.025, 58.0), (l % 2 === 0) ? neonBlueMat : neonCyanMat);
+          gutNeonL.position.set(-gutterOffset, 0.068, -5.0);
 
-          const gutNeonR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.025, laneLength), (l % 2 === 0) ? neonBlueMat : neonCyanMat);
-          gutNeonR.position.set(gutterOffset, 0.068, -2.5);
+          const gutNeonR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.025, 58.0), (l % 2 === 0) ? neonBlueMat : neonCyanMat);
+          gutNeonR.position.set(gutterOffset, 0.068, -5.0);
 
           laneGroup.add(gutL, gutR, gutNeonL, gutNeonR);
 
@@ -771,22 +745,22 @@
           const divH = 0.28;
           const divX = -laneSpacing / 2;
 
-          const divMesh = new THREE.Mesh(new THREE.BoxGeometry(divW, divH, laneLength), dividerMat);
-          divMesh.position.set(divX, 0.14, -2.5);
+          const divMesh = new THREE.Mesh(new THREE.BoxGeometry(divW, divH, 58.0), dividerMat);
+          divMesh.position.set(divX, 0.14, -5.0);
           divMesh.castShadow = true;
 
-          const divGoldRail = new THREE.Mesh(new THREE.BoxGeometry(divW + 0.03, 0.025, laneLength), dividerGoldTrimMat);
-          divGoldRail.position.set(divX, divH + 0.015, -2.5);
+          const divGoldRail = new THREE.Mesh(new THREE.BoxGeometry(divW + 0.03, 0.025, 58.0), dividerGoldTrimMat);
+          divGoldRail.position.set(divX, divH + 0.015, -5.0);
 
           laneGroup.add(divMesh, divGoldRail);
 
           if (l === numLanes - 1) {
-            const divEnd = new THREE.Mesh(new THREE.BoxGeometry(divW, divH, laneLength), dividerMat);
-            divEnd.position.set(laneSpacing / 2, 0.14, -2.5);
+            const divEnd = new THREE.Mesh(new THREE.BoxGeometry(divW, divH, 58.0), dividerMat);
+            divEnd.position.set(laneSpacing / 2, 0.14, -5.0);
             divEnd.castShadow = true;
 
-            const divEndGold = new THREE.Mesh(new THREE.BoxGeometry(divW + 0.03, 0.025, laneLength), dividerGoldTrimMat);
-            divEndGold.position.set(laneSpacing / 2, divH + 0.015, -2.5);
+            const divEndGold = new THREE.Mesh(new THREE.BoxGeometry(divW + 0.03, 0.025, 58.0), dividerGoldTrimMat);
+            divEndGold.position.set(laneSpacing / 2, divH + 0.015, -5.0);
 
             laneGroup.add(divEnd, divEndGold);
           }
@@ -818,6 +792,8 @@
             [-0.90, -0.30, 0.30, 0.90]    // Pins 7, 8, 9, 10 (Back row)
           ];
 
+          const lanePinsList = [];
+
           pinRows.forEach((rowOffsets, rIdx) => {
             const pinZ = -23.00 - rIdx * 0.80;
             rowOffsets.forEach(px => {
@@ -833,20 +809,24 @@
               const pin = createSingle3DBowlingPin();
               pin.position.set(px, 0.126, pinZ);
 
+              lanePinsList.push({ mesh: pin, initialPos: pin.position.clone() });
               laneGroup.add(spotRing, spotCenter, pin);
             });
           });
 
-          // 6. High-Tech Pinsetter Hood Enclosure with Animated Backlit Number Badge & Sweep Bar
+          window.bowling3DLanes.push({ laneIndex: l, group: laneGroup, pins: lanePinsList });
+
+          // 6. High-Tech Pinsetter Hood Enclosure (Alineado firmemente al suelo a z = -33.00)
           const hoodGroup = new THREE.Group();
-          hoodGroup.position.set(0, 1.45, -26.20);
+          hoodGroup.position.set(0, 0, -33.00);
 
           const hoodMat = new THREE.MeshStandardMaterial({ color: 0x0a0614, roughness: 0.2, metalness: 0.8 });
-          const hoodBox = new THREE.Mesh(new THREE.BoxGeometry(laneWidth + 0.95, 2.6, 2.0), hoodMat);
+          const hoodBox = new THREE.Mesh(new THREE.BoxGeometry(laneWidth + 0.95, 3.60, 1.6), hoodMat);
+          hoodBox.position.set(0, 1.80, 0); // Apoyado sobre el suelo y = 0.0
           hoodBox.castShadow = true;
 
-          const hoodGoldBezel = new THREE.Mesh(new THREE.BoxGeometry(laneWidth + 0.98, 2.64, 0.06), dividerGoldTrimMat);
-          hoodGoldBezel.position.z = 1.01;
+          const hoodGoldBezel = new THREE.Mesh(new THREE.BoxGeometry(laneWidth + 0.98, 3.64, 0.06), dividerGoldTrimMat);
+          hoodGoldBezel.position.set(0, 1.80, 0.81);
 
           // Digital Lane Number Canvas Badge (e.g. "LANE 1" ... "LANE 6")
           const laneSignCanvas = document.createElement('canvas');
@@ -870,12 +850,12 @@
             emissiveIntensity: 0.85
           });
           const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.85), signMat);
-          signMesh.position.set(0, 0.40, 1.04);
+          signMesh.position.set(0, 2.30, 0.85);
 
           // Mechanical Sweep Rake Arm (Barra de barrido)
           const sweepBar = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, laneWidth + 0.5, 16), dividerGoldTrimMat);
           sweepBar.rotation.z = Math.PI / 2;
-          sweepBar.position.set(0, -0.65, 0.85);
+          sweepBar.position.set(0, 0.45, 0.70);
 
           hoodGroup.add(hoodBox, hoodGoldBezel, signMesh, sweepBar);
           laneGroup.add(hoodGroup);
@@ -952,6 +932,62 @@
           }
 
           laneGroup.add(rackGroup);
+
+          // 9. Interactive 3D Entrance Stance Platform & Holographic Badge (1 Jugador por Pista)
+          const entryMarkerGroup = new THREE.Group();
+          entryMarkerGroup.position.set(0, 0.055, 21.5);
+
+          // Outer Glowing Neon Cyan/Blue Ring
+          const entryRingMat = (l % 2 === 0) ? neonBlueMat : neonCyanMat;
+          const entryRing = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.032, 16, 32), entryRingMat);
+          entryRing.rotation.x = Math.PI / 2;
+          entryRing.position.y = 0.06;
+
+          // Inner Ebony Hardwood Stance Disc with Gold Trim
+          const entryDiscMat = new THREE.MeshStandardMaterial({ color: 0x0c0717, roughness: 0.3, metalness: 0.8 });
+          const entryDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.68, 0.025, 32), entryDiscMat);
+          entryDisc.position.y = 0.048;
+
+          const entryGoldBezel = new THREE.Mesh(new THREE.TorusGeometry(0.68, 0.015, 12, 32), dividerGoldTrimMat);
+          entryGoldBezel.rotation.x = Math.PI / 2;
+          entryGoldBezel.position.y = 0.062;
+
+          // Stance Footprint Inlays in Gold
+          const footL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.01, 0.28), dividerGoldTrimMat);
+          footL.position.set(-0.20, 0.063, 0);
+          const footR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.01, 0.28), dividerGoldTrimMat);
+          footR.position.set(0.20, 0.063, 0);
+
+          // Floating 3D Hologram Badge Canvas Sprite
+          const badgeCanvas = document.createElement('canvas');
+          badgeCanvas.width = 512; badgeCanvas.height = 160;
+          const bCtx = badgeCanvas.getContext('2d');
+          bCtx.fillStyle = 'rgba(10, 5, 20, 0.88)';
+          if (bCtx.roundRect) bCtx.roundRect(8, 8, 496, 144, 20); else bCtx.rect(8, 8, 496, 144);
+          bCtx.fill();
+          bCtx.strokeStyle = (l % 2 === 0) ? '#38bdf8' : '#06b6d4';
+          bCtx.lineWidth = 6;
+          bCtx.stroke();
+
+          bCtx.font = '900 48px "Segoe UI", Arial';
+          bCtx.fillStyle = '#ffffff';
+          bCtx.textAlign = 'center';
+          bCtx.textBaseline = 'middle';
+          bCtx.fillText(`🎳 PISTA 0${l + 1}`, 256, 52);
+
+          bCtx.font = '700 28px "Segoe UI", Arial';
+          bCtx.fillStyle = '#fbbf24';
+          bCtx.fillText('ENTRAR [E]', 256, 108);
+
+          const badgeTex = new THREE.CanvasTexture(badgeCanvas);
+          const badgeMat = new THREE.SpriteMaterial({ map: badgeTex, transparent: true });
+          const badgeSprite = new THREE.Sprite(badgeMat);
+          badgeSprite.scale.set(1.6, 0.5, 1);
+          badgeSprite.position.set(0, 1.4, 0);
+
+          entryMarkerGroup.add(entryRing, entryDisc, entryGoldBezel, footL, footR, badgeSprite);
+          laneGroup.add(entryMarkerGroup);
+
           g.add(laneGroup);
         }
 
@@ -979,50 +1015,7 @@
         approachGoldTrim.position.set(0, 0.11, 26.2);
         g.add(approachGoldTrim);
 
-        // Player VIP Lounges (Curved Velvet Sofas & Gold Champagne Tables)
-        const sofaVelvetMat = new THREE.MeshStandardMaterial({
-          color: 0x311b92,
-          emissive: 0x4a148c,
-          emissiveIntensity: 0.3,
-          roughness: 0.55,
-          metalness: 0.15
-        });
 
-        [-7.8, 7.8].forEach(sofaX => {
-          const sofaGrp = new THREE.Group();
-          sofaGrp.position.set(sofaX, 0, 28.5);
-
-          const sofaBase = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.46, 1.5), sofaVelvetMat);
-          sofaBase.position.y = 0.23;
-          sofaBase.castShadow = true;
-
-          const sofaBack = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.60, 0.38), sofaVelvetMat);
-          sofaBack.position.set(0, 0.60, 0.56);
-          sofaBack.castShadow = true;
-
-          const sofaGoldBezel = new THREE.Mesh(new THREE.BoxGeometry(7.66, 0.045, 1.54), dividerGoldTrimMat);
-          sofaGoldBezel.position.y = 0.47;
-
-          sofaGrp.add(sofaBase, sofaBack, sofaGoldBezel);
-
-          // Cocktail Table with Champagne Chiller & Glass Flutes
-          const tableBase = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.50, 0.46, 24), dividerMat);
-          tableBase.position.set(0, 0.23, -1.3);
-
-          const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(0.60, 0.60, 0.045, 24), dividerGoldTrimMat);
-          tableTop.position.set(0, 0.47, -1.3);
-
-          const chiller = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.10, 0.22, 16), dividerGoldTrimMat);
-          chiller.position.set(0, 0.58, -1.3);
-
-          const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.26, 12),
-            new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.15 }));
-          bottle.position.set(0, 0.69, -1.3);
-          bottle.rotation.z = 0.18;
-
-          sofaGrp.add(tableBase, tableTop, chiller, bottle);
-          g.add(sofaGrp);
-        });
 
         // Exotic Royal Palm Trees & Art Deco Lamp Posts
         const p1 = createCasinoPalmTree(); p1.position.set(-11.8, 0, 28.5);
@@ -1281,8 +1274,8 @@
         couchR.position.set(4.5, 0, -2.0);
         g.add(couchL, couchR);
 
-        // Center Table Sets
-        const centerTable = createVipCocktailTable(4, 0x221338);
+        // Center Table Sets (Mesa central limpia sin sillas clipeadas)
+        const centerTable = createVipCocktailTable(0);
         centerTable.position.set(0, 0, 1.5);
         g.add(centerTable);
 
@@ -5064,7 +5057,7 @@
         }
 
         /* 3D seats around table / zone (Clean unified luxury casino stools / Traditional cinema seats) */
-        if (z.id !== 'jackpot') {
+        if (z.id !== 'jackpot' && z.id !== 'bowling') {
           z.seats.forEach((seat, sIdx) => {
             if (z.id === 'cinema') {
               // Butacas Tradicionales de Cine de Terciopelo Rojo con Portavasos y Palomitas

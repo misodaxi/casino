@@ -137,7 +137,7 @@
           if (e.target.closest('button, input, textarea, select, .action-btn, .chip, .exit-game-btn, #tvIframeOverlay, #tvYoutubePlayerContainer, iframe, #css3dHost, .tv-modal, .top-right')) {
             return;
           }
-          if (state.mode === 'cinema') return;
+          if (state.mode === 'cinema' || state.mode === 'bowling') return;
           isDraggingCam = true;
           previousMousePos = { x: e.clientX, y: e.clientY };
         }
@@ -166,7 +166,7 @@
           if (e.target.closest('button, input, textarea, select, .action-btn, .chip, .exit-game-btn, #tvIframeOverlay, #tvYoutubePlayerContainer, iframe, #css3dHost, .tv-modal, .top-right')) {
             return;
           }
-          if (state.mode === 'cinema') return;
+          if (state.mode === 'cinema' || state.mode === 'bowling') return;
           isDraggingCam = true;
           previousMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         }
@@ -214,6 +214,10 @@
 
       // Mouse Wheel Zoom (Casino Roam) & Fast Bet Adjustment (In-Game / Machines)
       window.addEventListener('wheel', e => {
+        if (state.mode === 'bowling') {
+          e.preventDefault();
+          return;
+        }
         if (state.mode !== 'casino' || (state.player && state.player.currentSeat)) {
           if (typeof handleGlobalWheelBet === 'function') {
             const handled = handleGlobalWheelBet(e.deltaY);
@@ -389,7 +393,36 @@
         let showPrompt = false;
         if (nearest) {
           showPrompt = true;
-          neededPrompt = (nearest.id === 'jukebox') ? '🎵 Poner Música en la Gramola [E]' : ('Sentarse en ' + nearest.name);
+          if (nearest.id === 'jukebox') {
+            neededPrompt = '🎵 Poner Música en la Gramola [E]';
+          } else if (nearest.id === 'bowling') {
+            // Find closest lane among the 6 lanes and check occupancy
+            const occupiedSeats = new Set();
+            if (typeof remotePlayers !== 'undefined') {
+              Object.values(remotePlayers).forEach(rp => {
+                if (rp.seat && rp.seat.zone === 'bowling' && typeof rp.seat.seatIndex === 'number') {
+                  occupiedSeats.add(rp.seat.seatIndex);
+                }
+              });
+            }
+            let bestLaneIdx = 0, minLaneDist = Infinity;
+            if (nearest.seats) {
+              nearest.seats.forEach((seat, idx) => {
+                const d = Math.hypot(state.player.x - seat.x, state.player.z - seat.z);
+                if (d < minLaneDist) {
+                  minLaneDist = d;
+                  bestLaneIdx = idx;
+                }
+              });
+            }
+            if (occupiedSeats.has(bestLaneIdx)) {
+              neededPrompt = `⚠️ PISTA 0${bestLaneIdx + 1} Ocupada`;
+            } else {
+              neededPrompt = `🎳 Jugar en PISTA 0${bestLaneIdx + 1} [E]`;
+            }
+          } else {
+            neededPrompt = ('Sentarse en ' + nearest.name);
+          }
         } else {
           const dJuke = Math.hypot(state.player.x - 11.8, state.player.z - 36.0);
           if (dJuke < 3.8) {
@@ -448,7 +481,7 @@
       let diceSettleCamTimer = 0;
 
       function updateSeated360Camera(dt) {
-        if (!state.seatedPivot) return;
+        if (!state.seatedPivot || state.mode === 'bowling') return;
 
         // Si el usuario mueve/arrastra la cámara o rota con teclas, pasa INMEDIATAMENTE al modo libre
         const manualRotInput = (state.keys && (state.keys['q'] || state.keys['arrowleft'] || state.keys['e'] || state.keys['arrowright']));
@@ -648,7 +681,7 @@
         state.player.currentSeat = { zone: z.id, seatIndex: seat.seatIndex };
 
         // Move avatar physically to closest unoccupied table seat socket (sitting ON top of cushion!)
-        const seatSittingY = 0.44;
+        const seatSittingY = (gameId === 'bowling') ? 0.128 : 0.44;
         playerAvatar.position.set(seat.x, seatSittingY, seat.z);
         playerAvatar.rotation.y = seat.r;
         state.player.x = seat.x;
@@ -782,8 +815,15 @@
           toPos = new THREE.Vector3(z.x, 5.2, z.z + 4.2);
           toLook = new THREE.Vector3(z.x, 0.78, z.z - 0.1);
         } else if (gameId === 'bowling') {
-          toPos = new THREE.Vector3(z.x, 3.2, z.z + 7.5);
-          toLook = new THREE.Vector3(z.x, 1.4, z.z - 3.5);
+          // Cámara en primera persona limpia alineada en el carril mirando directo a los bolos (avatar transparente para el jugador como en slots)
+          toPos = new THREE.Vector3(seat.x, 1.45, seat.z + 0.10);
+          toLook = new THREE.Vector3(seat.x, 0.85, -75.0);
+          if (playerAvatar) {
+            playerAvatar.visible = false;
+          }
+          if (typeof window.initBowlingLane === 'function') {
+            window.initBowlingLane(seat.seatIndex);
+          }
         } else if (gameId === 'tvcasino') {
           toPos = new THREE.Vector3(z.x, 2.8, z.z + 4.5);
           toLook = new THREE.Vector3(z.x, 4.0, z.z - 6.0);
@@ -880,6 +920,11 @@
                   if (parseInt(x.dataset.v, 10) === window.pachinkoBet) x.classList.add('selected');
                   else x.classList.remove('selected');
                 });
+              }
+            }
+            if (gameId === 'bowling') {
+              if (typeof window.initBowlingLane === 'function') {
+                window.initBowlingLane(seat.seatIndex);
               }
             }
             if (gameId === 'cinema') {

@@ -25,13 +25,13 @@ window.CASINO_SPATIAL_ZONES = [
 window.ZONES = [
   // --- SALAS VIP SUPERIORES (NORTE - ALA DE BOLERA REAL 48M DE PISTA) ---
   {
-    id: 'bowling', name: 'BOWLING (PISTA REAL)', icon: '🎳', x: -31.0, z: -49.0, radius: 18.0, color: 0x3b82f6, seats: [
-      { x: -38.5, z: -18.5, r: 0 },
-      { x: -35.5, z: -18.5, r: 0 },
-      { x: -32.5, z: -18.5, r: 0 },
-      { x: -29.5, z: -18.5, r: 0 },
-      { x: -26.5, z: -18.5, r: 0 },
-      { x: -23.5, z: -18.5, r: 0 }
+    id: 'bowling', name: 'BOWLING (PISTA REAL)', icon: '🎳', x: -31.0, z: -49.0, radius: 24.0, color: 0x3b82f6, seats: [
+      { x: -39.25, y: 0.128, z: -27.5, r: Math.PI, laneName: 'PISTA 01', laneIndex: 0 },
+      { x: -35.95, y: 0.128, z: -27.5, r: Math.PI, laneName: 'PISTA 02', laneIndex: 1 },
+      { x: -32.65, y: 0.128, z: -27.5, r: Math.PI, laneName: 'PISTA 03', laneIndex: 2 },
+      { x: -29.35, y: 0.128, z: -27.5, r: Math.PI, laneName: 'PISTA 04', laneIndex: 3 },
+      { x: -26.05, y: 0.128, z: -27.5, r: Math.PI, laneName: 'PISTA 05', laneIndex: 4 },
+      { x: -22.75, y: 0.128, z: -27.5, r: Math.PI, laneName: 'PISTA 06', laneIndex: 5 }
     ]
   },
   {
