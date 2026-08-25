@@ -433,7 +433,54 @@
               if (statusBadge) statusBadge.textContent = '🟢 ¡Listo! Girando...';
 
               setTimeout(() => {
-                const winNum = WHEEL_ORDER[Math.floor(Math.random() * WHEEL_ORDER.length)];
+                let winNum = WHEEL_ORDER[Math.floor(Math.random() * WHEEL_ORDER.length)];
+
+                const perkBonus = (typeof getPerkBonus === 'function')
+                  ? (getPerkBonus('rouletteWinBonus') + getPerkBonus('flatWinBonus'))
+                  : 0;
+
+                if (perkBonus > 0 && Math.random() < perkBonus) {
+                  const betKeys = Object.keys(rState.bets || {});
+                  const candidateNums = [];
+                  betKeys.forEach(k => {
+                    if (k.startsWith('num-')) {
+                      const n = parseInt(k.replace('num-', ''), 10);
+                      if (!isNaN(n)) candidateNums.push(n);
+                    } else if (k.startsWith('split-')) {
+                      const splits = k.replace('split-', '').split('-').map(Number);
+                      splits.forEach(sn => { if (!isNaN(sn)) candidateNums.push(sn); });
+                    } else if (k === 'red') {
+                      WHEEL_ORDER.forEach(n => { if (numColor(n) === 'red') candidateNums.push(n); });
+                    } else if (k === 'black') {
+                      WHEEL_ORDER.forEach(n => { if (numColor(n) === 'black') candidateNums.push(n); });
+                    } else if (k === 'even') {
+                      WHEEL_ORDER.forEach(n => { if (n !== 0 && n % 2 === 0) candidateNums.push(n); });
+                    } else if (k === 'odd') {
+                      WHEEL_ORDER.forEach(n => { if (n % 2 === 1) candidateNums.push(n); });
+                    } else if (k === 'low') {
+                      WHEEL_ORDER.forEach(n => { if (n >= 1 && n <= 18) candidateNums.push(n); });
+                    } else if (k === 'high') {
+                      WHEEL_ORDER.forEach(n => { if (n >= 19 && n <= 36) candidateNums.push(n); });
+                    } else if (k === 'dozen1') {
+                      WHEEL_ORDER.forEach(n => { if (n >= 1 && n <= 12) candidateNums.push(n); });
+                    } else if (k === 'dozen2') {
+                      WHEEL_ORDER.forEach(n => { if (n >= 13 && n <= 24) candidateNums.push(n); });
+                    } else if (k === 'dozen3') {
+                      WHEEL_ORDER.forEach(n => { if (n >= 25 && n <= 36) candidateNums.push(n); });
+                    } else if (k === 'col1') {
+                      WHEEL_ORDER.forEach(n => { if (n > 0 && n % 3 === 1) candidateNums.push(n); });
+                    } else if (k === 'col2') {
+                      WHEEL_ORDER.forEach(n => { if (n > 0 && n % 3 === 2) candidateNums.push(n); });
+                    } else if (k === 'col3') {
+                      WHEEL_ORDER.forEach(n => { if (n > 0 && n % 3 === 0) candidateNums.push(n); });
+                    }
+                  });
+
+                  if (candidateNums.length > 0) {
+                    winNum = candidateNums[Math.floor(Math.random() * candidateNums.length)];
+                  }
+                }
+
                 rState.spinning = true;
 
                 animateRoulette3DSpin(winNum, 6400, () => {

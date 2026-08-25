@@ -35,6 +35,19 @@
          GLOBAL STATE
       ============================================================ */
       var savedNameLocal = localStorage.getItem('casino_player_name');
+      var savedUnlockedLocal = [];
+      try {
+        savedUnlockedLocal = JSON.parse(localStorage.getItem('casino_unlocked_perks')) || [];
+      } catch (e) {}
+
+      var savedPerksLocal = null;
+      try {
+        savedPerksLocal = JSON.parse(localStorage.getItem('casino_equipped_perks'));
+      } catch (e) {}
+      if (!Array.isArray(savedPerksLocal) || savedPerksLocal.length !== 8) {
+        savedPerksLocal = [null, null, null, null, null, null, null, null];
+      }
+
       var state = {
         balance: 1250,
         xp: 450,
@@ -46,7 +59,22 @@
         camFollowLook: new THREE.Vector3(),
         activeZone: null,
         savedCasinoCam: null,
+        unlockedPerks: Array.isArray(savedUnlockedLocal) ? savedUnlockedLocal : [],
+        equippedPerks: savedPerksLocal,
       };
+
+      function getPerkBonus(bonusKey) {
+        if (!state || !Array.isArray(state.equippedPerks)) return 0;
+        let totalBonus = 0;
+        for (let i = 0; i < state.equippedPerks.length; i++) {
+          const perk = state.equippedPerks[i];
+          if (perk && perk.effects && typeof perk.effects[bonusKey] === 'number') {
+            totalBonus += perk.effects[bonusKey];
+          }
+        }
+        return totalBonus;
+      }
+      window.getPerkBonus = getPerkBonus;
 
       // Top-left HUD profile panel name editing handler
       const profilePanelEl = document.getElementById('profilePanel') || document.querySelector('.top-left.panel');

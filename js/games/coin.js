@@ -204,7 +204,13 @@ function spawnPhysicsCoin(targetFace, customSeed, versusData) {
     snapT: -1,
     snapFrom: null,
     snapTo: null,
-    face: targetFace || (Math.random() < 0.5 ? 'cara' : 'cruz'),
+    face: targetFace || (() => {
+      const perkLuck = (typeof getPerkBonus === 'function') ? getPerkBonus('flatWinBonus') : 0;
+      const winThreshold = 0.50 + perkLuck;
+      const chosen = coinChoice || 'cara';
+      const other = (chosen === 'cara') ? 'cruz' : 'cara';
+      return (Math.random() < winThreshold) ? chosen : other;
+    })(),
     targetFace: targetFace || null,
     versusData: versusData || null
   };

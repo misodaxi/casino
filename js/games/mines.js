@@ -69,6 +69,14 @@
         mState.revealed[idx] = true;
 
         if (mState.grid[idx] === 'bomb') {
+          const perkLuck = (typeof getPerkBonus === 'function') ? getPerkBonus('flatWinBonus') : 0;
+          if (perkLuck > 0 && Math.random() < (perkLuck * 2.5)) {
+            mState.grid[idx] = 'gem';
+            if (typeof showToast === 'function') showToast('🍀 ¡SUERTE DEL TRÉBOL! ¡Bomba desactivada milagrosamente!');
+          }
+        }
+
+        if (mState.grid[idx] === 'bomb') {
           playSound('explosion');
           reveal3DMinesTile(idx, 'bomb');
           mState.active = false;

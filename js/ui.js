@@ -690,10 +690,201 @@
       }
       window.handleGlobalWheelBet = handleGlobalWheelBet;
 
-// ================= PERKS MODAL HANDLERS =================
+// ================= PERKS MODAL & EQUIPMENT SYSTEM =================
+const RARITY_COLORS = {
+  comun: '#94a3b8',
+  pocoComun: '#34d399',
+  raro: '#38bdf8',
+  epico: '#c084fc',
+  legendario: '#facc15',
+  mitico: '#ff0055'
+};
+
+function renderEquippedPerksSlots() {
+  const container = document.getElementById('perksSlotsContainer');
+  const countBadge = document.getElementById('perksEquippedCount');
+  if (!container) return;
+
+  if (!state.equippedPerks || !Array.isArray(state.equippedPerks) || state.equippedPerks.length !== 8) {
+    state.equippedPerks = [null, null, null, null, null, null, null, null];
+  }
+
+  let equippedCount = 0;
+  let html = '';
+
+  for (let i = 0; i < 8; i++) {
+    const perk = state.equippedPerks[i];
+    if (perk) {
+      equippedCount++;
+      const rarityColor = RARITY_COLORS[perk.rarity] || '#8b5cf6';
+      html += `
+        <div class="perk-slot occupied" onclick="handlePerkSlotClick(${i})" title="Ranura #${i + 1}: ${perk.name} (Clic para desequipar)" style="border-color: ${rarityColor}; box-shadow: 0 0 12px ${rarityColor}44;">
+          <div class="perk-slot-number" style="color: ${rarityColor};">#${i + 1}</div>
+          <div class="perk-slot-icon">${perk.icon || '⚡'}</div>
+          <div class="perk-slot-name" style="color: ${rarityColor};">${perk.name || 'Perk'}</div>
+          <div class="perk-slot-sub">Equipado (Clic ✕)</div>
+        </div>
+      `;
+    } else {
+      html += `
+        <div class="perk-slot" onclick="handlePerkSlotClick(${i})" title="Ranura #${i + 1} (Vacía)">
+          <div class="perk-slot-number">#${i + 1}</div>
+          <div class="perk-slot-icon">➕</div>
+          <div class="perk-slot-name">Ranura Vacía</div>
+          <div class="perk-slot-sub">Sin perk</div>
+        </div>
+      `;
+    }
+  }
+
+  container.innerHTML = html;
+  if (countBadge) {
+    countBadge.textContent = `${equippedCount} / 8`;
+    countBadge.style.color = equippedCount === 8 ? '#f43f5e' : (equippedCount > 0 ? '#fbbf24' : '#94a3b8');
+  }
+}
+
+function handlePerkSlotClick(index) {
+  if (!state.equippedPerks || !state.equippedPerks[index]) return;
+  const unequipped = state.equippedPerks[index];
+  state.equippedPerks[index] = null;
+  try {
+    localStorage.setItem('casino_equipped_perks', JSON.stringify(state.equippedPerks));
+  } catch (e) {}
+  if (typeof playSound === 'function') playSound('chip', 0.8);
+  if (typeof showToast === 'function') {
+    showToast(`⚡ Perk desequipado: ${unequipped.name || 'Perk'}`);
+  }
+  renderEquippedPerksSlots();
+  renderPerksCatalog();
+}
+
+function equipPerk(perk) {
+  if (!state.equippedPerks || !Array.isArray(state.equippedPerks) || state.equippedPerks.length !== 8) {
+    state.equippedPerks = [null, null, null, null, null, null, null, null];
+  }
+
+  // Check if already equipped
+  const alreadyEquippedIndex = state.equippedPerks.findIndex(p => p && p.id === perk.id);
+  if (alreadyEquippedIndex !== -1) {
+    if (typeof showToast === 'function') showToast(`⚠️ "${perk.name}" ya está equipado en la ranura #${alreadyEquippedIndex + 1}.`);
+    return false;
+  }
+
+  // Find first empty slot
+  const emptyIndex = state.equippedPerks.findIndex(p => p === null);
+  if (emptyIndex === -1) {
+    if (typeof showToast === 'function') showToast(`⚠️ ¡Ranuras llenas (8/8)! Desequipa un perk primero.`);
+    if (typeof playSound === 'function') playSound('error', 0.8);
+    return false;
+  }
+
+  state.equippedPerks[emptyIndex] = perk;
+  try {
+    localStorage.setItem('casino_equipped_perks', JSON.stringify(state.equippedPerks));
+  } catch (e) {}
+  if (typeof playSound === 'function') playSound('chip', 1.0);
+  if (typeof showToast === 'function') showToast(`✨ Perk equipado en ranura #${emptyIndex + 1}: ${perk.name}`);
+  renderEquippedPerksSlots();
+  renderPerksCatalog();
+  return true;
+}
+
+function renderPerksCatalog() {
+  if (typeof PERKS_CATALOG === 'undefined') return;
+
+  const rarityKeys = [
+    { key: 'comun', containerId: 'perksList-comun', name: 'Común' },
+    { key: 'pocoComun', containerId: 'perksList-poco-comun', name: 'Poco Común' },
+    { key: 'raro', containerId: 'perksList-raro', name: 'Raro' },
+    { key: 'epico', containerId: 'perksList-epico', name: 'Épico' },
+    { key: 'legendario', containerId: 'perksList-legendario', name: 'Legendario' },
+    { key: 'mitico', containerId: 'perksList-mitico', name: 'Mítico' }
+  ];
+
+  const equippedPerkIds = new Set(
+    (state.equippedPerks || []).filter(Boolean).map(p => p.id)
+  );
+  const unlockedPerkIds = new Set(state.unlockedPerks || []);
+
+  rarityKeys.forEach(({ key, containerId, name }) => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const list = PERKS_CATALOG[key] || [];
+    const unlockedList = list.filter(perk => unlockedPerkIds.has(perk.id));
+
+    if (unlockedList.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align:center; padding: 32px 16px; color:#94a3b8; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:8px;">
+          <span style="font-size:28px;">🔮</span>
+          <span style="font-weight:700; color:#e2e8f0;">No tienes perks de rareza ${name} en tu inventario.</span>
+          <span style="font-size:11px; color:#64748b;">¡Juega en la máquina de Gachapón 3D para conseguirlos!</span>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+    unlockedList.forEach(perk => {
+      const isEquipped = equippedPerkIds.has(perk.id);
+      const rarityColor = RARITY_COLORS[perk.rarity] || '#8b5cf6';
+
+      html += `
+        <div class="perk-card" style="border-color: ${isEquipped ? rarityColor : 'rgba(255,255,255,0.12)'}; box-shadow: ${isEquipped ? '0 0 16px ' + rarityColor + '33' : 'none'};">
+          <div class="perk-card-header">
+            <div class="perk-card-icon" style="border-color: ${rarityColor}55; background: ${rarityColor}15;">${perk.icon || '⚡'}</div>
+            <div class="perk-card-title-box">
+              <div class="perk-card-name">${perk.name}</div>
+              <div class="perk-card-rarity-tag" style="background: ${rarityColor}25; color: ${rarityColor}; border: 1px solid ${rarityColor}55;">
+                ${perk.tier || name.toUpperCase()}
+              </div>
+            </div>
+          </div>
+
+          <div class="perk-card-desc">${perk.description}</div>
+          ${perk.stats ? `<div class="perk-card-stats"><span>⚡</span> ${perk.stats}</div>` : ''}
+
+          <button class="perk-equip-btn ${isEquipped ? 'equipped' : ''}" onclick="handlePerkCardClick('${perk.id}')">
+            ${isEquipped ? 'EQUIPADO ✓' : '⚡ EQUIPAR'}
+          </button>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  });
+}
+
+function handlePerkCardClick(perkId) {
+  if (typeof PERKS_CATALOG === 'undefined') return;
+
+  const unlockedPerkIds = new Set(state.unlockedPerks || []);
+  if (!unlockedPerkIds.has(perkId)) {
+    if (typeof showToast === 'function') showToast('🔮 Este perk aún no ha sido obtenido en el Gachapón 3D.');
+    return;
+  }
+
+  let targetPerk = null;
+  for (const rarity in PERKS_CATALOG) {
+    const found = PERKS_CATALOG[rarity].find(p => p.id === perkId);
+    if (found) { targetPerk = found; break; }
+  }
+  if (!targetPerk) return;
+
+  const equippedIndex = (state.equippedPerks || []).findIndex(p => p && p.id === perkId);
+  if (equippedIndex !== -1) {
+    handlePerkSlotClick(equippedIndex);
+  } else {
+    equipPerk(targetPerk);
+  }
+}
+
 let _isPerksModalOpen = false;
 function openPerksModal() {
   _isPerksModalOpen = true;
+  renderEquippedPerksSlots();
+  renderPerksCatalog();
   const modal = document.getElementById('perksModal');
   if (modal) modal.classList.add('show');
   if (typeof playSound === 'function') playSound('chip', 0.9);
@@ -714,12 +905,18 @@ function switchPerksTab(tabId, clickedBtn) {
   const targetPane = document.getElementById(tabId);
   if (targetPane) targetPane.classList.add('active');
 
+  renderPerksCatalog();
   if (typeof playSound === 'function') playSound('chip', 0.6);
 }
 
 window.openPerksModal = openPerksModal;
 window.closePerksModal = closePerksModal;
 window.switchPerksTab = switchPerksTab;
+window.renderEquippedPerksSlots = renderEquippedPerksSlots;
+window.renderPerksCatalog = renderPerksCatalog;
+window.handlePerkSlotClick = handlePerkSlotClick;
+window.handlePerkCardClick = handlePerkCardClick;
+window.equipPerk = equipPerk;
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && _isPerksModalOpen) {
@@ -736,3 +933,6 @@ if (typeof updateAvatarTag !== 'undefined') window.updateAvatarTag = updateAvata
 if (typeof openPerksModal !== 'undefined') window.openPerksModal = openPerksModal;
 if (typeof closePerksModal !== 'undefined') window.closePerksModal = closePerksModal;
 if (typeof switchPerksTab !== 'undefined') window.switchPerksTab = switchPerksTab;
+if (typeof renderEquippedPerksSlots !== 'undefined') window.renderEquippedPerksSlots = renderEquippedPerksSlots;
+if (typeof handlePerkSlotClick !== 'undefined') window.handlePerkSlotClick = handlePerkSlotClick;
+if (typeof equipPerk !== 'undefined') window.equipPerk = equipPerk;

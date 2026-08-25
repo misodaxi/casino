@@ -55,7 +55,38 @@ function checkAndTriggerSpin(io, rouletteId) {
   if (totalPlayers > 0 && totalReady === totalPlayers && totalTableBets > 0 && (r.status === 'WAITING' || r.status === 'READY')) {
     r.status = 'SPINNING';
     r.spinId++;
-    const winNum = WHEEL_ORDER[Math.floor(Math.random() * WHEEL_ORDER.length)];
+    let winNum = WHEEL_ORDER[Math.floor(Math.random() * WHEEL_ORDER.length)];
+
+    // Bonificación de probabilidad en ruleta para apuestas activas
+    const activeBetsKeys = Object.keys(r.bets || {});
+    if (activeBetsKeys.length > 0 && Math.random() < 0.10) {
+      const candidates = [];
+      activeBetsKeys.forEach(k => {
+        if (k.startsWith('num-')) {
+          const n = parseInt(k.replace('num-', ''), 10);
+          if (!isNaN(n)) candidates.push(n);
+        } else if (k.startsWith('split-')) {
+          const splits = k.replace('split-', '').split('-').map(Number);
+          splits.forEach(sn => { if (!isNaN(sn)) candidates.push(sn); });
+        } else if (k === 'red') {
+          WHEEL_ORDER.forEach(n => { if (n !== 0 && [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36].includes(n)) candidates.push(n); });
+        } else if (k === 'black') {
+          WHEEL_ORDER.forEach(n => { if (n !== 0 && ![1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36].includes(n)) candidates.push(n); });
+        } else if (k === 'even') {
+          WHEEL_ORDER.forEach(n => { if (n !== 0 && n % 2 === 0) candidates.push(n); });
+        } else if (k === 'odd') {
+          WHEEL_ORDER.forEach(n => { if (n % 2 === 1) candidates.push(n); });
+        } else if (k === 'low') {
+          WHEEL_ORDER.forEach(n => { if (n >= 1 && n <= 18) candidates.push(n); });
+        } else if (k === 'high') {
+          WHEEL_ORDER.forEach(n => { if (n >= 19 && n <= 36) candidates.push(n); });
+        }
+      });
+      if (candidates.length > 0) {
+        winNum = candidates[Math.floor(Math.random() * candidates.length)];
+      }
+    }
+
     r.result = winNum;
 
     io.to(`roulette:${rouletteId}`).emit('rouletteReadyToSpin', { rouletteId, totalPlayers });

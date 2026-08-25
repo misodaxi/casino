@@ -264,3 +264,41 @@ window.getBlackjackBetCircleSpot3D = function(seatIndex) {
 };
 var getBlackjackBetCircleSpot3D = window.getBlackjackBetCircleSpot3D;
 
+// ============================================================
+// PERKS CATALOG & SYSTEM DEFINITIONS
+// ============================================================
+window.PERKS_CATALOG = {
+  comun: [
+    {
+      id: 'perk_amuleto_trebol',
+      name: 'Trébol de la Suerte',
+      icon: '🍀',
+      rarity: 'comun',
+      tier: 'COMÚN',
+      description: 'Aumenta un +1% plano la probabilidad de ganar en todos los juegos del casino.',
+      stats: '+1.0% Suerte Global',
+      effects: {
+        flatWinBonus: 0.01
+      }
+    },
+    {
+      id: 'perk_ruleta_suerte',
+      name: 'Imán de la Ruleta',
+      icon: '🎡',
+      rarity: 'comun',
+      tier: 'COMÚN',
+      description: 'Aumenta un +10% plano la probabilidad de acertar apuestas en la Ruleta.',
+      stats: '+10.0% Suerte en Ruleta',
+      effects: {
+        rouletteWinBonus: 0.10
+      }
+    }
+  ],
+  pocoComun: [],
+  raro: [],
+  epico: [],
+  legendario: [],
+  mitico: []
+};
+var PERKS_CATALOG = window.PERKS_CATALOG;
+

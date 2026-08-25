@@ -857,72 +857,103 @@
   <!-- ================= PERKS TABBED MENU MODAL ================= -->
   <div class="perks-modal" id="perksModal">
     <div class="tv-modal-title">
-      <span style="display:flex; align-items:center; gap:8px;">⚡ MENÚ DE PERKS</span>
+      <span style="display:flex; align-items:center; gap:8px;">⚡ MENÚ DE PERKS Y HABILIDADES</span>
       <button class="icon-btn" id="closePerksModalBtn" onclick="closePerksModal()" style="width:32px; height:32px; cursor:pointer; font-size:16px;" title="Cerrar [ESC]">✕</button>
     </div>
 
-    <!-- Pestañas por Rarezas del Gachapón -->
-    <div class="perks-tab-bar">
-      <button class="perks-tab-btn active" data-rarity="comun" onclick="switchPerksTab('tab-comun', this)">🍀 Común</button>
-      <button class="perks-tab-btn" data-rarity="pocoComun" onclick="switchPerksTab('tab-poco-comun', this)">⭐ Poco Común</button>
-      <button class="perks-tab-btn" data-rarity="raro" onclick="switchPerksTab('tab-raro', this)">💎 Raro</button>
-      <button class="perks-tab-btn" data-rarity="epico" onclick="switchPerksTab('tab-epico', this)">🔥 Épico</button>
-      <button class="perks-tab-btn" data-rarity="legendario" onclick="switchPerksTab('tab-legendario', this)">👑 Legendario</button>
-      <button class="perks-tab-btn" data-rarity="mitico" onclick="switchPerksTab('tab-mitico', this)">🐉 Mítico</button>
+    <!-- Layout Dividido: Ranuras de Equipamiento a la Izquierda + Catálogo a la Derecha -->
+    <div class="perks-main-layout">
+      <!-- Panel Izquierdo: 8 Ranuras para Equipar Perks -->
+      <div class="perks-equipped-sidebar">
+        <div class="perks-sidebar-header">
+          <div style="display:flex; align-items:center; gap:6px; font-weight:900; font-size:12px; color:#fff;">
+            <span>⚡ PERKS EQUIPADOS</span>
+          </div>
+          <span id="perksEquippedCount" class="perks-slot-count-badge">0 / 8</span>
+        </div>
+
+        <!-- Rejilla de 8 Ranuras (2 columnas x 4 filas) -->
+        <div class="perks-slots-grid" id="perksSlotsContainer">
+          <!-- Generadas dinámicamente por JS (8 ranuras) -->
+        </div>
+
+        <div class="perks-equipped-hint">
+          💡 Clic en una ranura ocupada para desequipar.
+        </div>
+      </div>
+
+      <!-- Panel Derecho: Selector por Pestañas de Rareza -->
+      <div class="perks-browser-panel">
+        <!-- Pestañas por Rarezas del Gachapón -->
+        <div class="perks-tab-bar">
+          <button class="perks-tab-btn active" data-rarity="comun" onclick="switchPerksTab('tab-comun', this)">🍀 Común</button>
+          <button class="perks-tab-btn" data-rarity="pocoComun" onclick="switchPerksTab('tab-poco-comun', this)">⭐ Poco Común</button>
+          <button class="perks-tab-btn" data-rarity="raro" onclick="switchPerksTab('tab-raro', this)">💎 Raro</button>
+          <button class="perks-tab-btn" data-rarity="epico" onclick="switchPerksTab('tab-epico', this)">🔥 Épico</button>
+          <button class="perks-tab-btn" data-rarity="legendario" onclick="switchPerksTab('tab-legendario', this)">👑 Legendario</button>
+          <button class="perks-tab-btn" data-rarity="mitico" onclick="switchPerksTab('tab-mitico', this)">🐉 Mítico</button>
+        </div>
+
+        <!-- Contenido de Pestañas -->
+        <div class="perks-tab-content">
+          <div class="perks-tab-pane active" id="tab-comun">
+            <div class="perks-pane-header" style="border-color: rgba(148, 163, 184, 0.4);">
+              <div class="pane-icon">🍀</div>
+              <div class="pane-title" style="color: #94a3b8;">Perks de Rareza Común</div>
+              <div class="pane-desc">Ventajas iniciales, bonificaciones básicas y multiplicadores de inicio.</div>
+            </div>
+            <div class="perks-cards-grid" id="perksList-comun"></div>
+          </div>
+
+          <div class="perks-tab-pane" id="tab-poco-comun">
+            <div class="perks-pane-header" style="border-color: rgba(52, 211, 153, 0.4);">
+              <div class="pane-icon">⭐</div>
+              <div class="pane-title" style="color: #34d399;">Perks Poco Comunes</div>
+              <div class="pane-desc">Potenciadores de suerte, mejoras de experiencia y recompensas aumentadas.</div>
+            </div>
+            <div class="perks-cards-grid" id="perksList-poco-comun"></div>
+          </div>
+
+          <div class="perks-tab-pane" id="tab-raro">
+            <div class="perks-pane-header" style="border-color: rgba(56, 189, 248, 0.4);">
+              <div class="pane-icon">💎</div>
+              <div class="pane-title" style="color: #38bdf8;">Perks Raros</div>
+              <div class="pane-desc">Habilidades especiales para mesas de juegos, rachas y descuentos exclusivos.</div>
+            </div>
+            <div class="perks-cards-grid" id="perksList-raro"></div>
+          </div>
+
+          <div class="perks-tab-pane" id="tab-epico">
+            <div class="perks-pane-header" style="border-color: rgba(192, 132, 252, 0.4);">
+              <div class="pane-icon">🔥</div>
+              <div class="pane-title" style="color: #c084fc;">Perks Épicos</div>
+              <div class="pane-desc">Multiplicadores de alto calibre, inmunidad a rachas negativas y mejoras astrales.</div>
+            </div>
+            <div class="perks-cards-grid" id="perksList-epico"></div>
+          </div>
+
+          <div class="perks-tab-pane" id="tab-legendario">
+            <div class="perks-pane-header" style="border-color: rgba(250, 204, 21, 0.4);">
+              <div class="pane-icon">👑</div>
+              <div class="pane-title" style="color: #facc15;">Perks Legendarios</div>
+              <div class="pane-desc">Privilegios de la realeza dorada, jackpots aumentados y beneficios VIP supremos.</div>
+            </div>
+            <div class="perks-cards-grid" id="perksList-legendario"></div>
+          </div>
+
+          <div class="perks-tab-pane" id="tab-mitico">
+            <div class="perks-pane-header" style="border-color: rgba(255, 0, 85, 0.4);">
+              <div class="pane-icon">🐉</div>
+              <div class="pane-title" style="color: #ff0055;">Perks Míticos Supremos</div>
+              <div class="pane-desc">Habilidades legendarias del Dragón Ancestral con poder y multiplicadores máximos (0.1%).</div>
+            </div>
+            <div class="perks-cards-grid" id="perksList-mitico"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Contenido de Pestañas -->
-    <div class="perks-tab-content">
-      <div class="perks-tab-pane active" id="tab-comun">
-        <div class="perks-pane-header" style="border-color: rgba(148, 163, 184, 0.4);">
-          <div class="pane-icon">🍀</div>
-          <div class="pane-title" style="color: #94a3b8;">Perks de Rareza Común</div>
-          <div class="pane-desc">Ventajas iniciales, bonificaciones básicas y multiplicadores de inicio.</div>
-        </div>
-      </div>
-
-      <div class="perks-tab-pane" id="tab-poco-comun">
-        <div class="perks-pane-header" style="border-color: rgba(52, 211, 153, 0.4);">
-          <div class="pane-icon">⭐</div>
-          <div class="pane-title" style="color: #34d399;">Perks Poco Comunes</div>
-          <div class="pane-desc">Potenciadores de suerte, mejoras de experiencia y recompensas aumentadas.</div>
-        </div>
-      </div>
-
-      <div class="perks-tab-pane" id="tab-raro">
-        <div class="perks-pane-header" style="border-color: rgba(56, 189, 248, 0.4);">
-          <div class="pane-icon">💎</div>
-          <div class="pane-title" style="color: #38bdf8;">Perks Raros</div>
-          <div class="pane-desc">Habilidades especiales para mesas de juegos, rachas y descuentos exclusivos.</div>
-        </div>
-      </div>
-
-      <div class="perks-tab-pane" id="tab-epico">
-        <div class="perks-pane-header" style="border-color: rgba(192, 132, 252, 0.4);">
-          <div class="pane-icon">🔥</div>
-          <div class="pane-title" style="color: #c084fc;">Perks Épicos</div>
-          <div class="pane-desc">Multiplicadores de alto calibre, inmunidad a rachas negativas y mejoras astrales.</div>
-        </div>
-      </div>
-
-      <div class="perks-tab-pane" id="tab-legendario">
-        <div class="perks-pane-header" style="border-color: rgba(250, 204, 21, 0.4);">
-          <div class="pane-icon">👑</div>
-          <div class="pane-title" style="color: #facc15;">Perks Legendarios</div>
-          <div class="pane-desc">Privilegios de la realeza dorada, jackpots aumentados y beneficios VIP supremos.</div>
-        </div>
-      </div>
-
-      <div class="perks-tab-pane" id="tab-mitico">
-        <div class="perks-pane-header" style="border-color: rgba(255, 0, 85, 0.4);">
-          <div class="pane-icon">🐉</div>
-          <div class="pane-title" style="color: #ff0055;">Perks Míticos Supremos</div>
-          <div class="pane-desc">Habilidades legendarias del Dragón Ancestral con poder y multiplicadores máximos (0.1%).</div>
-        </div>
-      </div>
-    </div>
-
-    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:4px;">
       <button class="action-btn" onclick="closePerksModal()" style="padding:8px 22px; font-size:12px;">CERRAR ✕</button>
     </div>
   </div>

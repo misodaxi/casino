@@ -67,74 +67,96 @@ const GRID_TOTAL_H = GRID_5X5_ROWS * (GRID_ROW_H + GRID_ROW_GAP) - GRID_ROW_GAP;
 // - Poco Común: 20.0% (x2.5)
 // - Común: 60% base / 65% total (x1.2) - 100% PREMIO GARANTIZADO
 // ============================================================
-const GACHAPON_PRIZES = {
+const GACHAPON_RARITY_INFO = {
   mitico: {
     tier: 'MÍTICO (0.1%)',
+    rarity: 'mitico',
     prob: 0.001,
     color: '#ff0055',
     bg: 'rgba(255, 0, 85, 0.45)',
-    name: '🌟 DRAGÓN ANCESTRAL MÍTICO ✨',
+    name: 'Cápsula Mítica',
     icon: '🐉',
-    mult: 250,
     capColor: '#ff0055',
-    desc: '¡PREMIO MÍTICO SUPREMO (0.1%)!'
+    desc: '¡PERK MÍTICO SUPREMO (0.1%)!'
   },
   legendario: {
     tier: 'LEGENDARIO (1%)',
+    rarity: 'legendario',
     prob: 0.010,
     color: '#facc15',
     bg: 'rgba(250, 204, 21, 0.40)',
-    name: '👑 CORONA IMPERIAL DORADA',
+    name: 'Cápsula Legendaria',
     icon: '👑',
-    mult: 50,
     capColor: '#facc15',
-    desc: '¡CÁPSULA DORADA LEGENDARIA (1.0%)!'
+    desc: '¡PERK DORADO LEGENDARIO (1.0%)!'
   },
   epico: {
     tier: 'ÉPICO (3.9%)',
+    rarity: 'epico',
     prob: 0.039,
     color: '#c084fc',
     bg: 'rgba(192, 132, 252, 0.35)',
-    name: '🔥 FÉNIX DE FUEGO ASTRAL',
+    name: 'Cápsula Épica',
     icon: '🔥',
-    mult: 18,
     capColor: '#c084fc',
-    desc: '¡CÁPSULA PÚRPURA ÉPICA (3.9%)!'
+    desc: '¡PERK PÚRPURA ÉPICO (3.9%)!'
   },
   raro: {
     tier: 'RARO (10%)',
+    rarity: 'raro',
     prob: 0.100,
     color: '#38bdf8',
     bg: 'rgba(56, 189, 248, 0.30)',
-    name: '💎 DIAMANTE CÓSMICO AZUL',
+    name: 'Cápsula Rara',
     icon: '💎',
-    mult: 6,
     capColor: '#38bdf8',
-    desc: '¡CÁPSULA AZUL RARA (10%)!'
+    desc: '¡PERK AZUL RARO (10%)!'
   },
   pocoComun: {
     tier: 'POCO COMÚN (20%)',
+    rarity: 'pocoComun',
     prob: 0.200,
     color: '#34d399',
     bg: 'rgba(52, 211, 153, 0.25)',
-    name: '⭐ ESTRELLA DE LA SUERTE',
+    name: 'Cápsula Poco Común',
     icon: '⭐',
-    mult: 2.5,
     capColor: '#34d399',
-    desc: '¡CÁPSULA ESMERALDA POCO COMÚN (20%)!'
+    desc: '¡PERK ESMERALDA POCO COMÚN (20%)!'
   },
   comun: {
     tier: 'COMÚN (60%)',
+    rarity: 'comun',
     prob: 0.650,
     color: '#94a3b8',
     bg: 'rgba(148, 163, 184, 0.20)',
-    name: '🍀 TRÉBOL DE JUGUETE',
+    name: 'Cápsula Común',
     icon: '🍀',
-    mult: 1.2,
     capColor: '#94a3b8',
-    desc: '¡CÁPSULA COMÚN (60%)!'
+    desc: '¡PERK COMÚN (60%)!'
   }
 };
+var GACHAPON_PRIZES = GACHAPON_RARITY_INFO;
+
+function getGachaponPerkReward(rarityKey) {
+  const baseInfo = GACHAPON_RARITY_INFO[rarityKey] || GACHAPON_RARITY_INFO.comun;
+  const catalogList = (typeof PERKS_CATALOG !== 'undefined' && PERKS_CATALOG[rarityKey]) ? PERKS_CATALOG[rarityKey] : [];
+
+  if (catalogList && catalogList.length > 0) {
+    const perk = catalogList[Math.floor(Math.random() * catalogList.length)];
+    return {
+      ...baseInfo,
+      ...perk,
+      isPerk: true,
+      perkRef: perk
+    };
+  }
+
+  return {
+    ...baseInfo,
+    isPerk: false,
+    stats: 'CÁPSULA DE RAREZA ' + rarityKey.toUpperCase()
+  };
+}
 
 function initMachineGradients(machine) {
   if (machine.gradientsReady) return;
@@ -315,34 +337,34 @@ function draw3DGachaponScreen(ctx, state, theme, machineRef) {
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Ícono del Premio Flotando en el Centro
+    // Ícono del Perk / Cápsula Flotando en el Centro
     ctx.font = '900 85px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
     ctx.fillText(prize.icon || '🍀', 256, 215);
 
     // Placa de Categoría / Tier
     ctx.fillStyle = prize.color || '#facc15';
     ctx.font = '900 18px "Segoe UI", sans-serif';
-    ctx.fillText(`★ TIER ${prize.tier || 'COMÚN'} ★`, 256, 370);
+    ctx.fillText(`★ PERK ${prize.tier || (prize.rarity ? prize.rarity.toUpperCase() : 'COMÚN')} ★`, 256, 370);
 
-    // Nombre del premio
+    // Nombre del perk
     ctx.fillStyle = '#ffffff';
     ctx.font = '900 24px "Segoe UI", sans-serif';
-    ctx.fillText(prize.name || 'PREMIO GACHAPÓN', 256, 405);
+    ctx.fillText(prize.name || 'PERK DESBLOQUEADO', 256, 405);
 
-    // Multiplicador de pago
-    ctx.fillStyle = (prize.mult > 0) ? '#facc15' : '#94a3b8';
-    ctx.font = '900 22px "Segoe UI", sans-serif';
-    ctx.fillText((prize.mult > 0) ? `MULTIPLICADOR: x${prize.mult}` : 'SIN PREMIO', 256, 440);
+    // Efecto / Estadísticas del perk
+    ctx.fillStyle = '#22c55e';
+    ctx.font = '900 18px "Segoe UI", sans-serif';
+    ctx.fillText(prize.stats || (prize.effects && prize.effects.flatWinBonus ? '+1.0% Suerte Global' : 'HABILIDAD PASIVA DE CASINO'), 256, 440);
   }
 
   // Barra de estado inferior
   ctx.font = 'bold 18px "Segoe UI", sans-serif';
   if (state.winner) {
     ctx.fillStyle = '#facc15';
-    ctx.fillText(`⭐ ¡PREMIO RECLAMADO! (+$${roundMoney(state.bet * (state.multiplier || 1))}) ⭐`, 256, 485);
+    ctx.fillText('⭐ ¡PERK OBTENIDO! DISPONIBLE EN EL MENÚ [PERKS] ⭐', 256, 485);
   } else {
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText('APUESTA MÍNIMA $300 · GIRA LA MANIVELA 3D', 256, 485);
+    ctx.fillText('APUESTA $300 · GIRA LA MANIVELA 3D PARA PERKS', 256, 485);
   }
 }
 
@@ -593,38 +615,55 @@ function updateSlot3DScreens(dt) {
             st.spinning = false;
             window.activeSpinningSlotsCount = Math.max(0, window.activeSpinningSlotsCount - 1);
 
-            const wonAmount = roundMoney(st.bet * (st.multiplier || 0));
+            st.winner = true;
+            playSound('win');
 
-            if (st.multiplier > 0) {
-              st.winner = true;
-              state.balance = roundMoney(state.balance + wonAmount);
-              updateBalanceUI();
-              playSound('win');
+            const isMythic = (st.lastPrize && st.lastPrize.rarity === 'mitico');
+            const isLegendary = (st.lastPrize && st.lastPrize.rarity === 'legendario');
+            const isEpic = (st.lastPrize && st.lastPrize.rarity === 'epico');
 
-              if (st.multiplier >= 50) {
-                if (typeof spawnConfetti === 'function') spawnConfetti();
-                addXP(500);
-              } else if (st.multiplier >= 15) {
-                if (typeof spawnConfetti === 'function') spawnConfetti();
-                addXP(250);
-              } else {
-                addXP(80);
+            if (isMythic || isLegendary || isEpic) {
+              if (typeof spawnConfetti === 'function') spawnConfetti(isMythic ? 50 : 25);
+              addXP(isMythic ? 500 : (isLegendary ? 300 : 200));
+            } else {
+              addXP(st.lastPrize && st.lastPrize.rarity === 'pocoComun' ? 100 : (st.lastPrize && st.lastPrize.rarity === 'raro' ? 150 : 60));
+            }
+
+            if (st.lastPerk) {
+              if (!Array.isArray(state.unlockedPerks)) state.unlockedPerks = [];
+              if (!state.unlockedPerks.includes(st.lastPerk.id)) {
+                state.unlockedPerks.push(st.lastPerk.id);
+                try {
+                  localStorage.setItem('casino_unlocked_perks', JSON.stringify(state.unlockedPerks));
+                } catch (e) {}
               }
 
+              if (typeof equipPerk === 'function') {
+                const isAlreadyEquipped = (state.equippedPerks || []).some(p => p && p.id === st.lastPerk.id);
+                if (!isAlreadyEquipped) {
+                  equipPerk(st.lastPerk);
+                }
+              }
+              if (typeof showToast === 'function') {
+                showToast(`🎁 ¡HAS DESBLOQUEADO EL PERK: ${st.lastPerk.name} (${st.lastPerk.tier || st.lastPerk.rarity.toUpperCase()})!`);
+              }
               if (st.statusEl) {
                 st.statusEl.className = 'slot-payout-info-bar win';
-                st.statusEl.textContent = `🎁 ¡Gachapón: ${st.lastPrize.name}! Ganaste +$${wonAmount} (x${st.multiplier})!`;
+                st.statusEl.textContent = `🎁 ¡Perk Obtenido: ${st.lastPerk.name}! Equipable en el Menú de Perks ⚡`;
               }
-              showToast(`🎁 ¡${st.lastPrize.name}! +$${wonAmount} (x${st.multiplier})`);
             } else {
-              st.winner = false;
-              playSound('lose');
-              if (st.statusEl) {
-                st.statusEl.className = 'slot-payout-info-bar';
-                st.statusEl.textContent = '❌ Cápsula vacía. ¡Prueba otra tirada!';
+              const rarityName = st.lastPrize && st.lastPrize.rarity ? st.lastPrize.rarity.toUpperCase() : 'COMÚN';
+              if (typeof showToast === 'function') {
+                showToast(`🎁 ¡Cápsula de rareza ${rarityName} desbloqueada!`);
               }
-              showToast('Gachapón: Cápsula vacía, ¡sigue intentándolo!');
+              if (st.statusEl) {
+                st.statusEl.className = 'slot-payout-info-bar win';
+                st.statusEl.textContent = `🎁 ¡Cápsula ${rarityName} obtenida! Lista en el Catálogo de Perks.`;
+              }
             }
+
+            if (typeof renderEquippedPerksSlots === 'function') renderEquippedPerksSlots();
+            if (typeof renderPerksCatalog === 'function') renderPerksCatalog();
 
             draw3DGachaponScreen(item.ctx, st, item.theme, item);
             item.tex.needsUpdate = true;
@@ -851,26 +890,30 @@ function spinSlotMachine(gameType) {
   // GACHAPÓN EXACT PROBABILITY ROLL (100% PREMIOS GARANTIZADOS)
   // Mítico (0.1%), Legendario (1%), Épico (3.9%), Raro (10%), Poco Común (20%), Común (60%+)
   // -------------------------------------------------------------
+  const perkWinBonus = (typeof getPerkBonus === 'function') ? getPerkBonus('flatWinBonus') : 0;
+
   if (isGachapon) {
     const roll = Math.random();
-    let prize = GACHAPON_PRIZES.comun;
+    let rarityKey = 'comun';
 
-    if (roll < 0.001) {
-      prize = GACHAPON_PRIZES.mitico; // 0.1% Mítico (x250)
-    } else if (roll < 0.011) {
-      prize = GACHAPON_PRIZES.legendario; // 1.0% Legendario (x50)
-    } else if (roll < 0.050) {
-      prize = GACHAPON_PRIZES.epico; // 3.9% Épico (x18)
-    } else if (roll < 0.150) {
-      prize = GACHAPON_PRIZES.raro; // 10.0% Raro (x6)
-    } else if (roll < 0.350) {
-      prize = GACHAPON_PRIZES.pocoComun; // 20.0% Poco común (x2.5)
+    if (roll < (0.001 + perkWinBonus * 0.05)) {
+      rarityKey = 'mitico'; // Mítico (0.1%)
+    } else if (roll < (0.011 + perkWinBonus * 0.10)) {
+      rarityKey = 'legendario'; // Legendario (1.0%)
+    } else if (roll < (0.050 + perkWinBonus * 0.25)) {
+      rarityKey = 'epico'; // Épico (3.9%)
+    } else if (roll < (0.150 + perkWinBonus * 0.50)) {
+      rarityKey = 'raro'; // Raro (10.0%)
+    } else if (roll < (0.350 + perkWinBonus)) {
+      rarityKey = 'pocoComun'; // Poco común (20.0%)
     } else {
-      prize = GACHAPON_PRIZES.comun; // 60%+ Común (x1.2)
+      rarityKey = 'comun'; // Común (60%+)
     }
 
+    const prize = getGachaponPerkReward(rarityKey);
     st.lastPrize = prize;
-    st.multiplier = prize.mult;
+    st.lastPerk = prize.perkRef || null;
+    st.multiplier = 0;
     st.startTime = performance.now();
     return;
   }
@@ -890,15 +933,15 @@ function spinSlotMachine(gameType) {
     }
 
     const roll = Math.random();
-    if (roll < 0.10) {
+    if (roll < (0.10 + perkWinBonus)) {
       const jackSym = symbols[Math.floor(Math.random() * 3)];
       for (let c = 0; c < 5; c++) grid[c][2] = jackSym;
       for (let i = 0; i < 5; i++) grid[i][i] = jackSym;
-    } else if (roll < 0.28) {
+    } else if (roll < (0.28 + perkWinBonus)) {
       const pickLine = SLOTS_5X5_PAYLINES[Math.floor(Math.random() * SLOTS_5X5_PAYLINES.length)];
       const winSym = symbols[Math.floor(Math.random() * 5)];
       pickLine.coords.forEach(([c, r]) => { grid[c][r] = winSym; });
-    } else if (roll < 0.58) {
+    } else if (roll < (0.58 + perkWinBonus)) {
       const pickLine1 = SLOTS_5X5_PAYLINES[Math.floor(Math.random() * 5)];
       const pickLine2 = SLOTS_5X5_PAYLINES[5 + Math.floor(Math.random() * 5)];
       const winSym = symbols[1 + Math.floor(Math.random() * (symCount - 1))];
@@ -953,17 +996,17 @@ function spinSlotMachine(gameType) {
     let multiplier = 0;
     let winName = '';
 
-    if (roll < 0.08) {
+    if (roll < (0.08 + perkWinBonus)) {
       const jackSym = symbols[0];
       targetSyms = [jackSym, jackSym, jackSym];
       multiplier = 50;
       winName = '⭐ ¡SUPER JACKPOT TRIPLE 7!';
-    } else if (roll < 0.22) {
+    } else if (roll < (0.22 + perkWinBonus)) {
       const pickSym = symbols[1 + Math.floor(Math.random() * (symbols.length - 1))];
       targetSyms = [pickSym, pickSym, pickSym];
       multiplier = (pickSym === '💎' || pickSym === '👑') ? 25 : ((pickSym === '🔔' || pickSym === '🔥') ? 15 : 8);
       winName = `🎉 ¡TRIPLE ${pickSym}! (x${multiplier})`;
-    } else if (roll < 0.48) {
+    } else if (roll < (0.48 + perkWinBonus)) {
       const matchSym = symbols[1];
       let diffSym = symbols[Math.floor(Math.random() * symbols.length)];
       while (diffSym === matchSym) diffSym = symbols[Math.floor(Math.random() * symbols.length)];
