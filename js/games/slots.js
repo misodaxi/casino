@@ -890,21 +890,22 @@ function spinSlotMachine(gameType) {
   // GACHAPÓN EXACT PROBABILITY ROLL (100% PREMIOS GARANTIZADOS)
   // Mítico (0.1%), Legendario (1%), Épico (3.9%), Raro (10%), Poco Común (20%), Común (60%+)
   // -------------------------------------------------------------
-  const perkWinBonus = (typeof getPerkBonus === 'function') ? getPerkBonus('flatWinBonus') : 0;
+  const globalWinBonus = (typeof getPerkBonus === 'function') ? getPerkBonus('flatWinBonus') : 0;
 
   if (isGachapon) {
+    const gachaBonus = (typeof getPerkBonus === 'function') ? (getPerkBonus('gachaponWinBonus') + globalWinBonus) : 0;
     const roll = Math.random();
     let rarityKey = 'comun';
 
-    if (roll < (0.001 + perkWinBonus * 0.05)) {
+    if (roll < (0.001 + gachaBonus * 0.05)) {
       rarityKey = 'mitico'; // Mítico (0.1%)
-    } else if (roll < (0.011 + perkWinBonus * 0.10)) {
+    } else if (roll < (0.011 + gachaBonus * 0.10)) {
       rarityKey = 'legendario'; // Legendario (1.0%)
-    } else if (roll < (0.050 + perkWinBonus * 0.25)) {
+    } else if (roll < (0.050 + gachaBonus * 0.25)) {
       rarityKey = 'epico'; // Épico (3.9%)
-    } else if (roll < (0.150 + perkWinBonus * 0.50)) {
+    } else if (roll < (0.150 + gachaBonus * 0.50)) {
       rarityKey = 'raro'; // Raro (10.0%)
-    } else if (roll < (0.350 + perkWinBonus)) {
+    } else if (roll < (0.350 + gachaBonus)) {
       rarityKey = 'pocoComun'; // Poco común (20.0%)
     } else {
       rarityKey = 'comun'; // Común (60%+)
@@ -924,6 +925,7 @@ function spinSlotMachine(gameType) {
     // -------------------------------------------------------------
     // MATRIZ 5X5 CON GENERACIÓN MULTI-EJE
     // -------------------------------------------------------------
+    const slots5x5Bonus = (typeof getPerkBonus === 'function') ? (getPerkBonus('slots5x5WinBonus') + globalWinBonus) : 0;
     const grid = [];
     for (let c = 0; c < 5; c++) {
       grid[c] = [];
@@ -933,15 +935,15 @@ function spinSlotMachine(gameType) {
     }
 
     const roll = Math.random();
-    if (roll < (0.10 + perkWinBonus)) {
+    if (roll < (0.10 + slots5x5Bonus)) {
       const jackSym = symbols[Math.floor(Math.random() * 3)];
       for (let c = 0; c < 5; c++) grid[c][2] = jackSym;
       for (let i = 0; i < 5; i++) grid[i][i] = jackSym;
-    } else if (roll < (0.28 + perkWinBonus)) {
+    } else if (roll < (0.28 + slots5x5Bonus)) {
       const pickLine = SLOTS_5X5_PAYLINES[Math.floor(Math.random() * SLOTS_5X5_PAYLINES.length)];
       const winSym = symbols[Math.floor(Math.random() * 5)];
       pickLine.coords.forEach(([c, r]) => { grid[c][r] = winSym; });
-    } else if (roll < (0.58 + perkWinBonus)) {
+    } else if (roll < (0.58 + slots5x5Bonus)) {
       const pickLine1 = SLOTS_5X5_PAYLINES[Math.floor(Math.random() * 5)];
       const pickLine2 = SLOTS_5X5_PAYLINES[5 + Math.floor(Math.random() * 5)];
       const winSym = symbols[1 + Math.floor(Math.random() * (symCount - 1))];
@@ -991,22 +993,23 @@ function spinSlotMachine(gameType) {
     // -------------------------------------------------------------
     // MATRIZ 3-RODILLOS CLÁSICA (TRAGAPERRAS 777)
     // -------------------------------------------------------------
+    const slots3x3Bonus = (typeof getPerkBonus === 'function') ? (getPerkBonus('slots3x3WinBonus') + globalWinBonus) : 0;
     const roll = Math.random();
     let targetSyms = [];
     let multiplier = 0;
     let winName = '';
 
-    if (roll < (0.08 + perkWinBonus)) {
+    if (roll < (0.08 + slots3x3Bonus)) {
       const jackSym = symbols[0];
       targetSyms = [jackSym, jackSym, jackSym];
       multiplier = 50;
       winName = '⭐ ¡SUPER JACKPOT TRIPLE 7!';
-    } else if (roll < (0.22 + perkWinBonus)) {
+    } else if (roll < (0.22 + slots3x3Bonus)) {
       const pickSym = symbols[1 + Math.floor(Math.random() * (symbols.length - 1))];
       targetSyms = [pickSym, pickSym, pickSym];
       multiplier = (pickSym === '💎' || pickSym === '👑') ? 25 : ((pickSym === '🔔' || pickSym === '🔥') ? 15 : 8);
       winName = `🎉 ¡TRIPLE ${pickSym}! (x${multiplier})`;
-    } else if (roll < (0.48 + perkWinBonus)) {
+    } else if (roll < (0.48 + slots3x3Bonus)) {
       const matchSym = symbols[1];
       let diffSym = symbols[Math.floor(Math.random() * symbols.length)];
       while (diffSym === matchSym) diffSym = symbols[Math.floor(Math.random() * symbols.length)];

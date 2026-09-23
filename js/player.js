@@ -743,7 +743,7 @@
             seat: state.player.currentSeat
           });
           if (gameId === 'roulette') {
-            socket.emit('rouletteJoin', { rouletteId: 'roulette', seatIndex: seat.seatIndex });
+            socket.emit('rouletteJoin', { rouletteId: 'roulette', seatIndex: seat.seatIndex, perks: (state.equippedPerks || []) });
           } else if (gameId === 'blackjack') {
             socket.emit('blackjackJoin', { blackjackId: 'blackjack', seatIndex: seat.seatIndex, bet: bjState.bet || 50 });
           } else if (gameId === 'dice') {

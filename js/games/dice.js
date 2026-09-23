@@ -122,6 +122,17 @@
         const floorY = (dice3DRefs.floorY !== undefined) ? dice3DRefs.floorY : 0.92;
         const all = activeDiceRoll.player.concat(activeDiceRoll.house);
 
+        if (!p1Vals && !p2Vals && !versusData) {
+          const perkLuck = (typeof getPerkBonus === 'function') ? (getPerkBonus('diceWinBonus') + getPerkBonus('flatWinBonus')) : 0;
+          if (perkLuck > 0 && Math.random() < perkLuck) {
+            p1Vals = [Math.floor(Math.random() * 2) + 5, Math.floor(Math.random() * 2) + 5]; // 5 o 6
+            p2Vals = [Math.floor(Math.random() * 3) + 1, Math.floor(Math.random() * 3) + 1]; // 1, 2 o 3
+          } else if (perkLuck < 0 && Math.random() < Math.abs(perkLuck)) {
+            p1Vals = [Math.floor(Math.random() * 3) + 1, Math.floor(Math.random() * 3) + 1]; // 1, 2 o 3
+            p2Vals = [Math.floor(Math.random() * 2) + 5, Math.floor(Math.random() * 2) + 5]; // 5 o 6
+          }
+        }
+
         all.forEach((d, idx) => {
           d.phase = 'lifting';
           d.liftTimer = 0;

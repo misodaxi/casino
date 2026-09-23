@@ -701,6 +701,7 @@ const RARITY_COLORS = {
 };
 
 function renderEquippedPerksSlots() {
+  renderMasterSlot();
   const container = document.getElementById('perksSlotsContainer');
   const countBadge = document.getElementById('perksEquippedCount');
   if (!container) return;
@@ -883,6 +884,9 @@ function handlePerkCardClick(perkId) {
 let _isPerksModalOpen = false;
 function openPerksModal() {
   _isPerksModalOpen = true;
+  renderMasterSlot();
+  renderMasterCatalogCard();
+  _isPerksModalOpen = true;
   renderEquippedPerksSlots();
   renderPerksCatalog();
   const modal = document.getElementById('perksModal');
@@ -936,3 +940,153 @@ if (typeof switchPerksTab !== 'undefined') window.switchPerksTab = switchPerksTa
 if (typeof renderEquippedPerksSlots !== 'undefined') window.renderEquippedPerksSlots = renderEquippedPerksSlots;
 if (typeof handlePerkSlotClick !== 'undefined') window.handlePerkSlotClick = handlePerkSlotClick;
 if (typeof equipPerk !== 'undefined') window.equipPerk = equipPerk;
+
+// ================= GAMBLERS DELIGHT MASTER SLOT MANAGEMENT =================
+function renderMasterSlot() {
+  const masterSlot = document.getElementById('gamblersDelightMasterSlot');
+  if (!masterSlot) return;
+
+  if (typeof state.gamblersDelightEquipped === 'undefined') {
+    var savedGD = localStorage.getItem('casino_gd_equipped');
+    state.gamblersDelightEquipped = savedGD === null ? true : (savedGD === 'true');
+  }
+
+  if (state.gamblersDelightEquipped) {
+    masterSlot.className = 'perk-slot-master equipped';
+    masterSlot.innerHTML = `
+      <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="master-slot-img">
+      <div class="master-slot-title">GAMBLERS DELIGHT ✓</div>
+      <div class="master-slot-desc" style="color:#fbbf24;">As bajo la manga · Clic para desequipar ✕</div>
+    `;
+  } else {
+    masterSlot.className = 'perk-slot-master';
+    masterSlot.innerHTML = `
+      <div style="font-size:26px; line-height:1; filter:drop-shadow(0 0 8px rgba(251,191,36,0.6));">👑</div>
+      <div class="master-slot-title" style="color:#e2e8f0;">RANURA GAMBLER´S DELIGHT</div>
+      <div class="master-slot-desc" style="color:#94a3b8;">➕ Clic para equipar habilidad</div>
+    `;
+  }
+}
+
+function handleMasterSlotClick() {
+  state.gamblersDelightEquipped = !state.gamblersDelightEquipped;
+  try {
+    localStorage.setItem('casino_gd_equipped', state.gamblersDelightEquipped ? 'true' : 'false');
+  } catch (e) {}
+
+  if (state.gamblersDelightEquipped) {
+    if (typeof playSound === 'function') playSound('win', 1.0);
+    if (typeof showToast === 'function') showToast('✨ Habilidad equipada en la ranura Gambler´s Delight!');
+  } else {
+    if (typeof playSound === 'function') playSound('chip', 0.8);
+    if (typeof showToast === 'function') showToast('⚡ Habilidad desequipada de la ranura Gambler´s Delight.');
+  }
+
+  renderMasterSlot();
+  renderMasterCatalogCard();
+  updateMachineGDBtnVisibility();
+}
+
+function renderMasterCatalogCard() {
+  const container = document.getElementById('masterPerkCardContainer');
+  if (!container) return;
+
+  const isEquipped = typeof state.gamblersDelightEquipped === 'undefined' ? true : !!state.gamblersDelightEquipped;
+
+  container.innerHTML = `
+    <div class="perk-card master-card" style="border: 2px solid ${isEquipped ? '#fbbf24' : 'rgba(251,191,36,0.3)'}; box-shadow: ${isEquipped ? '0 0 25px rgba(251,191,36,0.4), 0 0 50px rgba(236,72,153,0.25)' : 'none'}; background: linear-gradient(135deg, rgba(25,12,45,0.9), rgba(12,6,22,0.9)); padding: 22px; border-radius: 18px; display:flex; flex-direction:column; gap:14px; align-items:center; text-align:center;">
+      <div style="position:relative; display:flex; justify-content:center; align-items:center; padding:10px 0;">
+        <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" style="width:210px; max-width:230px; height:auto; filter:drop-shadow(0 0 10px rgba(251,191,36,0.9)) drop-shadow(0 0 25px rgba(236,72,153,0.7));">
+      </div>
+      <div>
+        <div style="font-size:16px; font-weight:900; color:#fbbf24; text-shadow:0 0 10px rgba(251,191,36,0.6);">GAMBLERS DELIGHT (AS DEFINITIVO)</div>
+        <div style="font-size:11px; font-weight:800; color:#f472b6; margin-top:3px;">CLASE GAMBLER´S DELIGHT · 1 USO CADA VARIAS PARTIDAS</div>
+      </div>
+      <div style="font-size:12px; color:#cbd5e1; max-width:460px; line-height:1.5;">
+        Habilidad de la clase Gambler´s Delight. Funciona como un as bajo la manga en cualquier mesa de juego para romper una racha adversa o asegurar una victoria colosal. Al estar equipada en tu ranura Gambler´s Delight, el botón aparece en el centro de todas las máquinas.
+      </div>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center;">
+        <span style="font-size:11px; font-weight:900; color:#fbbf24; background:rgba(251,191,36,0.15); border:1px solid rgba(251,191,36,0.35); padding:4px 12px; border-radius:10px;">RANURA GAMBLER´S DELIGHT</span>
+        <span style="font-size:11px; font-weight:900; color:#a855f7; background:rgba(168,85,247,0.15); border:1px solid rgba(168,85,247,0.35); padding:4px 12px; border-radius:10px;">NIVEL SUPREMO</span>
+      </div>
+      <button class="perk-equip-btn ${isEquipped ? 'equipped' : ''}" onclick="handleMasterSlotClick()" style="width:100%; max-width:300px; padding:12px; font-size:12px; font-weight:900; border-radius:12px; cursor:pointer; background:${isEquipped ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'linear-gradient(135deg, #fbbf24, #f59e0b)'}; color:#000; border:none; box-shadow:0 0 18px rgba(251,191,36,0.4);">
+        ${isEquipped ? 'EQUIPADO EN GAMBLER´S DELIGHT ✓' : '✨ EQUIPAR EN GAMBLER´S DELIGHT'}
+      </button>
+    </div>
+  `;
+}
+
+function updateMachineGDBtnVisibility() {
+  const isEquipped = typeof state.gamblersDelightEquipped === 'undefined' ? true : !!state.gamblersDelightEquipped;
+  document.querySelectorAll('.gamblers-delight-wrap').forEach(wrap => {
+    wrap.style.display = isEquipped ? 'flex' : 'none';
+  });
+}
+
+window.renderMasterSlot = renderMasterSlot;
+window.handleMasterSlotClick = handleMasterSlotClick;
+window.renderMasterCatalogCard = renderMasterCatalogCard;
+window.updateMachineGDBtnVisibility = updateMachineGDBtnVisibility;
+
+// --- Gamblers Delight Master Ability Trigger ---
+function triggerGamblersDelight(gameId, evt) {
+  if (typeof playSound === 'function') playSound('win');
+
+  // Trigger juicy bounce & glowing burst animation
+  try {
+    const ev = evt || (typeof window !== 'undefined' ? window.event : null);
+    let btn = ev ? (ev.currentTarget || ev.target) : null;
+    if (btn && !btn.classList.contains('gamblers-delight-img-btn')) {
+      btn = btn.closest ? btn.closest('.gamblers-delight-img-btn') : null;
+    }
+    if (!btn && typeof document !== 'undefined') {
+      const activeOverlay = document.querySelector('.game-overlay.show') || document.querySelector(`#${gameId}Wrap`);
+      if (activeOverlay) {
+        btn = activeOverlay.querySelector('.gamblers-delight-img-btn');
+      }
+      if (!btn) {
+        btn = document.querySelector('.gamblers-delight-img-btn');
+      }
+    }
+
+    if (btn) {
+      btn.classList.remove('gd-bounce-active');
+      const backdrop = btn.parentElement ? btn.parentElement.querySelector('.gamblers-delight-glow-backdrop') : null;
+      if (backdrop) backdrop.classList.remove('gd-burst');
+
+      // Trigger reflow for instantaneous animation replay
+      void btn.offsetWidth;
+
+      btn.classList.add('gd-bounce-active');
+      if (backdrop) backdrop.classList.add('gd-burst');
+
+      setTimeout(() => {
+        btn.classList.remove('gd-bounce-active');
+        if (backdrop) backdrop.classList.remove('gd-burst');
+      }, 700);
+    }
+  } catch (err) {
+    console.error('Gamblers Delight click animation error:', err);
+  }
+
+  if (typeof showToast === 'function') {
+    const gameNames = {
+      roulette: 'Ruleta 3D',
+      dice: 'Dados 3D',
+      blackjack: 'Blackjack 3D',
+      mines: 'Buscaminas Arcade',
+      plinko: 'Plinko 3D',
+      wheel: 'Ruleta de la Fortuna',
+      coin: 'Coin Flip 3D',
+      slots: 'Slots 5x5',
+      pachinko: 'Gachapón 3D',
+      tragaperras: 'Tragaperras 777',
+      poker: 'Póker 3D',
+      bowling: 'Bolera 3D',
+      jackpot: 'Jackpot Millions'
+    };
+    const gName = gameNames[gameId] || gameId || 'esta máquina';
+    showToast(`✨ GAMBLERS DELIGHT: ¡As bajo la manga activado para ${gName}! (Modo Testeo) 🃏`);
+  }
+}
+window.triggerGamblersDelight = triggerGamblersDelight;

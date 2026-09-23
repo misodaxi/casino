@@ -33,10 +33,10 @@ const WHEEL_ODDS_WEIGHTS = [
 ];
 
 function pickWeightedSliceIndex() {
-  const perkLuck = (typeof getPerkBonus === 'function') ? getPerkBonus('flatWinBonus') : 0;
+  const perkLuck = (typeof getPerkBonus === 'function') ? (getPerkBonus('fortuneWheelWinBonus') + getPerkBonus('flatWinBonus')) : 0;
   const weights = WHEEL_ODDS_WEIGHTS.map(item => {
     const isMiss = (item.idx === 5 || item.idx === 11);
-    const bonusW = isMiss ? Math.max(1, item.w * (1 - perkLuck * 10)) : (item.w * (1 + perkLuck * 15));
+    const bonusW = isMiss ? Math.max(1, item.w * (1 - perkLuck * 10)) : Math.max(0.1, (item.w * (1 + perkLuck * 15)));
     return { idx: item.idx, w: bonusW };
   });
   const totalWeight = weights.reduce((acc, item) => acc + item.w, 0);

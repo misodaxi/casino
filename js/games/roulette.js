@@ -416,7 +416,7 @@
             if (isLocalReady) {
               socket.emit('rouletteUnready', { rouletteId: 'roulette' });
             } else {
-              socket.emit('rouletteReady', { rouletteId: 'roulette' });
+              socket.emit('rouletteReady', { rouletteId: 'roulette', perks: (state.equippedPerks || []) });
             }
           } else {
             // Standalone offline local testing fallback
@@ -433,7 +433,27 @@
               if (statusBadge) statusBadge.textContent = '🟢 ¡Listo! Girando...';
 
               setTimeout(() => {
-                let winNum = WHEEL_ORDER[Math.floor(Math.random() * WHEEL_ORDER.length)];
+                // Collect and stack all equipped perks from local and table players
+                const allTablePerks = [];
+                if (state && Array.isArray(state.equippedPerks)) {
+                  allTablePerks.push(...state.equippedPerks);
+                }
+                if (typeof rouletteServerState !== 'undefined' && rouletteServerState && rouletteServerState.players) {
+                  Object.values(rouletteServerState.players).forEach(p => {
+                    if (p && Array.isArray(p.perks)) {
+                      p.perks.forEach(pk => {
+                        if (pk && !allTablePerks.some(existing => existing && existing.id === pk.id)) {
+                          allTablePerks.push(pk);
+                        }
+                      });
+                    }
+                  });
+                }
+                const activeBetKeys = Object.keys(rState.bets || {});
+                const rouletteWeights = (typeof calculateRouletteWeights === 'function')
+                  ? calculateRouletteWeights(allTablePerks, activeBetKeys)
+                  : null;
+                let winNum = rouletteWeights ? pickWeightedRouletteNumber(rouletteWeights) : WHEEL_ORDER[Math.floor(Math.random() * WHEEL_ORDER.length)];
 
                 const perkBonus = (typeof getPerkBonus === 'function')
                   ? (getPerkBonus('rouletteWinBonus') + getPerkBonus('flatWinBonus'))
@@ -478,6 +498,38 @@
 
                   if (candidateNums.length > 0) {
                     winNum = candidateNums[Math.floor(Math.random() * candidateNums.length)];
+                  }
+                } else if (perkBonus < 0 && Math.random() < Math.abs(perkBonus)) {
+                  const betKeys = Object.keys(rState.bets || {});
+                  if (betKeys.length > 0) {
+                    const isWin = (n) => {
+                      return betKeys.some(k => {
+                        if (k === `num-${n}`) return true;
+                        if (k.startsWith('split-')) {
+                          const splits = k.replace('split-', '').split('-').map(Number);
+                          return splits.includes(n);
+                        }
+                        if (k === 'red' && numColor(n) === 'red') return true;
+                        if (k === 'black' && numColor(n) === 'black') return true;
+                        if (k === 'even' && n !== 0 && n % 2 === 0) return true;
+                        if (k === 'odd' && n % 2 === 1) return true;
+                        if (k === 'low' && n >= 1 && n <= 18) return true;
+                        if (k === 'high' && n >= 19 && n <= 36) return true;
+                        if (k === 'dozen1' && n >= 1 && n <= 12) return true;
+                        if (k === 'dozen2' && n >= 13 && n <= 24) return true;
+                        if (k === 'dozen3' && n >= 25 && n <= 36) return true;
+                        if (k === 'col1' && n > 0 && n % 3 === 1) return true;
+                        if (k === 'col2' && n > 0 && n % 3 === 2) return true;
+                        if (k === 'col3' && n > 0 && n % 3 === 0) return true;
+                        return false;
+                      });
+                    };
+                    if (isWin(winNum)) {
+                      const loseCandidates = WHEEL_ORDER.filter(n => !isWin(n));
+                      if (loseCandidates.length > 0) {
+                        winNum = loseCandidates[Math.floor(Math.random() * loseCandidates.length)];
+                      }
+                    }
                   }
                 }
 

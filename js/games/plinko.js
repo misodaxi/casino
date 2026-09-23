@@ -110,8 +110,15 @@
             if (dist < (ballRadius + 0.04) && dy < 0.04 && dy > -0.06) {
               // Bounce off peg surface with dynamic power range!
               const popPower = 0.30 + Math.random() * 0.40;
+              const perkLuck = (typeof getPerkBonus === 'function') ? (getPerkBonus('plinkoWinBonus') + getPerkBonus('flatWinBonus')) : 0;
+              let outwardForce = (dx >= 0 ? 1 : -1);
+              if (perkLuck > 0 && Math.random() < perkLuck) {
+                outwardForce = (ball.x >= 0 ? 1.2 : -1.2);
+              } else if (perkLuck < 0 && Math.random() < Math.abs(perkLuck)) {
+                outwardForce = (ball.x >= 0 ? -1.1 : 1.1);
+              }
               ball.vy = Math.abs(ball.vy) * popPower + (0.5 + Math.random() * 0.4); // bounce up
-              ball.vx = (dx >= 0 ? 1 : -1) * (0.9 + Math.random() * 0.9) + (Math.random() - 0.5) * 0.4; // 2D/3D deflection
+              ball.vx = outwardForce * (0.9 + Math.random() * 0.9) + (Math.random() - 0.5) * 0.4; // 2D/3D deflection
               ball.vz = (Math.random() - 0.5) * 0.25;
 
               // Visual flash & sound

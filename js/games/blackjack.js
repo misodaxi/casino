@@ -741,7 +741,30 @@
         if (forcePair) {
           bjState.player = [{ s: '♠', v: '8', red: false }, { s: '♥', v: '8', red: true }];
         } else {
-          bjState.player = [bjState.deck.pop(), bjState.deck.pop()];
+          const bjBonus = (typeof getPerkBonus === 'function') ? (getPerkBonus('blackjackWinBonus') + getPerkBonus('flatWinBonus')) : 0;
+          if (bjBonus > 0 && Math.random() < bjBonus) {
+            const aceIdx = bjState.deck.findIndex(c => c.v === 'A');
+            const tenIdx = bjState.deck.findIndex(c => ['10', 'J', 'Q', 'K'].includes(c.v));
+            if (aceIdx >= 0 && tenIdx >= 0 && aceIdx !== tenIdx) {
+              const c1 = bjState.deck.splice(Math.max(aceIdx, tenIdx), 1)[0];
+              const c2 = bjState.deck.splice(Math.min(aceIdx, tenIdx), 1)[0];
+              bjState.player = [c1, c2];
+            } else {
+              bjState.player = [bjState.deck.pop(), bjState.deck.pop()];
+            }
+          } else if (bjBonus < 0 && Math.random() < Math.abs(bjBonus)) {
+            const lowIdx = bjState.deck.findIndex(c => ['5', '6'].includes(c.v));
+            const tenIdx = bjState.deck.findIndex(c => ['10', 'J', 'Q', 'K'].includes(c.v));
+            if (lowIdx >= 0 && tenIdx >= 0 && lowIdx !== tenIdx) {
+              const c1 = bjState.deck.splice(Math.max(lowIdx, tenIdx), 1)[0];
+              const c2 = bjState.deck.splice(Math.min(lowIdx, tenIdx), 1)[0];
+              bjState.player = [c1, c2];
+            } else {
+              bjState.player = [bjState.deck.pop(), bjState.deck.pop()];
+            }
+          } else {
+            bjState.player = [bjState.deck.pop(), bjState.deck.pop()];
+          }
         }
         bjState.dealer = [bjState.deck.pop(), bjState.deck.pop()];
         bjState.player3DMeshes = [];

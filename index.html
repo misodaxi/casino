@@ -11,8 +11,371 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://www.youtube.com/iframe_api"></script>
   <!-- Modular Stylesheets -->
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=5.0">
   <link rel="stylesheet" href="css/ui.css">
+  <!-- Inline Gamblers Delight Styles: Bypasses file:/// browser cache and guarantees immediate rendering -->
+  <style id="gamblers-delight-style">
+    .gamblers-delight-wrap {
+      position: relative !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      margin: 4px 0 8px 0 !important;
+      z-index: 99 !important;
+      pointer-events: auto !important;
+      background: transparent !important;
+      border: none !important;
+      user-select: none !important;
+    }
+    .gamblers-delight-glow-backdrop {
+      position: absolute !important;
+      width: 175px !important;
+      height: 70px !important;
+      border-radius: 50% !important;
+      background: radial-gradient(ellipse at 50% 50%, rgba(251, 191, 36, 0.5) 0%, rgba(236, 72, 153, 0.4) 45%, rgba(168, 85, 247, 0.25) 65%, transparent 80%) !important;
+      filter: blur(15px) !important;
+      pointer-events: none !important;
+      z-index: 1 !important;
+      animation: gdBGlowPulse 2.4s infinite ease-in-out alternate !important;
+    }
+    .gamblers-delight-img-btn {
+      position: relative !important;
+      background: transparent !important;
+      background-color: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      outline: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      cursor: pointer !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      z-index: 2 !important;
+      pointer-events: auto !important;
+      user-select: none !important;
+      -webkit-user-drag: none !important;
+      will-change: transform, filter !important;
+      transform: translateZ(0) !important;
+      transition: transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.6), filter 0.25s ease !important;
+    }
+    .gamblers-delight-img {
+      position: relative !important;
+      width: 170px !important;
+      max-width: 175px !important;
+      height: auto !important;
+      max-height: 85px !important;
+      aspect-ratio: 2 / 1 !important;
+      display: block !important;
+      z-index: 2 !important;
+      background: transparent !important;
+      pointer-events: none !important;
+      user-select: none !important;
+      -webkit-user-drag: none !important;
+      will-change: transform, filter !important;
+      filter: 
+        drop-shadow(0 0 7px rgba(251, 191, 36, 0.95))
+        drop-shadow(0 0 16px rgba(245, 158, 11, 0.8))
+        drop-shadow(0 0 26px rgba(236, 72, 153, 0.65))
+        drop-shadow(0 0 40px rgba(168, 85, 247, 0.45)) !important;
+      animation: gdRadiantAura 2.6s infinite ease-in-out !important;
+      transition: transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.6), filter 0.25s ease !important;
+    }
+    .gamblers-delight-img-btn:hover {
+      transform: translateY(-3px) scale(1.06) translateZ(0) !important;
+    }
+    .gamblers-delight-img-btn:hover .gamblers-delight-img {
+      filter: 
+        drop-shadow(0 0 12px rgba(255, 255, 255, 1))
+        drop-shadow(0 0 24px rgba(251, 191, 36, 1))
+        drop-shadow(0 0 42px rgba(236, 72, 153, 0.95))
+        drop-shadow(0 0 65px rgba(168, 85, 247, 0.8)) !important;
+    }
+    .gamblers-delight-img-btn:active,
+    .gamblers-delight-img-btn:active .gamblers-delight-img {
+      transform: scale(0.82) translateY(5px) translateZ(0) !important;
+      filter: 
+        drop-shadow(0 0 20px #ffffff)
+        drop-shadow(0 0 40px #fbbf24)
+        drop-shadow(0 0 70px #ec4899)
+        drop-shadow(0 0 100px #a855f7)
+        brightness(1.5) !important;
+      transition: transform 0.05s ease, filter 0.05s ease !important;
+    }
+    .gamblers-delight-img-btn:active ~ .gamblers-delight-glow-backdrop {
+      transform: scale(1.45) !important;
+      filter: blur(20px) !important;
+      opacity: 1 !important;
+    }
+    .gamblers-delight-img-btn.gd-bounce-active {
+      animation: gdJuicyBounce 0.65s cubic-bezier(0.25, 1.4, 0.45, 1) forwards !important;
+    }
+    .gamblers-delight-img-btn.gd-bounce-active .gamblers-delight-img {
+      animation: gdGlowBurst 0.65s cubic-bezier(0.25, 1.4, 0.45, 1) forwards !important;
+    }
+    .gamblers-delight-glow-backdrop.gd-burst {
+      animation: gdBGlowBurst 0.65s cubic-bezier(0.25, 1.4, 0.45, 1) forwards !important;
+    }
+    @keyframes gdJuicyBounce {
+      0% { transform: scale(1) translateZ(0); }
+      15% { transform: scale(0.8) translateY(6px) translateZ(0); }
+      42% { transform: scale(1.22) translateY(-10px) translateZ(0); }
+      68% { transform: scale(0.95) translateY(2px) translateZ(0); }
+      84% { transform: scale(1.05) translateY(-2px) translateZ(0); }
+      100% { transform: scale(1) translateY(0) translateZ(0); }
+    }
+    @keyframes gdGlowBurst {
+      0% {
+        filter: drop-shadow(0 0 7px rgba(251, 191, 36, 0.85)) drop-shadow(0 0 15px rgba(245, 158, 11, 0.7));
+      }
+      35% {
+        filter: drop-shadow(0 0 22px #fff) drop-shadow(0 0 42px #fbbf24) drop-shadow(0 0 75px #ec4899) drop-shadow(0 0 110px #a855f7) brightness(1.5);
+      }
+      70% {
+        filter: drop-shadow(0 0 15px #fff) drop-shadow(0 0 30px #fbbf24) drop-shadow(0 0 55px #ec4899) brightness(1.2);
+      }
+      100% {
+        filter: drop-shadow(0 0 7px rgba(251, 191, 36, 0.95)) drop-shadow(0 0 16px rgba(245, 158, 11, 0.8)) drop-shadow(0 0 26px rgba(236, 72, 153, 0.65)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.45)) brightness(1);
+      }
+    }
+    @keyframes gdBGlowBurst {
+      0% { opacity: 0.5; transform: scale(1); }
+      35% { opacity: 1; transform: scale(1.75); background: radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.9) 0%, rgba(251, 191, 36, 0.8) 35%, rgba(236, 72, 153, 0.7) 60%, transparent 80%); filter: blur(18px); }
+      100% { opacity: 0.5; transform: scale(1); filter: blur(14px); }
+    }
+    @keyframes gdRadiantAura {
+      0%, 100% {
+        filter: drop-shadow(0 0 7px rgba(251, 191, 36, 0.95)) drop-shadow(0 0 16px rgba(245, 158, 11, 0.8)) drop-shadow(0 0 26px rgba(236, 72, 153, 0.65)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.45));
+      }
+      50% {
+        filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 24px rgba(251, 191, 36, 1)) drop-shadow(0 0 38px rgba(236, 72, 153, 0.85)) drop-shadow(0 0 55px rgba(168, 85, 247, 0.6));
+      }
+    }
+    @keyframes gdBGlowPulse {
+      0% { opacity: 0.5; transform: scale(0.92); }
+      100% { opacity: 0.95; transform: scale(1.12); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .gamblers-delight-img-btn, .gamblers-delight-img {
+        animation-duration: 0.65s !important;
+        transition-duration: 0.45s !important;
+      }
+    }
+  
+/* ============================================================
+   PERKS MODAL & MASTER SLOT (GAMBLERS DELIGHT)
+   ============================================================ */
+.perks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+}
+
+.perks-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.perks-close-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: 800;
+  transition: all 0.2s ease;
+}
+
+.perks-close-btn:hover {
+  background: #f43f5e;
+  border-color: #f43f5e;
+  transform: rotate(90deg);
+}
+
+/* RANURA MAESTRA DE GAMBLERS DELIGHT (EXCLUSIVE & LUXURIOUS) */
+.perks-master-slot-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(32, 14, 52, 0.85), rgba(16, 7, 28, 0.95));
+  border: 1.5px solid rgba(251, 191, 36, 0.5);
+  border-radius: 18px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 20px rgba(251, 191, 36, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.perks-master-slot-container::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.12) 0%, transparent 60%);
+  pointer-events: none;
+  animation: masterAuraSpin 9s linear infinite;
+}
+
+@keyframes masterAuraSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.perks-master-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+}
+
+.master-tag {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.master-sub {
+  font-size: 9px;
+  font-weight: 800;
+  color: #f472b6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.perk-slot-master {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-height: 86px;
+  border-radius: 14px;
+  border: 1.5px dashed rgba(251, 191, 36, 0.6);
+  background: rgba(10, 5, 20, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 10px;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.perk-slot-master:hover {
+  transform: translateY(-2px) scale(1.02);
+  border-color: #ffd700;
+  box-shadow: 0 0 25px rgba(251, 191, 36, 0.45), 0 0 45px rgba(236, 72, 153, 0.3);
+  background: rgba(28, 14, 46, 0.9);
+}
+
+.perk-slot-master.equipped {
+  border: 1.5px solid #fbbf24;
+  border-style: solid;
+  background: linear-gradient(135deg, rgba(34, 14, 52, 0.95), rgba(16, 7, 28, 0.95));
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.45), 0 0 35px rgba(236, 72, 153, 0.35), inset 0 0 15px rgba(251, 191, 36, 0.18);
+}
+
+.perk-slot-master.equipped:hover {
+  border-color: #ec4899;
+  box-shadow: 0 0 30px rgba(236, 72, 153, 0.55), 0 0 50px rgba(251, 191, 36, 0.4);
+}
+
+.master-slot-img {
+  width: 135px;
+  max-width: 145px;
+  height: auto;
+  max-height: 52px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.9)) drop-shadow(0 0 16px rgba(236, 72, 153, 0.7));
+  transition: transform 0.25s ease, filter 0.25s ease;
+  pointer-events: none;
+}
+
+.perk-slot-master:hover .master-slot-img {
+  transform: scale(1.06);
+  filter: drop-shadow(0 0 12px #fff) drop-shadow(0 0 24px #fbbf24) drop-shadow(0 0 40px #ec4899);
+}
+
+.master-slot-title {
+  font-size: 11px;
+  font-weight: 900;
+  color: #fbbf24;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+}
+
+.master-slot-desc {
+  font-size: 9px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.perks-slots-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.divider-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.4), transparent);
+}
+
+.divider-label {
+  font-size: 9px;
+  font-weight: 900;
+  color: #94a3b8;
+  letter-spacing: 1px;
+}
+
+/* HUD PERKS BUTTON */
+.hud-perks-btn {
+  background: linear-gradient(135deg, rgba(26, 16, 48, 0.92), rgba(45, 20, 80, 0.92));
+  border: 1.5px solid rgba(251, 191, 36, 0.6);
+  border-radius: 14px;
+  color: #fff;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5), 0 0 15px rgba(251, 191, 36, 0.3);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: auto;
+}
+
+.hud-perks-btn:hover {
+  transform: translateY(-2px) scale(1.04);
+  border-color: #ffd700;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6), 0 0 25px rgba(251, 191, 36, 0.55);
+  background: linear-gradient(135deg, rgba(38, 22, 70, 0.95), rgba(64, 28, 110, 0.95));
+}
+
+  </style>
 </head>
 
 <body>
@@ -59,9 +422,9 @@
 
     <!-- top right -->
     <div class="top-right">
-      <button class="tv-change-btn" id="perksBtn" onclick="openPerksModal()" title="Menú de Ventajas y Habilidades Especiales (Perks)">⚡ PERKS</button>
-      <button class="tv-change-btn" id="tvChangeBtn" onclick="openTVModal()">📺 CAMBIAR VÍDEO / CANAL</button>
-      <div class="icon-btn" id="tvBtn" onclick="openTVModal()" title="Reproductor TV Casino 3D (YouTube)">📺</div>
+      <div class="icon-btn" id="perksTopBtn" onclick="openPerksModal()" title="Inventario de Perks [P]">⚡</div>
+      <button class="tv-change-btn" id="tvChangeBtn">📺 CAMBIAR VÍDEO / CANAL</button>
+      <div class="icon-btn" id="tvBtn" title="Reproductor TV Casino 3D (YouTube)">📺</div>
       <div class="icon-btn" id="fullscreenBtn" title="Pantalla Completa (F11)">⛶</div>
       <div class="icon-btn" id="soundBtn">🔊</div>
       <div class="icon-btn" id="settingsBtn">⚙️</div>
@@ -85,6 +448,14 @@
       <div class="emote-item" data-e="party">🎉</div>
       <div class="emote-item" data-e="cool">😎</div>
       <div class="emote-item" data-e="cry">😭</div>
+    </div>
+
+        <!-- Bottom Left Perks HUD Button -->
+    <div class="bottom-left">
+      <button id="perksBtn" class="hud-perks-btn" onclick="openPerksModal()" title="Inventario de Perks y Habilidades [P]">
+        <span class="hud-perks-icon">⚡</span>
+        <span class="hud-perks-text">PERKS & INVENTARIO</span>
+      </button>
     </div>
 
     <!-- 3D chat input -->
@@ -115,8 +486,7 @@
       <span>Axel</span>
       <span class="tag-status">🟢 Explorando</span>
     </div>
-
-    <!-- Performance & Network Debug HUD (F3 Toggle) -->
+    <!-- Performance & Network Debug HUD -->
     <div class="debug-perf-hud" id="debugPerfHud">
       <div class="title"><span>⚡ MIDNIGHT ENGINE DEBUG</span><span id="debugQualityBadge" class="badge badge-excellent">HIGH</span></div>
       <div class="row"><span>FPS / Frame Time:</span><span class="val" id="debugFps">60 FPS (16.6ms)</span></div>
@@ -130,9 +500,7 @@
       <div class="row"><span>Active Slots / Tex Upd:</span><span class="val" id="debugSlots">0 / 30 (0/s)</span></div>
       <div class="row"><span>Active 3D Physics:</span><span class="val" id="debugPhysics">0 activas</span></div>
     </div>
-
-    <!-- Bottom Left Realtime FPS & Debug HUD Bar -->
-    <div class="debug-bottom-bar" id="debugBottomBar">
+    <div class="debug-bottom-bar">
       <button class="debug-toggle-btn" id="debugToggleBtn" title="Alternar panel de diagnóstico (F3)">⚡ DEBUG (F3)</button>
       <div class="fps-counter-badge fps-good" id="fpsCounterBadge" title="Contador de FPS en tiempo real">
         <span class="fps-dot"></span>
@@ -155,6 +523,12 @@
     </div>
 
     <div class="rgame-bottom">
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('roulette', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
+      </div>
       <div class="rgame-controls"
         style="display:flex; align-items:center; justify-content:center; gap:16px; background:rgba(18, 10, 32, 0.92); border:1px solid var(--panel-border); border-radius:24px; padding:12px 28px; box-shadow:0 12px 40px rgba(0,0,0,0.7); backdrop-filter:blur(16px);">
         <button class="mini-btn" id="clearBtn" style="font-size:12px; padding:10px 16px;">🗑 Limpiar</button>
@@ -207,18 +581,28 @@
     </div>
 
     <div class="duel-bottom">
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('dice', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
+      </div>
       <div class="duel-history" id="diceHistory"></div>
       <div class="duel-controls"
         style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;">
         <div class="total-bet-pill" id="diceBetPill">APUESTA<span class="v" id="diceBetDisplay">$50</span></div>
         <button class="action-btn" id="diceClearBetBtn"
           style="background:rgba(239,68,68,0.25); border:1px solid #ef4444; color:#fca5a5;">BORRAR 🗑️</button>
-        <!-- Solo Action Button (Only when 1 player at table) -->
+        <!-- Solo Action Button -->
         <button class="action-btn" id="diceRollBtn">TIRAR 🎲</button>
 
-        <!-- Multiplayer 1v1 Ready Button (Enforced when 2 players at table) -->
-        <button class="action-btn" id="diceReadyBtn"
-          style="display:none; background:linear-gradient(135deg, #10b981, #059669); font-weight:900; font-size:16px; padding:12px 28px; border-radius:14px; box-shadow:0 0 20px rgba(16,185,129,0.5);">LISTO 👍</button>
+        <!-- Versus Action Buttons -->
+        <button class="action-btn" id="diceVersusBetBtn"
+          style="display:none; background:linear-gradient(135deg, #ec4899, #8b5cf6);">PROPONER APUESTA 🎲</button>
+        <button class="action-btn" id="diceVersusAcceptBtn"
+          style="display:none; background:linear-gradient(135deg, #10b981, #059669);">ACEPTAR 👍</button>
+        <button class="action-btn" id="diceVersusRejectBtn"
+          style="display:none; background:linear-gradient(135deg, #ef4444, #dc2626);">RECHAZAR ❌</button>
       </div>
     </div>
   </div>
@@ -248,6 +632,12 @@
     </div>
 
     <div class="duel-bottom">
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('blackjack', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
+      </div>
       <div class="duel-controls"
         style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;">
         <div class="total-bet-pill" id="bjBetPill">APUESTA<span class="v" id="bjBetDisplay">$50</span></div>
@@ -275,6 +665,14 @@
       <h2>MINES ARCADE</h2><span>ENCUENTRA DIAMANTES · EVITA LAS MINAS</span>
     </div>
 
+    <div class="duel-bottom" style="pointer-events:none; z-index:35;">
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('mines', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
+      </div>
+    </div>
     <div class="mines-container">
       <div class="mines-grid" id="minesGrid"></div>
       <div class="mines-side">
@@ -309,6 +707,12 @@
     <!-- 3D Plinko Machine directly visible in world -->
 
     <div class="duel-bottom">
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('plinko', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
+      </div>
       <div class="duel-controls" style="display:flex; align-items:center; gap:14px;">
         <div class="chip-rack" id="chipRackPlinko">
           <div class="chip" data-v="10">10</div>
@@ -323,12 +727,36 @@
 
   <!-- ================= FORTUNE WHEEL OVERLAY ================= -->
   <div class="game-overlay" id="wheelWrap">
-    <button class="exit-game-btn" onclick="exitActiveGame()">🚪 SALIR DE LA RULETA [ESC]</button>
+    <button class="exit-game-btn" onclick="exitActiveGame()">🚪 SALIR DE LA MÁQUINA [ESC]</button>
+    <div class="table-title">
+      <h2>FORTUNE WHEEL</h2><span>GIRA Y MULTIPLICA TU APUESTA</span>
+    </div>
 
-    <div class="duel-bottom" style="left:50%; right:auto; transform:translateX(-50%); width:auto; max-width:92vw; bottom:20px; display:flex; flex-direction:column; align-items:center; z-index:100;">
-      <div style="display:flex; align-items:center; gap:14px; background:rgba(15,8,29,0.92); border:1px solid rgba(245,158,11,0.4); box-shadow:0 0 25px rgba(0,0,0,0.8); padding:10px 20px; border-radius:20px; flex-wrap:wrap; justify-content:center;">
-        <div class="total-bet-pill" style="min-width:90px;">APUESTA<span class="v" id="wheelBetDisplay" style="color:#facc15;">$50</span></div>
-        <button class="action-btn" id="wheelReadyBtn" style="background:linear-gradient(135deg, #f59e0b, #d97706); box-shadow:0 0 20px rgba(245,158,11,0.5); padding:10px 24px; font-size:13px; font-weight:900; letter-spacing:0.5px;">¡ESTOY LISTO! 🎡</button>
+    <div class="wheel-arena">
+      <div class="wheel-pointer"></div>
+      <canvas id="wheelCanvas" width="380" height="380"></canvas>
+    </div>
+
+    <div class="result-banner" id="wheelResultBanner">
+      <div class="rn" id="wheelResultTitle">5X!</div>
+      <div id="wheelResultMsg" class="win">+$250</div>
+    </div>
+
+    <div class="duel-bottom">
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('wheel', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
+      </div>
+      <div class="duel-controls" style="display:flex; align-items:center; gap:14px;">
+        <div class="chip-rack" id="chipRackWheel">
+          <div class="chip" data-v="10">10</div>
+          <div class="chip selected" data-v="50">50</div>
+          <div class="chip" data-v="100">100</div>
+        </div>
+        <div class="total-bet-pill">APUESTA<span class="v" id="wheelBetDisplay">$50</span></div>
+        <button class="action-btn" id="wheelSpinBtn">GIRAR RUEDA 🎡</button>
       </div>
     </div>
   </div>
@@ -359,13 +787,18 @@
     </div>
 
     <div class="duel-bottom" style="pointer-events:none;">
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('coin', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
+      </div>
       <div class="duel-controls" style="display:flex; align-items:center; gap:12px; pointer-events:auto; flex-wrap:wrap; justify-content:center;">
         <div class="total-bet-pill">MI APUESTA<span class="v" id="coinBetDisplay">$50</span></div>
         <button class="mini-btn" onclick="clearCoinBet()">BORRAR 🔄</button>
-        <!-- Solo Flip Button (when 1 player) -->
+        <button class="mini-btn" id="coinBotDuelToggleBtn" onclick="toggleCoinBotDuel()">DUELO 1 VS 1 ⚔️</button>
+        <button class="action-btn" id="coinMatchBetBtn" onclick="matchRivalBet()" style="display:none; background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; font-weight:800;">IGUALAR APUESTA ($50) ⚔️</button>
         <button class="action-btn" id="coinFlipBtn">LANZAR MONEDA 🪙</button>
-        <!-- Multiplayer 1v1 Ready Button (when 2 players) -->
-        <button class="action-btn" id="coinReadyBtn" style="display:none; background:linear-gradient(135deg, #10b981, #059669); font-weight:900; font-size:16px; padding:12px 28px; border-radius:14px; box-shadow:0 0 20px rgba(16,185,129,0.5);">LISTO 👍</button>
       </div>
     </div>
   </div>
@@ -448,6 +881,25 @@
     </div>
   </div>
 
+  <!-- ================= BOWLING OVERLAY ================= -->
+  <div class="game-overlay" id="bowlingWrap">
+    <button class="exit-game-btn" onclick="exitActiveGame()">🚪 LEVANTARSE DE LA PISTA [ESC]</button>
+    <div class="table-title">
+      <h2>BOWLING CASINO 3D</h2><span>PISTA PROFESIONAL · LANZA LA BOLA Y CONSIGUE STRIKE</span>
+    </div>
+    <div class="duel-bottom">
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('bowling', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
+      </div>
+      <div class="bet-control">
+        <button class="action-btn" id="bowlingRollBtn" style="background:linear-gradient(135deg, #3b82f6, #1d4ed8); box-shadow:0 0 20px rgba(59,130,246,0.6);">LANZAR BOLA 🎳</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= TV CASINO SPORTS OVERLAY ================= -->
   <div class="game-overlay" id="tvcasinoWrap">
     <button class="exit-game-btn" onclick="exitActiveGame()">🚪 SALIR DEL LOUNGE TV [ESC]</button>
@@ -464,6 +916,12 @@
     </div>
 
     <div class="duel-bottom">
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('slots', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
+      </div>
       <div class="slot-payout-info-bar" id="slotsStatusText" style="margin-bottom:8px; background:rgba(15,8,29,0.85); padding:8px 20px; border-radius:20px; border:1px solid #ec4899; box-shadow:0 0 15px rgba(236,72,153,0.4);">
         🎰 Pulsa GIRAR para hacer rodar los rodillos 3D
       </div>
@@ -480,26 +938,27 @@
     </div>
   </div>
 
-  <!-- ================= GACHAPÓN OVERLAY ================= -->
+  <!-- ================= PACHINKOS OVERLAY ================= -->
   <div class="game-overlay" id="pachinkoWrap">
-    <button class="exit-game-btn" onclick="exitActiveGame()">🚪 SALIR DEL GACHAPÓN [ESC]</button>
+    <button class="exit-game-btn" onclick="exitActiveGame()">🚪 SALIR DEL PACHINKO [ESC]</button>
     <div class="table-title">
-      <h2>GACHAPÓN MÁGICO 3D</h2><span>GIRA LA MANIVELA 3D · COLECCIONA CÁPSULAS EXCLUSIVAS (MÍN $300)</span>
+      <h2>PACHINKOS JAPONESES</h2><span>LANZA BOLAS METÁLICAS POR EL LABERINTO DE NEÓN</span>
     </div>
     <div class="duel-bottom">
-      <div class="slot-payout-info-bar" id="pachinkoStatusText" style="margin-bottom:8px; background:rgba(6,26,48,0.85); padding:8px 20px; border-radius:20px; border:1px solid #06b6d4; box-shadow:0 0 15px rgba(6,182,212,0.4);">
-        🎁 Gira la manivela 3D para extraer una cápsula sorpresa coleccionable
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('pachinko', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
       </div>
       <div class="bet-control">
         <div class="chips-rack" id="pachinkoChipRack">
-          <div class="chip selected" data-v="300">300</div>
-          <div class="chip" data-v="500">500</div>
-          <div class="chip" data-v="1000">1K</div>
-          <div class="chip" data-v="2500">2.5K</div>
-          <div class="chip" data-v="5000">5K</div>
+          <div class="chip selected" data-v="25">25</div>
+          <div class="chip" data-v="50">50</div>
+          <div class="chip" data-v="100">100</div>
         </div>
-        <div class="total-bet-pill">APUESTA<span class="v" id="pachinkoBetDisplay">$300</span></div>
-        <button class="action-btn" id="pachinkoDropBtn" style="background:linear-gradient(135deg, #06b6d4, #a855f7);">GIRAR MANIVELA 🪙</button>
+        <div class="total-bet-pill">APUESTA<span class="v" id="pachinkoBetDisplay">$25</span></div>
+        <button class="action-btn" id="pachinkoDropBtn" style="background:linear-gradient(135deg, #eab308, #84cc16);">LANZAR BOLA 🔮</button>
       </div>
     </div>
   </div>
@@ -512,6 +971,12 @@
     </div>
 
     <div class="duel-bottom">
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('tragaperras', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
+      </div>
       <div class="slot-payout-info-bar" id="tragaStatusText" style="margin-bottom:8px; background:rgba(15,8,29,0.85); padding:8px 20px; border-radius:20px; border:1px solid #f59e0b; box-shadow:0 0 15px rgba(245,158,11,0.4);">
         🪙 Tira de la palanca para hacer girar los rodillos 3D
       </div>
@@ -532,76 +997,18 @@
   <div class="game-overlay" id="pokerWrap">
     <button class="exit-game-btn" onclick="exitActiveGame()">🚪 LEVANTARSE DE LA MESA [ESC]</button>
     <div class="table-title">
-      <h2>TEXAS HOLD'EM POKER 3D</h2>
-      <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-top:6px; flex-wrap:wrap;">
-        <span class="poker-badge" id="pokerPhaseBadge" style="background:rgba(245,158,11,0.25); border:1px solid #f59e0b; color:#fbbf24; padding:4px 14px; border-radius:14px; font-weight:900; font-size:12px; letter-spacing:0.5px;">ETAPA: ESPERANDO</span>
-        <span class="poker-badge" id="pokerPotDisplay" style="background:rgba(34,197,94,0.25); border:1px solid #22c55e; color:#4ade80; padding:4px 14px; border-radius:14px; font-weight:900; font-size:12px; letter-spacing:0.5px;">BOTE (POT): $0</span>
-        <span class="poker-badge" id="pokerCurrentBetDisplay" style="background:rgba(139,92,246,0.25); border:1px solid #8b5cf6; color:#c084fc; padding:4px 14px; border-radius:14px; font-weight:900; font-size:12px; letter-spacing:0.5px;">APUESTA MÁX: $0</span>
-      </div>
+      <h2>TEXAS HOLD'EM POKER</h2><span>MESA VIP DE POKER 3D · SHOWDOWN & ALL-IN</span>
     </div>
-
-    <!-- Center Community Cards HUD -->
-    <div id="pokerCommunityCardsWrap" style="position:fixed; top:24%; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:8px; z-index:90; pointer-events:none;">
-      <div style="font-size:11px; font-weight:900; letter-spacing:1px; color:#facc15; text-shadow:0 2px 8px rgba(0,0,0,0.8);">CARTAS COMUNITARIAS (COMMUNITY CARDS)</div>
-      <div id="pokerCommunityCardsList" style="display:flex; gap:8px;">
-        <div class="poker-card-slot back" id="commCard0">🂠</div>
-        <div class="poker-card-slot back" id="commCard1">🂠</div>
-        <div class="poker-card-slot back" id="commCard2">🂠</div>
-        <div class="poker-card-slot back" id="commCard3">🂠</div>
-        <div class="poker-card-slot back" id="commCard4">🂠</div>
+    <div class="duel-bottom">
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('poker', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
       </div>
-    </div>
-
-    <!-- Integrated Center-Bottom Poker Console (Completely clear of left chat and right panels) -->
-    <div class="duel-bottom" style="left:50%; right:auto; transform:translateX(-50%); width:auto; max-width:92vw; bottom:16px; display:flex; flex-direction:column; align-items:center; z-index:100;">
-      
-      <!-- Top Announcement / Status Bar -->
-      <div class="slot-payout-info-bar" id="pokerStatusText" style="margin-bottom:8px; background:rgba(15,8,29,0.92); padding:8px 22px; border-radius:20px; border:1px solid #f59e0b; box-shadow:0 0 15px rgba(245,158,11,0.3); font-size:12px; font-weight:700; text-align:center; white-space:nowrap; max-width:90vw; overflow:hidden; text-overflow:ellipsis;">
-        ♠️ Selecciona tu apuesta inicial en la mesa 3D y pulsa ¡ESTOY LISTO! para comenzar.
+      <div class="bet-control">
+        <button class="action-btn" id="pokerAllInBtn" style="background:linear-gradient(135deg, #f59e0b, #d97706);">VER CARTAS / JUGAR ♠️</button>
       </div>
-      
-      <!-- Main Integrated Control Bar -->
-      <div style="display:flex; align-items:center; gap:14px; background:rgba(15,8,29,0.92); border:1px solid rgba(245,158,11,0.4); box-shadow:0 0 25px rgba(0,0,0,0.8); padding:10px 18px; border-radius:20px; flex-wrap:wrap; justify-content:center;">
-        
-        <!-- Left Sub-Panel: Player Hole Cards & Hand Rank -->
-        <div id="pokerMyHandPanel" style="display:flex; align-items:center; gap:12px; border-right:1px solid rgba(255,255,255,0.12); padding-right:14px;">
-          <div style="display:flex; flex-direction:column; gap:4px;">
-            <span style="font-size:10px; font-weight:900; color:#94a3b8;" id="pokerSeatLabel">🪑 ASIENTO: #1</span>
-            <span style="font-size:11px; font-weight:900; color:#fbbf24;" id="pokerMyChipsDisplay">FICHAS: $1,000</span>
-            <div id="pokerMyHandRank" style="font-size:10px; font-weight:900; color:#38bdf8; text-align:center; background:rgba(56,189,248,0.15); padding:3px 6px; border-radius:8px; border:1px solid rgba(56,189,248,0.3); white-space:nowrap;">
-              Mano: Esperando inicio...
-            </div>
-          </div>
-          <div style="display:flex; gap:6px;" id="pokerMyCardsList">
-            <div class="poker-card-slot my-card back" id="myCard0">🂠</div>
-            <div class="poker-card-slot my-card back" id="myCard1">🂠</div>
-          </div>
-        </div>
-
-        <!-- Right Sub-Panel: Waiting / Ready Controls -->
-        <div class="bet-control" id="pokerReadyControls" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center;">
-          <div class="total-bet-pill" style="min-width:70px;">FICHA<span class="v" id="pokerSelectedChipDisplay" style="color:#c084fc;">$50</span></div>
-          <div class="total-bet-pill" style="min-width:85px;">APUESTA TOTAL<span class="v" id="pokerBetDisplay" style="color:#4ade80;">$50</span></div>
-          <button class="action-btn" id="pokerClearBetBtn" style="background:rgba(239,68,68,0.25); border:1px solid #ef4444; color:#fca5a5; padding:8px 12px; font-size:11px;">BORRAR 🗑️</button>
-          <button class="action-btn" id="pokerReadyBtn" style="background:linear-gradient(135deg, #f59e0b, #d97706); box-shadow:0 0 20px rgba(245,158,11,0.5); padding:9px 18px;">¡ESTOY LISTO! ♠️</button>
-        </div>
-
-        <!-- Right Sub-Panel: Active Hand In-Game Action Controls -->
-        <div class="bet-control" id="pokerActionControls" style="display:none; align-items:center; gap:8px;">
-          <button class="action-btn" id="pokerFoldBtn" style="background:linear-gradient(135deg, #ef4444, #991b1b); font-size:12px; padding:10px 14px;">RETIRARSE 🏳️</button>
-          <button class="action-btn" id="pokerCheckBtn" style="background:linear-gradient(135deg, #3b82f6, #1d4ed8); font-size:12px; padding:10px 14px;">PASAR ✋</button>
-          <button class="action-btn" id="pokerCallBtn" style="background:linear-gradient(135deg, #22c55e, #15803d); font-size:12px; padding:10px 14px;">IGUALAR 🪙</button>
-          <button class="action-btn" id="pokerRaiseBtn" style="background:linear-gradient(135deg, #f59e0b, #b45309); font-size:12px; padding:10px 14px;">SUBIR +$50 📈</button>
-          <button class="action-btn" id="pokerAllInActionBtn" style="background:linear-gradient(135deg, #a855f7, #6b21a8); font-size:12px; padding:10px 14px; box-shadow:0 0 15px rgba(168,85,247,0.5);">ALL-IN 👑</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Winning Result Banner -->
-    <div id="pokerResultBanner" class="result-banner" style="z-index:200;">
-      <h2 id="pokerResultTitle">🏆 ¡GANASTE EL BOTE!</h2>
-      <p id="pokerResultDesc" style="font-size:14px; margin-top:4px;">Full House de Ases y Reyes (+$1,200)</p>
-      <button class="action-btn" id="pokerNextHandBtn" style="margin-top:12px; background:linear-gradient(135deg, #22c55e, #16a34a);">JUGAR SIGUIENTE MANO ♠️</button>
     </div>
   </div>
 
@@ -612,167 +1019,150 @@
       <h2>ÁREA JACKPOT MILLIONS 🏆</h2><span>BOTE ACUMULADO DEL CASINO: $50,000</span>
     </div>
     <div class="duel-bottom">
+      <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+        <div class="gamblers-delight-glow-backdrop"></div>
+        <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('jackpot', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+          <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+        </button>
+      </div>
       <div class="bet-control">
         <button class="action-btn" id="jackpotSpinBtn" style="background:linear-gradient(135deg, #ffd700, #b45309); color:#000; font-weight:900;">PROBAR SUERTE JACKPOT 🏆 ($100)</button>
       </div>
     </div>
   </div>
 
-  <!-- ================= BOWLING 3D CHAMPIONSHIP OVERLAY ================= -->
-  <div class="game-overlay" id="bowlingWrap">
-    <button class="exit-game-btn" onclick="exitBowlingLane()">🚪 SALIR DE LA PISTA [ESC]</button>
-    <div class="table-title">
-      <h2 id="bowlingLaneTitle">PISTA 01</h2><span>CAMPEONATO DE BOLOS 3D · 48M DE PISTA DE ARCE · LANZA Y CONSIGUE STRIKE</span>
+    <!-- ================= PERKS & GAMBLERS DELIGHT INVENTORY MODAL ================= -->
+  <div class="perks-modal" id="perksModal">
+    <div class="perks-header">
+      <div class="perks-header-title">
+        <span style="font-size:24px;">⚡</span>
+        <span>INVENTARIO DE PERKS & GAMBLER´S DELIGHT</span>
+      </div>
+      <button class="perks-close-btn" id="closePerksModalBtn" onclick="closePerksModal()" title="Cerrar [ESC]">✕</button>
     </div>
 
-    <!-- Live 10-Frame Scorecard -->
-    <div id="bowlingScorecardWrap" style="position:fixed; top:75px; left:50%; transform:translateX(-50%); background:rgba(15,8,29,0.92); border:1px solid #3b82f6; border-radius:18px; padding:10px 18px; box-shadow:0 8px 30px rgba(0,0,0,0.8); z-index:90; backdrop-filter:blur(12px); max-width:95vw; overflow-x:auto;">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <div style="display:flex; gap:4px;" id="bowlingScorecard">
-          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
-            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F1</div>
-            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
-              <div id="bRoll_0_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
-              <div id="bRoll_0_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
-            </div>
-            <div id="bScore_0" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
+    <div class="perks-main-layout">
+      <!-- LEFT: SIDEBAR DE RANURAS -->
+      <div class="perks-equipped-sidebar">
+        <!-- RANURA GAMBLER´S DELIGHT (DECORADA Y SEPARADA) -->
+        <div class="perks-master-slot-container">
+          <div class="perks-master-header">
+            <span class="master-tag">✨ GAMBLER´S DELIGHT</span>
+            <span class="master-sub">RANURA ESPECIAL</span>
           </div>
-          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
-            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F2</div>
-            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
-              <div id="bRoll_1_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
-              <div id="bRoll_1_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
-            </div>
-            <div id="bScore_1" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
-          </div>
-          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
-            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F3</div>
-            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
-              <div id="bRoll_2_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
-              <div id="bRoll_2_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
-            </div>
-            <div id="bScore_2" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
-          </div>
-          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
-            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F4</div>
-            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
-              <div id="bRoll_3_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
-              <div id="bRoll_3_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
-            </div>
-            <div id="bScore_3" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
-          </div>
-          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
-            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F5</div>
-            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
-              <div id="bRoll_4_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
-              <div id="bRoll_4_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
-            </div>
-            <div id="bScore_4" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
-          </div>
-          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
-            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F6</div>
-            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
-              <div id="bRoll_5_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
-              <div id="bRoll_5_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
-            </div>
-            <div id="bScore_5" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
-          </div>
-          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
-            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F7</div>
-            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
-              <div id="bRoll_6_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
-              <div id="bRoll_6_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
-            </div>
-            <div id="bScore_6" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
-          </div>
-          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
-            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F8</div>
-            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
-              <div id="bRoll_7_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
-              <div id="bRoll_7_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
-            </div>
-            <div id="bScore_7" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
-          </div>
-          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:52px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
-            <div style="font-size:10px; font-weight:900; background:rgba(59,130,246,0.3); color:#93c5fd; padding:2px 0;">F9</div>
-            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
-              <div id="bRoll_8_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
-              <div id="bRoll_8_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
-            </div>
-            <div id="bScore_8" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
-          </div>
-          <div class="bowling-frame" style="display:flex; flex-direction:column; border:1px solid rgba(255,255,255,0.15); border-radius:8px; width:56px; background:rgba(0,0,0,0.4); text-align:center; overflow:hidden;">
-            <div style="font-size:10px; font-weight:900; background:rgba(245,158,11,0.35); color:#fde047; padding:2px 0;">F10</div>
-            <div style="display:flex; height:24px; border-bottom:1px solid rgba(255,255,255,0.1);">
-              <div id="bRoll_9_1" style="flex:1; font-size:11px; font-weight:800; line-height:24px; color:#fff;">–</div>
-              <div id="bRoll_9_2" style="flex:1; font-size:11px; font-weight:800; line-height:24px; border-left:1px solid rgba(255,255,255,0.1); color:#facc15;">–</div>
-            </div>
-            <div id="bScore_9" style="font-size:12px; font-weight:900; color:#38bdf8; line-height:22px;">–</div>
+          <div class="perk-slot-master" id="gamblersDelightMasterSlot" onclick="handleMasterSlotClick()" title="Ranura Gambler´s Delight (Clic para equipar/desequipar)">
+            <!-- Renderizado dinámicamente -->
           </div>
         </div>
-        <div style="display:flex; flex-direction:column; align-items:center; background:rgba(59,130,246,0.25); border:1px solid #3b82f6; border-radius:10px; padding:4px 12px;">
-          <span style="font-size:10px; font-weight:900; color:#93c5fd;">TOTAL</span>
-          <span id="bowlingTotalScoreDisplay" style="font-size:18px; font-weight:900; color:#facc15;">0</span>
+
+        <!-- SEPARADOR CON ESTILO BORDADO -->
+        <div class="perks-slots-divider">
+          <div class="divider-line"></div>
+          <span class="divider-label">RANURAS ESTÁNDAR</span>
+          <div class="divider-line"></div>
+        </div>
+
+        <div class="perks-sidebar-header">
+          <span>PERKS EQUIPADOS</span>
+          <span class="perks-slot-count-badge" id="perksEquippedCount">0 / 8</span>
+        </div>
+        <div class="perks-slots-grid" id="perksSlotsContainer">
+          <!-- Renderizado dinámicamente -->
+        </div>
+        <div class="perks-equipped-hint">
+          💡 Haz clic en una ranura para desequipar.
         </div>
       </div>
-    </div>
 
-    <!-- Center Bottom Controls Console -->
-    <div class="duel-bottom" style="left:50%; right:auto; transform:translateX(-50%); width:auto; max-width:94vw; bottom:20px; display:flex; flex-direction:column; align-items:center; z-index:100; pointer-events:auto;">
-      
-      <!-- Launch Instructions Banner -->
-      <div style="margin-bottom:8px; background:rgba(15,8,29,0.92); padding:6px 20px; border-radius:16px; border:1px solid rgba(59,130,246,0.4); box-shadow:0 0 15px rgba(0,0,0,0.6); font-size:12px; font-weight:800; color:#fbbf24; text-align:center;">
-        ⚡ PULSA EL BOTÓN "LANZAR BOLA 🎳" PARA FIJAR LA POTENCIA Y TIRAR
-      </div>
-
-      <div style="display:flex; align-items:center; gap:16px; background:rgba(15,8,29,0.95); border:1px solid rgba(59,130,246,0.6); box-shadow:0 0 35px rgba(0,0,0,0.9); padding:12px 26px; border-radius:24px; flex-wrap:wrap; justify-content:center; backdrop-filter:blur(16px);">
-        
-        <!-- Aim Left / Right Control -->
-        <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
-          <span style="font-size:10px; font-weight:900; color:#93c5fd;">🎯 APUNTAR (A / D)</span>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <button class="mini-btn" id="bowlingAimLeftBtn" onclick="if(window.updateAimPosition && window.bowlingState){window.updateAimPosition(window.bowlingState.aimOffset-0.15); const sl=document.getElementById('bowlingAimSlider'); if(sl) sl.value=window.bowlingState.aimOffset;}" style="font-size:13px; padding:6px 12px;">◀</button>
-            <input type="range" id="bowlingAimSlider" min="-0.75" max="0.75" step="0.05" value="0" oninput="if(window.updateAimPosition){window.updateAimPosition(parseFloat(this.value));}" style="width:110px; cursor:pointer;">
-            <button class="mini-btn" id="bowlingAimRightBtn" onclick="if(window.updateAimPosition && window.bowlingState){window.updateAimPosition(window.bowlingState.aimOffset+0.15); const sl=document.getElementById('bowlingAimSlider'); if(sl) sl.value=window.bowlingState.aimOffset;}" style="font-size:13px; padding:6px 12px;">▶</button>
-          </div>
+      <!-- RIGHT: BROWSER PANEL CON TABS Y CATÁLOGO -->
+      <div class="perks-browser-panel">
+        <div class="perks-tab-bar">
+          <button class="perks-tab-btn active" data-rarity="master" onclick="switchPerksTab('tab-master', this)">✨ GAMBLER´S DELIGHT</button>
+          <button class="perks-tab-btn" data-rarity="comun" onclick="switchPerksTab('tab-comun', this)">⚪ COMÚN</button>
+          <button class="perks-tab-btn" data-rarity="pocoComun" onclick="switchPerksTab('tab-pocoComun', this)">🟢 POCO COMÚN</button>
+          <button class="perks-tab-btn" data-rarity="raro" onclick="switchPerksTab('tab-raro', this)">🔵 RARO</button>
+          <button class="perks-tab-btn" data-rarity="epico" onclick="switchPerksTab('tab-epico', this)">🟣 ÉPICO</button>
+          <button class="perks-tab-btn" data-rarity="legendario" onclick="switchPerksTab('tab-legendario', this)">🟡 LEGENDARIO</button>
+          <button class="perks-tab-btn" data-rarity="mitico" onclick="switchPerksTab('tab-mitico', this)">🔴 MÍTICO</button>
         </div>
 
-        <!-- Spin / Effect Selector -->
-        <div style="display:flex; flex-direction:column; gap:4px; align-items:center; border-left:1px solid rgba(255,255,255,0.12); padding-left:16px;">
-          <span style="font-size:10px; font-weight:900; color:#93c5fd;">🌀 EFECTO CURVA</span>
-          <div style="display:flex; gap:6px;">
-            <button class="mini-btn bspin-btn" id="bowlingSpinLeft" onclick="if(window.bowlingState){window.bowlingState.spin=-1;document.querySelectorAll('.bspin-btn').forEach(b=>b.style.borderColor='rgba(255,255,255,0.2)');this.style.borderColor='#38bdf8';}" style="font-size:11px; padding:6px 10px;">↺ Gancho Izq</button>
-            <button class="mini-btn bspin-btn" id="bowlingSpinStraight" onclick="if(window.bowlingState){window.bowlingState.spin=0;document.querySelectorAll('.bspin-btn').forEach(b=>b.style.borderColor='rgba(255,255,255,0.2)');this.style.borderColor='#fbbf24';}" style="font-size:11px; padding:6px 10px; border-color:#fbbf24;">| Recto</button>
-            <button class="mini-btn bspin-btn" id="bowlingSpinRight" onclick="if(window.bowlingState){window.bowlingState.spin=1;document.querySelectorAll('.bspin-btn').forEach(b=>b.style.borderColor='rgba(255,255,255,0.2)');this.style.borderColor='#38bdf8';}" style="font-size:11px; padding:6px 10px;">↻ Gancho Der</button>
+        <div class="perks-tab-content">
+          <!-- TAB GAMBLER´S DELIGHT -->
+          <div class="perks-tab-pane active" id="tab-master">
+            <div class="perks-pane-header">
+              <div class="pane-icon" style="color:#fbbf24;">👑</div>
+              <div class="pane-title" style="color:#fbbf24;">Clase de Habilidad · Gambler´s Delight</div>
+              <div class="pane-desc">Habilidades de la clase Gambler´s Delight. Se equipan en esta ranura exclusiva y otorgan un as bajo la manga para cambiar rachas o asegurar ganancias en las mesas.</div>
+            </div>
+            <div class="master-perk-card-container" id="masterPerkCardContainer">
+              <!-- Renderizado dinámicamente -->
+            </div>
+          </div>
+
+          <!-- TABS REGULARES -->
+          <div class="perks-tab-pane" id="tab-comun">
+            <div class="perks-pane-header">
+              <div class="pane-icon" style="color:#94a3b8;">⚪</div>
+              <div class="pane-title" style="color:#94a3b8;">Perks Comunes</div>
+              <div class="pane-desc">Bonificaciones iniciales y estabilidad para tus apuestas.</div>
+            </div>
+            <div class="perks-cards-grid" id="perksList-comun"></div>
+          </div>
+
+          <div class="perks-tab-pane" id="tab-pocoComun">
+            <div class="perks-pane-header">
+              <div class="pane-icon" style="color:#34d399;">🟢</div>
+              <div class="pane-title" style="color:#34d399;">Perks Poco Comunes</div>
+              <div class="pane-desc">Mejoras de rendimiento y multiplicadores balanceados.</div>
+            </div>
+            <div class="perks-cards-grid" id="perksList-poco-comun"></div>
+          </div>
+
+          <div class="perks-tab-pane" id="tab-raro">
+            <div class="perks-pane-header">
+              <div class="pane-icon" style="color:#38bdf8;">🔵</div>
+              <div class="pane-title" style="color:#38bdf8;">Perks Raros</div>
+              <div class="pane-desc">Capacidades tácticas y sinergias especializadas.</div>
+            </div>
+            <div class="perks-cards-grid" id="perksList-raro"></div>
+          </div>
+
+          <div class="perks-tab-pane" id="tab-epico">
+            <div class="perks-pane-header">
+              <div class="pane-icon" style="color:#c084fc;">🟣</div>
+              <div class="pane-title" style="color:#c084fc;">Perks Épicos</div>
+              <div class="pane-desc">Modificadores de juego avanzados y recompensas aumentadas.</div>
+            </div>
+            <div class="perks-cards-grid" id="perksList-epico"></div>
+          </div>
+
+          <div class="perks-tab-pane" id="tab-legendario">
+            <div class="perks-pane-header">
+              <div class="pane-icon" style="color:#facc15;">🟡</div>
+              <div class="pane-title" style="color:#facc15;">Perks Legendarios</div>
+              <div class="pane-desc">Efectos devastadores que transforman las rachas perdedoras en oro puro.</div>
+            </div>
+            <div class="perks-cards-grid" id="perksList-legendario"></div>
+          </div>
+
+          <div class="perks-tab-pane" id="tab-mitico">
+            <div class="perks-pane-header">
+              <div class="pane-icon" style="color:#ff0055;">🔴</div>
+              <div class="pane-title" style="color:#ff0055;">Perks Míticos</div>
+              <div class="pane-desc">Poder absoluto del casino. Probabilidades divinas y multiplicadores astronómicos.</div>
+            </div>
+            <div class="perks-cards-grid" id="perksList-mitico"></div>
           </div>
         </div>
-
-        <!-- Minijuego: Barra Oscilante de Potencia Continua -->
-        <div style="display:flex; flex-direction:column; gap:4px; align-items:center; border-left:1px solid rgba(255,255,255,0.12); padding-left:16px;">
-          <div style="display:flex; justify-content:space-between; width:160px; font-size:10px; font-weight:900;">
-            <span style="color:#93c5fd;">⚡ POTENCIA TIRO</span>
-            <span id="bowlingPowerVal" style="color:#fbbf24; font-size:11px;">50%</span>
-          </div>
-          <div style="width:160px; height:16px; background:rgba(0,0,0,0.7); border-radius:8px; border:1px solid rgba(255,255,255,0.25); overflow:hidden; position:relative;">
-            <div id="bowlingPowerFill" style="width:50%; height:100%; background:linear-gradient(90deg, #10b981 0%, #f59e0b 60%, #ef4444 90%); border-radius:8px; transition:width 0.02s linear;"></div>
-            <!-- Sweet Spot Strike Marker at 90-100% -->
-            <div style="position:absolute; right:0; top:0; bottom:0; width:15%; border-left:2px dashed #fbbf24; background:rgba(239,68,68,0.25); pointer-events:none;"></div>
-          </div>
-        </div>
-
-        <!-- Launch / Action Button -->
-        <button class="action-btn" id="bowlingRollBtn" onclick="launchBowlingBall()" style="background:linear-gradient(135deg, #3b82f6, #1d4ed8); font-weight:900; font-size:15px; padding:12px 28px; border-radius:16px; box-shadow:0 0 25px rgba(59,130,246,0.6);">
-          LANZAR 🎳
-        </button>
       </div>
     </div>
   </div>
 
-  <!-- ================= YOUTUBE 3D TV MODAL ================= -->
+<!-- ================= YOUTUBE 3D TV MODAL ================= -->
   <div class="tv-modal" id="tvModal">
     <div class="tv-modal-title">
       <span>📺 REPRODUCTOR TV CASINO 3D</span>
-      <button class="icon-btn" id="closeTvModalBtn" onclick="closeTVModal()" style="width:32px; height:32px; cursor:pointer; font-size:16px;" title="Cerrar reproductor [ESC]">✕</button>
+      <button class="icon-btn" id="closeTvModalBtn" style="width:30px;height:30px;">✕</button>
     </div>
 
     <div style="font-size:12px; color:var(--dim); line-height:1.4;">
@@ -801,24 +1191,6 @@
     <div class="tv-url-input">
       <input type="text" id="youtubeUrlInput" placeholder="Pega una URL o ID de vídeo de YouTube...">
       <button id="loadYoutubeBtn">CARGAR 📺</button>
-    </div>
-
-    <!-- Scrubber Slider de Minuto / Posición -->
-    <div class="tv-scrubber-row">
-      <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:800;">
-        <span style="color:#EDE7F6; display:flex; align-items:center; gap:6px;">⏱️ POSICIÓN / MINUTO DEL VÍDEO</span>
-        <div style="display:flex; gap:4px; font-family:monospace; font-size:12px; font-weight:700;">
-          <span id="tvTimeCurrent" style="color:#38bdf8;">0:00</span>
-          <span style="color:var(--dim);">/</span>
-          <span id="tvTimeDuration" style="color:var(--dim);">0:00</span>
-        </div>
-      </div>
-      <input type="range" class="tv-scrubber-slider" id="tvTimeSlider" min="0" max="100" value="0" step="1"
-        style="--fillpct:0%;" title="Arrastra para saltar de minuto">
-      <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--dim); line-height:1.2;">
-        <span>Arrastra para saltar de minuto en toda la sala</span>
-        <span id="tvTimeHoverPreview" style="color:#fbdf24; font-weight:700;"></span>
-      </div>
     </div>
 
     <div class="tv-volume-row">
@@ -854,118 +1226,14 @@
     </div>
   </div>
 
-  <!-- ================= PERKS TABBED MENU MODAL ================= -->
-  <div class="perks-modal" id="perksModal">
-    <div class="tv-modal-title">
-      <span style="display:flex; align-items:center; gap:8px;">⚡ MENÚ DE PERKS Y HABILIDADES</span>
-      <button class="icon-btn" id="closePerksModalBtn" onclick="closePerksModal()" style="width:32px; height:32px; cursor:pointer; font-size:16px;" title="Cerrar [ESC]">✕</button>
-    </div>
-
-    <!-- Layout Dividido: Ranuras de Equipamiento a la Izquierda + Catálogo a la Derecha -->
-    <div class="perks-main-layout">
-      <!-- Panel Izquierdo: 8 Ranuras para Equipar Perks -->
-      <div class="perks-equipped-sidebar">
-        <div class="perks-sidebar-header">
-          <div style="display:flex; align-items:center; gap:6px; font-weight:900; font-size:12px; color:#fff;">
-            <span>⚡ PERKS EQUIPADOS</span>
-          </div>
-          <span id="perksEquippedCount" class="perks-slot-count-badge">0 / 8</span>
-        </div>
-
-        <!-- Rejilla de 8 Ranuras (2 columnas x 4 filas) -->
-        <div class="perks-slots-grid" id="perksSlotsContainer">
-          <!-- Generadas dinámicamente por JS (8 ranuras) -->
-        </div>
-
-        <div class="perks-equipped-hint">
-          💡 Clic en una ranura ocupada para desequipar.
-        </div>
-      </div>
-
-      <!-- Panel Derecho: Selector por Pestañas de Rareza -->
-      <div class="perks-browser-panel">
-        <!-- Pestañas por Rarezas del Gachapón -->
-        <div class="perks-tab-bar">
-          <button class="perks-tab-btn active" data-rarity="comun" onclick="switchPerksTab('tab-comun', this)">🍀 Común</button>
-          <button class="perks-tab-btn" data-rarity="pocoComun" onclick="switchPerksTab('tab-poco-comun', this)">⭐ Poco Común</button>
-          <button class="perks-tab-btn" data-rarity="raro" onclick="switchPerksTab('tab-raro', this)">💎 Raro</button>
-          <button class="perks-tab-btn" data-rarity="epico" onclick="switchPerksTab('tab-epico', this)">🔥 Épico</button>
-          <button class="perks-tab-btn" data-rarity="legendario" onclick="switchPerksTab('tab-legendario', this)">👑 Legendario</button>
-          <button class="perks-tab-btn" data-rarity="mitico" onclick="switchPerksTab('tab-mitico', this)">🐉 Mítico</button>
-        </div>
-
-        <!-- Contenido de Pestañas -->
-        <div class="perks-tab-content">
-          <div class="perks-tab-pane active" id="tab-comun">
-            <div class="perks-pane-header" style="border-color: rgba(148, 163, 184, 0.4);">
-              <div class="pane-icon">🍀</div>
-              <div class="pane-title" style="color: #94a3b8;">Perks de Rareza Común</div>
-              <div class="pane-desc">Ventajas iniciales, bonificaciones básicas y multiplicadores de inicio.</div>
-            </div>
-            <div class="perks-cards-grid" id="perksList-comun"></div>
-          </div>
-
-          <div class="perks-tab-pane" id="tab-poco-comun">
-            <div class="perks-pane-header" style="border-color: rgba(52, 211, 153, 0.4);">
-              <div class="pane-icon">⭐</div>
-              <div class="pane-title" style="color: #34d399;">Perks Poco Comunes</div>
-              <div class="pane-desc">Potenciadores de suerte, mejoras de experiencia y recompensas aumentadas.</div>
-            </div>
-            <div class="perks-cards-grid" id="perksList-poco-comun"></div>
-          </div>
-
-          <div class="perks-tab-pane" id="tab-raro">
-            <div class="perks-pane-header" style="border-color: rgba(56, 189, 248, 0.4);">
-              <div class="pane-icon">💎</div>
-              <div class="pane-title" style="color: #38bdf8;">Perks Raros</div>
-              <div class="pane-desc">Habilidades especiales para mesas de juegos, rachas y descuentos exclusivos.</div>
-            </div>
-            <div class="perks-cards-grid" id="perksList-raro"></div>
-          </div>
-
-          <div class="perks-tab-pane" id="tab-epico">
-            <div class="perks-pane-header" style="border-color: rgba(192, 132, 252, 0.4);">
-              <div class="pane-icon">🔥</div>
-              <div class="pane-title" style="color: #c084fc;">Perks Épicos</div>
-              <div class="pane-desc">Multiplicadores de alto calibre, inmunidad a rachas negativas y mejoras astrales.</div>
-            </div>
-            <div class="perks-cards-grid" id="perksList-epico"></div>
-          </div>
-
-          <div class="perks-tab-pane" id="tab-legendario">
-            <div class="perks-pane-header" style="border-color: rgba(250, 204, 21, 0.4);">
-              <div class="pane-icon">👑</div>
-              <div class="pane-title" style="color: #facc15;">Perks Legendarios</div>
-              <div class="pane-desc">Privilegios de la realeza dorada, jackpots aumentados y beneficios VIP supremos.</div>
-            </div>
-            <div class="perks-cards-grid" id="perksList-legendario"></div>
-          </div>
-
-          <div class="perks-tab-pane" id="tab-mitico">
-            <div class="perks-pane-header" style="border-color: rgba(255, 0, 85, 0.4);">
-              <div class="pane-icon">🐉</div>
-              <div class="pane-title" style="color: #ff0055;">Perks Míticos Supremos</div>
-              <div class="pane-desc">Habilidades legendarias del Dragón Ancestral con poder y multiplicadores máximos (0.1%).</div>
-            </div>
-            <div class="perks-cards-grid" id="perksList-mitico"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:4px;">
-      <button class="action-btn" onclick="closePerksModal()" style="padding:8px 22px; font-size:12px;">CERRAR ✕</button>
-    </div>
-  </div>
-
   <!-- ================= 3D TV IFRAME OVERLAY (NATIVE 4K ULTRA HD CSS3D OBJECT) ================= -->
   <div id="tvIframeOverlay"
-    style="position:absolute; width:3840px; height:2160px; z-index:100; pointer-events:auto !important; display:block; transform-origin:50% 50%; border-radius:12px; overflow:hidden;">
-    <div id="tvYoutubePlayerContainer" style="width:3840px; height:2160px; pointer-events:auto !important;">
+    style="position:absolute; width:3840px; height:2160px; z-index:1; pointer-events:auto; display:block; transform-origin:50% 50%; border-radius:12px; overflow:hidden;">
+    <div id="tvYoutubePlayerContainer" style="width:3840px; height:2160px; pointer-events:auto;">
       <iframe id="tvIframeElement" width="100%" height="100%" src="about:blank" frameborder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowfullscreen referrerpolicy="strict-origin-when-cross-origin"
-        style="width:100%; height:100%; border:none; pointer-events:auto !important; display:block;">
+        style="width:100%; height:100%; border:none; pointer-events:auto;">
       </iframe>
     </div>
   </div>
@@ -1090,7 +1358,7 @@
   <script src="js/render.js"></script>
   <script src="js/player.js"></script>
   <script src="js/network.js"></script>
-  <script src="js/ui.js"></script>
+  <script src="js/ui.js?v=5.0"></script>
   <script src="js/tv.js"></script>
   <script src="js/jukebox.js"></script>
   <script src="js/games/roulette.js"></script>
@@ -1100,9 +1368,70 @@
   <script src="js/games/plinko.js"></script>
   <script src="js/games/fortuneWheel.js"></script>
   <script src="js/games/coin.js"></script>
-  <script src="js/games/poker.js"></script>
-  <script src="js/games/bowling.js"></script>
   <script src="js/main.js"></script>
+  <!-- Inline Gamblers Delight Script: Direct DOM trigger bypassing external script cache -->
+  <script id="gamblers-delight-script">
+    function triggerGamblersDelight(gameId, evt) {
+      console.log('[Gamblers Delight] Clicked for game:', gameId);
+      if (typeof playSound === 'function') playSound('win');
+
+      try {
+        const ev = evt || (typeof window !== 'undefined' ? window.event : null);
+        let btn = ev ? (ev.currentTarget || ev.target) : null;
+        if (btn && !btn.classList.contains('gamblers-delight-img-btn')) {
+          btn = btn.closest ? btn.closest('.gamblers-delight-img-btn') : null;
+        }
+        if (!btn && typeof document !== 'undefined') {
+          const activeOverlay = document.querySelector('.game-overlay.show') || document.querySelector('#' + gameId + 'Wrap');
+          if (activeOverlay) {
+            btn = activeOverlay.querySelector('.gamblers-delight-img-btn');
+          }
+          if (!btn) {
+            btn = document.querySelector('.gamblers-delight-img-btn');
+          }
+        }
+
+        if (btn) {
+          btn.classList.remove('gd-bounce-active');
+          const backdrop = btn.parentElement ? btn.parentElement.querySelector('.gamblers-delight-glow-backdrop') : null;
+          if (backdrop) backdrop.classList.remove('gd-burst');
+
+          void btn.offsetWidth; // Force instant reflow
+
+          btn.classList.add('gd-bounce-active');
+          if (backdrop) backdrop.classList.add('gd-burst');
+
+          setTimeout(function() {
+            btn.classList.remove('gd-bounce-active');
+            if (backdrop) backdrop.classList.remove('gd-burst');
+          }, 700);
+        }
+      } catch (err) {
+        console.error('[Gamblers Delight] Animation trigger error:', err);
+      }
+
+      if (typeof showToast === 'function') {
+        const gameNames = {
+          roulette: 'Ruleta 3D',
+          dice: 'Dados 3D',
+          blackjack: 'Blackjack 3D',
+          mines: 'Buscaminas Arcade',
+          plinko: 'Plinko 3D',
+          wheel: 'Ruleta de la Fortuna',
+          coin: 'Coin Flip 3D',
+          slots: 'Slots 5x5',
+          pachinko: 'Gachapón 3D',
+          tragaperras: 'Tragaperras 777',
+          poker: 'Póker 3D',
+          bowling: 'Bolera 3D',
+          jackpot: 'Jackpot Millions'
+        };
+        const gName = gameNames[gameId] || gameId || 'esta máquina';
+        showToast('✨ GAMBLERS DELIGHT: ¡As bajo la manga activado para ' + gName + '! (Modo Testeo) 🃏');
+      }
+    }
+    window.triggerGamblersDelight = triggerGamblersDelight;
+  </script>
 </body>
 
 </html>

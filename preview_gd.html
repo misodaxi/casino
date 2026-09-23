@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Preview Gamblers Delight Button</title>
+  <link rel="stylesheet" href="css/styles.css?v=5.0">
+  <style>
+    body {
+      background: #090514;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      font-family: sans-serif;
+    }
+    .preview-card {
+      background: rgba(20, 10, 35, 0.85);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: 16px;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+  </style>
+  <script src="js/ui.js?v=5.0"></script>
+</head>
+<body>
+  <div class="preview-card">
+    <div style="color:#fde047; font-weight: bold; font-size: 14px;">VISTA PREVIA DEL BOTÓN GAMBLERS DELIGHT</div>
+    
+    <div class="gamblers-delight-wrap" style="position:relative;display:flex;justify-content:center;align-items:center;margin:3px 0 6px 0;z-index:35;pointer-events:auto;background:transparent !important;border:none !important;">
+      <div class="gamblers-delight-glow-backdrop"></div>
+      <button class="gamblers-delight-img-btn" onclick="triggerGamblersDelight('poker', event)" title="Gamblers Delight: As bajo la manga · 1 uso cada varias partidas" style="background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;padding:0 !important;margin:0 !important;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;">
+        <img src="assets/gamblers_delight.png?v=5.0" alt="Gamblers Delight" class="gamblers-delight-img" draggable="false" width="170" height="85" style="width:170px;max-width:175px;height:auto;max-height:85px;aspect-ratio:2/1;display:block;background:transparent !important;border:none !important;outline:none !important;pointer-events:none;">
+      </button>
+    </div>
+
+    <button style="background:linear-gradient(135deg, #f59e0b, #d97706); border:none; color:white; font-weight:bold; padding:10px 20px; border-radius:12px; cursor:pointer;">VER CARTAS / JUGAR ♠</button>
+  </div>
+</body>
+</html>

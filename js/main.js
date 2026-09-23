@@ -48,6 +48,14 @@
       }
 
       window.addEventListener('keydown', (e) => {
+        if (e.key === 'p' || e.key === 'P') {
+          if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+          if (typeof openPerksModal === 'function') {
+            var m = document.getElementById('perksModal');
+            if (m && m.classList.contains('show')) closePerksModal();
+            else openPerksModal();
+          }
+        }
         if (e.key === 'F3') {
           e.preventDefault();
           if (debugHudEl) debugHudEl.classList.toggle('show');

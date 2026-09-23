@@ -69,10 +69,10 @@
         mState.revealed[idx] = true;
 
         if (mState.grid[idx] === 'bomb') {
-          const perkLuck = (typeof getPerkBonus === 'function') ? getPerkBonus('flatWinBonus') : 0;
-          if (perkLuck > 0 && Math.random() < (perkLuck * 2.5)) {
+          const perkLuck = (typeof getPerkBonus === 'function') ? (getPerkBonus('minesWinBonus') + getPerkBonus('flatWinBonus')) : 0;
+          if (perkLuck > 0 && Math.random() < Math.min(0.90, perkLuck * 2.5)) {
             mState.grid[idx] = 'gem';
-            if (typeof showToast === 'function') showToast('🍀 ¡SUERTE DEL TRÉBOL! ¡Bomba desactivada milagrosamente!');
+            if (typeof showToast === 'function') showToast('💣 ¡DETECTOR DE MINAS! ¡Bomba desactivada milagrosamente!');
           }
         }
 

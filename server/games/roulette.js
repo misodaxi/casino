@@ -1,3 +1,81 @@
+
+const ROULETTE_RED_NUMS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+const ROULETTE_BLACK_NUMS = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35];
+
+function getRouletteTargetNumbers(targetKey) {
+  if (!targetKey) return [];
+  if (targetKey.startsWith('num-')) {
+    const n = parseInt(targetKey.replace('num-', ''), 10);
+    return isNaN(n) ? [] : [n];
+  }
+  if (targetKey === 'dozen1') return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  if (targetKey === 'dozen2') return [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24];
+  if (targetKey === 'dozen3') return [25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36];
+  if (targetKey === 'red') return ROULETTE_RED_NUMS;
+  if (targetKey === 'black') return ROULETTE_BLACK_NUMS;
+  if (targetKey === 'low') return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+  if (targetKey === 'high') return [19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36];
+  if (targetKey === 'even') return [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36];
+  if (targetKey === 'odd') return [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35];
+  return [];
+}
+
+function calculateRouletteWeights(perksList, otherPlayersCount, activeBetKeys) {
+  const weights = {};
+  for (let n = 0; n <= 36; n++) {
+    weights[n] = 1.0;
+  }
+  if (!Array.isArray(perksList)) return weights;
+
+  perksList.forEach(perk => {
+    if (!perk || !perk.effects) return;
+    const target = perk.effects.rouletteTarget;
+    const bonus = perk.effects.rouletteWeightBonus;
+    if (target && typeof bonus === 'number' && bonus > 0) {
+      const affected = getRouletteTargetNumbers(target);
+      affected.forEach(num => {
+        if (weights[num] !== undefined) {
+          weights[num] += bonus;
+        }
+      });
+    }
+
+    if (typeof perk.effects.roulettePerPlayerBonus === 'number' && (otherPlayersCount || 0) > 0) {
+      const extraWeight = (otherPlayersCount || 0) * perk.effects.roulettePerPlayerBonus;
+      if (Array.isArray(activeBetKeys) && activeBetKeys.length > 0) {
+        activeBetKeys.forEach(k => {
+          const affected = getRouletteTargetNumbers(k);
+          affected.forEach(num => {
+            if (weights[num] !== undefined) {
+              weights[num] += extraWeight;
+            }
+          });
+        });
+      } else {
+        for (let n = 0; n <= 36; n++) {
+          weights[n] += (extraWeight / 2);
+        }
+      }
+    }
+  });
+
+  return weights;
+}
+
+function pickWeightedRouletteNumber(weights) {
+  let totalWeight = 0;
+  for (let n = 0; n <= 36; n++) {
+    totalWeight += (weights && typeof weights[n] === 'number') ? weights[n] : 1.0;
+  }
+  let rnd = Math.random() * totalWeight;
+  for (let n = 0; n <= 36; n++) {
+    const w = (weights && typeof weights[n] === 'number') ? weights[n] : 1.0;
+    if (rnd < w) return n;
+    rnd -= w;
+  }
+  return Math.floor(Math.random() * 37);
+}
+
 // ============================================================
 // AUTHORITATIVE MULTIPLAYER ROULETTE ENGINE (SERVER)
 // ============================================================
@@ -55,11 +133,30 @@ function checkAndTriggerSpin(io, rouletteId) {
   if (totalPlayers > 0 && totalReady === totalPlayers && totalTableBets > 0 && (r.status === 'WAITING' || r.status === 'READY')) {
     r.status = 'SPINNING';
     r.spinId++;
-    let winNum = WHEEL_ORDER[Math.floor(Math.random() * WHEEL_ORDER.length)];
 
-    // Bonificación de probabilidad en ruleta para apuestas activas
+    // Collect all table players' equipped perks and calculate stacked weights
+    const allTablePerks = [];
+    const otherPlayersCount = Math.max(0, totalPlayers - 1);
+    let synergyWinBonus = 0;
+
+    Object.values(r.players || {}).forEach(p => {
+      if (p && Array.isArray(p.perks)) {
+        allTablePerks.push(...p.perks);
+        p.perks.forEach(pk => {
+          if (pk && pk.effects && typeof pk.effects.roulettePerPlayerBonus === 'number') {
+            synergyWinBonus += otherPlayersCount * pk.effects.roulettePerPlayerBonus;
+          }
+        });
+      }
+    });
+
     const activeBetsKeys = Object.keys(r.bets || {});
-    if (activeBetsKeys.length > 0 && Math.random() < 0.10) {
+    const rouletteWeights = calculateRouletteWeights(allTablePerks, otherPlayersCount, activeBetsKeys);
+    let winNum = pickWeightedRouletteNumber(rouletteWeights);
+
+    // Bonificación de probabilidad en ruleta para apuestas activas (base 10% + bonus de sinergia)
+    const totalWinChance = Math.min(0.85, 0.10 + synergyWinBonus);
+    if (activeBetsKeys.length > 0 && Math.random() < totalWinChance) {
       const candidates = [];
       activeBetsKeys.forEach(k => {
         if (k.startsWith('num-')) {
@@ -136,7 +233,8 @@ function setupRouletteSocketEvents(io, socket, players) {
     r.players[socket.id] = {
       id: socket.id,
       name: (players[socket.id] && players[socket.id].name) || 'Jugador',
-      seatIndex: data.seatIndex || 0
+      seatIndex: data.seatIndex || 0,
+      perks: Array.isArray(data.perks) ? data.perks : []
     };
 
     broadcastRouletteState(io, rId);
@@ -179,6 +277,9 @@ function setupRouletteSocketEvents(io, socket, players) {
           return;
         }
 
+        if (data && Array.isArray(data.perks)) {
+          r.players[socket.id].perks = data.perks;
+        }
         r.readyPlayers[socket.id] = true;
         broadcastRouletteState(io, rId);
         checkAndTriggerSpin(io, rId);

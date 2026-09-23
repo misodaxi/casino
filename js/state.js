@@ -40,6 +40,8 @@
         savedUnlockedLocal = JSON.parse(localStorage.getItem('casino_unlocked_perks')) || [];
       } catch (e) {}
 
+      var savedGDLocal = localStorage.getItem('casino_gd_equipped');
+      var savedGD = savedGDLocal === null ? true : (savedGDLocal === 'true');
       var savedPerksLocal = null;
       try {
         savedPerksLocal = JSON.parse(localStorage.getItem('casino_equipped_perks'));
@@ -61,6 +63,7 @@
         savedCasinoCam: null,
         unlockedPerks: Array.isArray(savedUnlockedLocal) ? savedUnlockedLocal : [],
         equippedPerks: savedPerksLocal,
+        gamblersDelightEquipped: savedGD,
       };
 
       function getPerkBonus(bonusKey) {
@@ -68,8 +71,21 @@
         let totalBonus = 0;
         for (let i = 0; i < state.equippedPerks.length; i++) {
           const perk = state.equippedPerks[i];
-          if (perk && perk.effects && typeof perk.effects[bonusKey] === 'number') {
+          if (!perk || !perk.effects) continue;
+          if (typeof perk.effects[bonusKey] === 'number') {
             totalBonus += perk.effects[bonusKey];
+          } else if (typeof perk.effects.penaltyOthers === 'number' && perk.effects.focusTarget && perk.effects.focusTarget !== bonusKey && bonusKey !== 'flatWinBonus') {
+            totalBonus -= perk.effects.penaltyOthers;
+          }
+          if (bonusKey === 'rouletteWinBonus' && typeof perk.effects.roulettePerPlayerBonus === 'number') {
+            let otherCount = 0;
+            if (typeof rouletteServerState !== 'undefined' && rouletteServerState) {
+              const totalP = typeof rouletteServerState.totalPlayers === 'number'
+                ? rouletteServerState.totalPlayers
+                : (rouletteServerState.players ? Object.keys(rouletteServerState.players).length : 0);
+              otherCount = Math.max(0, totalP - 1);
+            }
+            totalBonus += otherCount * perk.effects.roulettePerPlayerBonus;
           }
         }
         return totalBonus;

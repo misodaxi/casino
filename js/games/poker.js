@@ -626,7 +626,38 @@
         s.bet = initialBet;
         s.chips = Math.max(0, s.chips - initialBet);
       }
-      s.cards = [pState.deck.pop(), pState.deck.pop()];
+      if (s.isBot) {
+        s.cards = [pState.deck.pop(), pState.deck.pop()];
+      } else {
+        const pokerBonus = (typeof getPerkBonus === 'function') ? (getPerkBonus('pokerWinBonus') + getPerkBonus('flatWinBonus')) : 0;
+        if (pokerBonus > 0 && Math.random() < pokerBonus) {
+          const highVals = ['A', 'K', 'Q', 'J', '10'];
+          const targetVal = highVals[Math.floor(Math.random() * highVals.length)];
+          const matchingIndices = [];
+          pState.deck.forEach((c, idx) => { if (c.v === targetVal) matchingIndices.push(idx); });
+          if (matchingIndices.length >= 2) {
+            const i1 = matchingIndices[0];
+            const i2 = matchingIndices[1];
+            const c1 = pState.deck.splice(Math.max(i1, i2), 1)[0];
+            const c2 = pState.deck.splice(Math.min(i1, i2), 1)[0];
+            s.cards = [c1, c2];
+          } else {
+            s.cards = [pState.deck.pop(), pState.deck.pop()];
+          }
+        } else if (pokerBonus < 0 && Math.random() < Math.abs(pokerBonus)) {
+          const c2Idx = pState.deck.findIndex(c => c.v === '2');
+          const c7Idx = pState.deck.findIndex(c => c.v === '7');
+          if (c2Idx >= 0 && c7Idx >= 0 && c2Idx !== c7Idx) {
+            const c1 = pState.deck.splice(Math.max(c2Idx, c7Idx), 1)[0];
+            const c2 = pState.deck.splice(Math.min(c2Idx, c7Idx), 1)[0];
+            s.cards = [c1, c2];
+          } else {
+            s.cards = [pState.deck.pop(), pState.deck.pop()];
+          }
+        } else {
+          s.cards = [pState.deck.pop(), pState.deck.pop()];
+        }
+      }
     });
 
     if (typeof update3DPokerChips === 'function') update3DPokerChips();
@@ -699,8 +730,25 @@
     const winnerObj = evaluations[0];
     const isPlayerWinner = (!winnerObj.seat.isBot);
 
-    // Award Pot
-    const winPot = roundMoney(pState.pot);
+    let appliedMultiplier = 1.0;
+    if (isPlayerWinner && state.equippedPerks && winnerObj.ev) {
+      const handRank = winnerObj.ev.rank;
+      let totalBonus = 0;
+      state.equippedPerks.forEach(p => {
+        if (p && p.effects && p.effects.pokerUnderdogMultipliers) {
+          const m = p.effects.pokerUnderdogMultipliers[handRank];
+          if (typeof m === 'number' && m > 1.0) {
+            totalBonus += (m - 1.0);
+          }
+        }
+      });
+      if (totalBonus > 0) {
+        appliedMultiplier = Math.round((1.0 + totalBonus) * 10000) / 10000;
+      }
+    }
+
+    const basePot = roundMoney(pState.pot);
+    const winPot = roundMoney(basePot * appliedMultiplier);
     winnerObj.seat.chips += winPot;
 
     const banner = document.getElementById('pokerResultBanner');
@@ -712,10 +760,15 @@
       state.balance += winPot;
       updateBalanceUI();
       addXP(300);
-      showToast(`🏆 ¡VICTORIA! Ganaste el Bote de Póker de ${formatMoney(winPot)} con ${winnerObj.ev.name}!`);
-
-      if (titleEl) titleEl.textContent = '🏆 ¡HAS GANADO EL BOTE!';
-      if (descEl) descEl.textContent = `${winnerObj.ev.name} (+${formatMoney(winPot)})`;
+      if (appliedMultiplier > 1.0) {
+        showToast(`🎭 ¡FAROL MAESTRO (x${appliedMultiplier})! Ganaste el Bote aumentado de ${formatMoney(winPot)} con ${winnerObj.ev.name}!`);
+        if (titleEl) titleEl.textContent = `🎭 ¡BOTE MULTIPLICADO x${appliedMultiplier}!`;
+        if (descEl) descEl.textContent = `${winnerObj.ev.name} • Bote base ${formatMoney(basePot)} ➔ (+${formatMoney(winPot)})`;
+      } else {
+        showToast(`🏆 ¡VICTORIA! Ganaste el Bote de Póker de ${formatMoney(winPot)} con ${winnerObj.ev.name}!`);
+        if (titleEl) titleEl.textContent = '🏆 ¡HAS GANADO EL BOTE!';
+        if (descEl) descEl.textContent = `${winnerObj.ev.name} (+${formatMoney(winPot)})`;
+      }
     } else {
       playSound('dice');
       if (titleEl) titleEl.textContent = `👑 GANADOR: ${winnerObj.seat.name}`;
@@ -727,7 +780,10 @@
     pState.phase = 'ENDED';
     pState.inHand = false;
     updatePokerHUD();
-    setPokerStatus(`🏁 <strong>SHOWDOWN</strong>: Ganador: ${winnerObj.seat.name} con ${winnerObj.ev.name}.`);
+    const winStatusMsg = (isPlayerWinner && appliedMultiplier > 1.0)
+      ? `🏁 <strong>SHOWDOWN</strong>: ¡Ganaste con mano débil (${winnerObj.ev.name})! Multiplicador <strong>x${appliedMultiplier}</strong> aplicado (${formatMoney(winPot)}).`
+      : `🏁 <strong>SHOWDOWN</strong>: Ganador: ${winnerObj.seat.name} con ${winnerObj.ev.name}.`;
+    setPokerStatus(winStatusMsg);
   }
 
   function endHandNoWinners() {
